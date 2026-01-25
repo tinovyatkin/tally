@@ -1,0 +1,20 @@
+{
+  "name": "@contino/tally-windows-x64",
+  "version": "0.1.0",
+  "description": "The Windows 64-bit binary for tally",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tinovyatkin/tally.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tinovyatkin/tally/issues"
+  },
+  "homepage": "https://github.com/tinovyatkin/tally#readme",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@contino/tally",
+  "version": "0.1.0",
+  "description": "A fast, configurable linter for Dockerfiles and Containerfiles",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tinovyatkin/tally.git"
+  },
+  "main": "bin/index.js",
+  "files": [
+    "postinstall.js",
+    "get-exe.js"
+  ],
+  "bin": {
+    "tally": "bin/index.js"
+  },
+  "keywords": [
+    "docker",
+    "dockerfile",
+    "containerfile",
+    "linter",
+    "lint",
+    "container"
+  ],
+  "author": "tinovyatkin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tinovyatkin/tally/issues"
+  },
+  "homepage": "https://github.com/tinovyatkin/tally#readme",
+  "optionalDependencies": {
+    "@contino/tally-darwin-arm64": "0.1.0",
+    "@contino/tally-darwin-x64": "0.1.0",
+    "@contino/tally-linux-arm64": "0.1.0",
+    "@contino/tally-linux-x64": "0.1.0",
+    "@contino/tally-windows-arm64": "0.1.0",
+    "@contino/tally-windows-x64": "0.1.0",
+    "@contino/tally-freebsd-x64": "0.1.0"
+  },
+  "scripts": {
+    "postinstall": "node postinstall.js"
+  }
+}

@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@v2.1.0
+
+      - name: Build
+        run: go build ./...
+
+      - name: Run unit tests with coverage
+        run: go test ./... -v -json -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./... 2>&1 | go-junit-report -set-exit-code -iocopy -out junit.xml
+
+      - name: Run integration tests with coverage
+        run: |
+          # Integration tests use -cover build and write binary coverage data
+          go test ./internal/integration/... -v -json 2>&1 | go-junit-report -set-exit-code -iocopy -out junit-integration.xml
+          # Convert binary coverage data to text format
+          go tool covdata textfmt -i=coverage -o=coverage-integration.txt
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          use_oidc: true
+          files: coverage.out,coverage-integration.txt
+          fail_ci_if_error: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          report_type: test_results
+          use_oidc: true
+          files: junit.xml,junit-integration.xml
+          fail_ci_if_error: true
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest

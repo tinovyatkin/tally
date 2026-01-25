@@ -1,0 +1,59 @@
+# Codecov configuration
+# https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  status:
+    project:
+      default:
+        target: 42%
+        threshold: 2%
+    patch:
+      default:
+        target: 80%
+
+ignore:
+  - "internal/testutil/**"
+  - "internal/integration/testdata/**"
+
+# Test analytics configuration
+# https://docs.codecov.com/docs/test-analytics
+test_analytics:
+  enabled: true
+
+# Comment configuration
+comment:
+  layout: "reach,diff,flags,tree,betaprofiling"
+  behavior: default
+  require_changes: false
+  require_base: true
+  require_head: true
+  show_carryforward_flags: true
+  show_critical_paths: true
+
+  # Test results in PR comments
+  show_test_results: true
+
+# Parsers configuration
+parsers:
+  junit:
+    branch_detection:
+      conditional: true
+      loop: true
+      method: false
+      macro: false
+
+# GitHub integration
+github_checks:
+  annotations: true
+
+# Status checks configuration
+status_checks:
+  default_rules:
+    flag_coverage_not_uploaded_behavior: include
+    carryforward_behavior: include
+
+# Codecov CI settings
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true

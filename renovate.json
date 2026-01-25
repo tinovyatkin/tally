@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", ":gitSignOff", ":semanticCommits"],
+  "dependencyDashboard": false,
+  "automerge": true,
+  "platformAutomerge": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
+  "schedule": ["after 9am and before 5pm every weekday", "every weekend"],
+  "timezone": "UTC",
+  "labels": ["dependencies", "renovate"],
+  "commitMessagePrefix": "chore(deps):",
+  "semanticCommits": "enabled",
+  "rebaseWhen": "conflicted",
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "matchDepTypes": ["dependencies"],
+      "bumpVersion": "patch"
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": ["internal/integration/testdata/**"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "pinDigests": false
+    },
+    {
+      "matchManagers": ["pep621"],
+      "matchFileNames": ["packaging/pypi/pyproject.toml"],
+      "matchDepNames": ["python"],
+      "enabled": false
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags
+        run: git fetch --force --tags
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Preserve artifacts permissions with tar
+        run: tar -cvf dist.tar dist/
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist
+          path: dist.tar
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+      - run: tar -xvf dist.tar
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.0
+
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Publish to NPM
+        run: |
+          cd packaging/
+          ruby pack.rb prepare
+          ruby pack.rb publish_npm
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+      - run: tar -xvf dist.tar
+
+      - name: Setup uv with python
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          ignore-nothing-to-cache: true
+
+      - name: Publish to PyPI
+        run: |
+          cd packaging/
+          ruby pack.rb prepare
+          ruby pack.rb publish_pypi
+
+  publish-gem:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+      - run: tar -xvf dist.tar
+
+      - name: Configure RubyGems Trusted Publishing
+        uses: rubygems/configure-rubygems-credentials@main
+
+      - name: Publish to Rubygems
+        run: |
+          cd packaging/
+          ruby pack.rb prepare
+          ruby pack.rb publish_gem
