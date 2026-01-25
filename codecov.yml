@@ -1,11 +1,12 @@
 # Codecov configuration
 # https://docs.codecov.com/docs/codecovyml-reference
+# yaml-language-server: $schema=https://json.schemastore.org/codecov.json
 
 coverage:
   status:
     project:
       default:
-        target: 42%
+        target: 60%
         threshold: 2%
     patch:
       default:
@@ -22,12 +23,10 @@ test_analytics:
 
 # Comment configuration
 comment:
-  layout: "reach,diff,flags,tree,betaprofiling"
   behavior: default
   require_changes: false
   require_base: true
   require_head: true
-  show_carryforward_flags: true
   show_critical_paths: true
 
   # Test results in PR comments
@@ -50,10 +49,6 @@ github_checks:
 status_checks:
   default_rules:
     flag_coverage_not_uploaded_behavior: include
-    carryforward_behavior: include
 
-# Codecov CI settings
-codecov:
-  require_ci_to_pass: true
-  notify:
-    wait_for_ci: true
+
+
