@@ -132,6 +132,14 @@ func loadWithConfigPath(configPath string) (*Config, error) {
 	return cfg, nil
 }
 
+// knownHyphenatedKeys maps dot-separated patterns to their hyphenated equivalents.
+// Add new entries here when adding rules with hyphenated names.
+var knownHyphenatedKeys = map[string]string{
+	"max.lines":        "max-lines",
+	"skip.blank.lines": "skip-blank-lines",
+	"skip.comments":    "skip-comments",
+}
+
 // envKeyTransform converts environment variable names to config keys.
 // TALLY_FORMAT -> format
 // TALLY_RULES_MAX_LINES_MAX -> rules.max-lines.max
@@ -144,10 +152,10 @@ func envKeyTransform(s string) string {
 	// RULES_MAX_LINES_MAX -> rules.max-lines.max
 	// RULES_MAX_LINES_SKIP_BLANK_LINES -> rules.max-lines.skip-blank-lines
 	s = strings.ReplaceAll(s, "_", ".")
-	// Now fix known hyphenated keys
-	s = strings.ReplaceAll(s, "max.lines", "max-lines")
-	s = strings.ReplaceAll(s, "skip.blank.lines", "skip-blank-lines")
-	s = strings.ReplaceAll(s, "skip.comments", "skip-comments")
+	// Fix known hyphenated keys using lookup table
+	for pattern, replacement := range knownHyphenatedKeys {
+		s = strings.ReplaceAll(s, pattern, replacement)
+	}
 	return s
 }
 
