@@ -185,8 +185,8 @@ These are explicitly front-loaded to avoid cross-blocking later.
 1. Build `SemanticModel` in a dedicated pass (or builder) and keep it parser-agnostic. ([03](03-parsing-and-ast.md))
 2. Track the v1 essentials:
    - Stages + stage order
-   - Duplicate stage names (detected during construction when possible)
-   - ARG/ENV scoping (global vs stage-local)
+   - Duplicate stage names (DL3024: detected during construction, not as a separate rule)
+   - ARG/ENV scoping (global vs stage-local) with CLI `--build-arg` overrides (highest precedence)
    - `COPY --from` references
    - Base image refs (`FROM`, `--platform`)
    - `SHELL` per stage (dialect/argv) for correct `RUN` parsing defaults
@@ -198,7 +198,9 @@ These are explicitly front-loaded to avoid cross-blocking later.
 **Success Criteria:**
 
 - [ ] Semantic model supports stage + var resolution
-- [ ] Construction-time violations supported (when they’re more natural than separate rules)
+- [ ] CLI `--build-arg` overrides work with correct precedence (BuildArgs > Stage ARG/ENV > Global ARG)
+- [ ] DL3024 (duplicate stage names) detected during semantic model construction
+- [ ] Construction-time violations supported (when they're more natural than separate rules)
 - [ ] Unit tests cover semantic resolution edge cases
 
 ---
@@ -367,14 +369,17 @@ These are explicitly front-loaded to avoid cross-blocking later.
    - inline disables (tally/hadolint/buildx)
    - config cascade (closest `.tally.toml`)
    - reporter formats (text/json/sarif/github-actions)
+   - exit codes (clean → 0, violations → 1, parse error → 2)
 
 2. Snapshot:
    - stable ordering
    - color disabled for text snapshots
+   - exit code assertions
 
 **Success Criteria:**
 
-- [ ] Fixtures cover the “core pipeline” interactions (config + directives + reporting)
+- [ ] Fixtures cover the "core pipeline" interactions (config + directives + reporting)
+- [ ] Exit codes tested: 0 (clean), 1 (violations at/above threshold), 2 (parse/config error)
 - [ ] `UPDATE_SNAPS=true go test ./internal/integration/...` updates snapshots intentionally
 
 ---
