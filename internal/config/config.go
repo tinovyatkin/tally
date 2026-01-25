@@ -91,16 +91,25 @@ func Default() *Config {
 // It discovers the closest config file, loads it, and applies
 // environment variable overrides.
 func Load(targetPath string) (*Config, error) {
+	return loadWithConfigPath(Discover(targetPath))
+}
+
+// LoadFromFile loads configuration from a specific config file path.
+// Unlike Load, it does not perform config discovery.
+func LoadFromFile(configPath string) (*Config, error) {
+	return loadWithConfigPath(configPath)
+}
+
+// loadWithConfigPath is an internal helper that loads config with an optional config file path.
+func loadWithConfigPath(configPath string) (*Config, error) {
 	k := koanf.New(".")
 
 	// 1. Load defaults
-	defaults := Default()
-	if err := k.Load(structs.Provider(defaults, "koanf"), nil); err != nil {
+	if err := k.Load(structs.Provider(Default(), "koanf"), nil); err != nil {
 		return nil, err
 	}
 
-	// 2. Find and load config file
-	configPath := Discover(targetPath)
+	// 2. Load config file if provided
 	if configPath != "" {
 		if err := k.Load(file.Provider(configPath), toml.Parser()); err != nil {
 			return nil, err
@@ -109,37 +118,6 @@ func Load(targetPath string) (*Config, error) {
 
 	// 3. Load environment variables (TALLY_* prefix)
 	// TALLY_RULES_MAX_LINES_MAX -> rules.max-lines.max
-	if err := k.Load(env.Provider(EnvPrefix, ".", envKeyTransform), nil); err != nil {
-		return nil, err
-	}
-
-	// 4. Unmarshal into config struct
-	cfg := &Config{}
-	if err := k.Unmarshal("", cfg); err != nil {
-		return nil, err
-	}
-
-	cfg.ConfigFile = configPath
-	return cfg, nil
-}
-
-// LoadFromFile loads configuration from a specific config file path.
-// Unlike Load, it does not perform config discovery.
-func LoadFromFile(configPath string) (*Config, error) {
-	k := koanf.New(".")
-
-	// 1. Load defaults
-	defaults := Default()
-	if err := k.Load(structs.Provider(defaults, "koanf"), nil); err != nil {
-		return nil, err
-	}
-
-	// 2. Load the specified config file
-	if err := k.Load(file.Provider(configPath), toml.Parser()); err != nil {
-		return nil, err
-	}
-
-	// 3. Load environment variables (TALLY_* prefix)
 	if err := k.Load(env.Provider(EnvPrefix, ".", envKeyTransform), nil); err != nil {
 		return nil, err
 	}
