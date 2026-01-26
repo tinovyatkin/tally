@@ -95,9 +95,11 @@ These are explicitly front-loaded to avoid cross-blocking later.
 
 ---
 
-## Priority 1: Core Rule System + Stable Data Model
+## Priority 1: Core Rule System + Stable Data Model ✅
 
 **Goal:** Establish the stable interfaces that everything else builds on (minimize future refactors).
+
+**Status:** Completed
 
 **Actions:**
 
@@ -113,13 +115,14 @@ These are explicitly front-loaded to avoid cross-blocking later.
    ├── rule.go              # Rule metadata + execution contract
    ├── severity.go          # Severity enum
    ├── location.go          # Range/Location types (line+col)
+   ├── instruction.go       # InstructionType bitset for dispatch hints
    └── violation.go         # Stable Violation schema
    ```
 
-3. Define a **future-proof `Violation`** schema (don’t under-specify):
+3. Define a **future-proof `Violation`** schema (don't under-specify):
    - `File`, `StartLine`, `StartColumn`, `EndLine`, `EndColumn`
    - `RuleCode`, `Message`, `Detail` (optional), `Severity`, `DocURL`
-   - `SourceCode` (optional) and `SuggestedFix` (optional structured edit hint; supports “auto-fix suggestion” without auto-applying)
+   - `SourceCode` (optional) and `SuggestedFix` (optional structured edit hint; supports "auto-fix suggestion" without auto-applying)
 
 4. Add **progressive adoption hooks** to `Rule` metadata:
    - `EnabledByDefault`
@@ -133,11 +136,11 @@ These are explicitly front-loaded to avoid cross-blocking later.
 
 **Success Criteria:**
 
-- [ ] Rules can be registered and enumerated
-- [ ] `Violation` schema is stable and used everywhere
-- [ ] `Violation.SuggestedFix` supports structured edit hints (even if we don’t auto-apply fixes yet)
-- [ ] Unit tests can lint a Dockerfile string without CLI wiring
-- [ ] Rule interface accepts optional context without forcing it
+- [x] Rules can be registered and enumerated
+- [x] `Violation` schema is stable and used everywhere
+- [x] `Violation.SuggestedFix` supports structured edit hints (even if we don't auto-apply fixes yet)
+- [x] Unit tests can lint a Dockerfile string without CLI wiring
+- [x] Rule interface accepts optional context without forcing it
 
 ---
 
