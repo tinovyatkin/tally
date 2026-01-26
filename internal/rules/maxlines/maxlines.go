@@ -2,7 +2,6 @@
 package maxlines
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -69,7 +68,7 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 
 	// Get total lines from the AST root node's EndLine
 	// This gives us the last line of actual content
-	totalLines := getTotalLines(input.AST, input.Source)
+	totalLines := getTotalLines(input.AST)
 
 	count := totalLines
 
@@ -101,13 +100,10 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	return nil
 }
 
-// getTotalLines returns the total number of lines from the AST or source.
-func getTotalLines(ast *parser.Result, source []byte) int {
-	if ast != nil && ast.AST != nil && ast.AST.EndLine > 0 {
-		return ast.AST.EndLine
-	}
-	// Fallback: count newlines in source
-	return bytes.Count(source, []byte{'\n'}) + 1
+// getTotalLines returns the total number of lines from the AST.
+// AST is guaranteed non-nil by the linter contract.
+func getTotalLines(ast *parser.Result) int {
+	return ast.AST.EndLine
 }
 
 // countTrailingBlanks counts blank lines after the last instruction.
@@ -151,12 +147,8 @@ func countCommentLines(node *parser.Node) int {
 
 // countBlankLines counts lines that have no AST node content.
 // A blank line is one that has neither code nor comments.
-// This is only called when SkipBlankLines is enabled.
+// AST is guaranteed non-nil by the linter contract.
 func countBlankLines(ast *parser.Result) int {
-	if ast == nil || ast.AST == nil {
-		return 0
-	}
-
 	totalLines := ast.AST.EndLine
 	if totalLines <= 0 {
 		return 0
