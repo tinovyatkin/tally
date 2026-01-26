@@ -67,7 +67,8 @@ type RuleTestCase struct {
 	// Config is the optional rule configuration.
 	Config any
 
-	// WantViolations is the expected number of violations (for simple checks).
+	// WantViolations is the expected number of violations.
+	// Use -1 to skip the count check.
 	WantViolations int
 
 	// WantCodes is the expected rule codes in violation order (for detailed checks).
@@ -87,7 +88,7 @@ func RunRuleTests(t *testing.T, rule rules.Rule, cases []RuleTestCase) {
 			violations := rule.Check(input)
 
 			// Check violation count
-			if tc.WantViolations > 0 && len(violations) != tc.WantViolations {
+			if tc.WantViolations >= 0 && len(violations) != tc.WantViolations {
 				t.Errorf("got %d violations, want %d", len(violations), tc.WantViolations)
 				for i, v := range violations {
 					t.Logf("  [%d] %s: %s", i, v.RuleCode, v.Message)
