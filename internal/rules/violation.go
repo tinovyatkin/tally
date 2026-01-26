@@ -1,5 +1,7 @@
 package rules
 
+import "github.com/moby/buildkit/frontend/dockerfile/parser"
+
 // SuggestedFix represents a structured edit hint for auto-fix suggestions.
 // It describes what text to replace and what to replace it with.
 type SuggestedFix struct {
@@ -18,7 +20,13 @@ type TextEdit struct {
 }
 
 // Violation represents a single linting violation.
-// This is the stable schema used throughout the linter.
+// This extends BuildKit's subrequests/lint.Warning with:
+//   - Severity levels (BuildKit treats all as warnings)
+//   - Inline file path (BuildKit uses SourceIndex into separate Sources array)
+//   - SuggestedFix for auto-fix hints
+//   - SourceCode snippet
+//
+// See: github.com/moby/buildkit/frontend/subrequests/lint.Warning
 type Violation struct {
 	// Location specifies where the violation occurred.
 	Location Location `json:"location"`
@@ -54,6 +62,37 @@ func NewViolation(loc Location, ruleCode, message string, severity Severity) Vio
 		RuleCode: ruleCode,
 		Message:  message,
 		Severity: severity,
+	}
+}
+
+// NewViolationFromBuildKitWarning converts BuildKit linter callback parameters
+// to our Violation type. This bridges BuildKit's linter.LintWarnFunc with our
+// output schema.
+//
+// Parameters match linter.LintWarnFunc: (rulename, description, url, fmtmsg, location)
+func NewViolationFromBuildKitWarning(
+	file string,
+	ruleName string,
+	description string,
+	url string,
+	message string,
+	location []parser.Range,
+) Violation {
+	// Use first range for location, or file-level if none
+	var loc Location
+	if len(location) > 0 {
+		loc = NewLocationFromRange(file, location[0])
+	} else {
+		loc = NewFileLocation(file)
+	}
+
+	return Violation{
+		Location: loc,
+		RuleCode: ruleName,
+		Message:  message,
+		Detail:   description,
+		Severity: SeverityWarning, // BuildKit warnings map to our warning severity
+		DocURL:   url,
 	}
 }
 

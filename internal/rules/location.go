@@ -3,16 +3,25 @@ package rules
 import "github.com/moby/buildkit/frontend/dockerfile/parser"
 
 // Position represents a single point in a source file.
+// This is our JSON-serializable equivalent of parser.Position, which uses
+// "Character" instead of "Column" and lacks JSON tags.
+//
+// See: github.com/moby/buildkit/frontend/dockerfile/parser.Position
 type Position struct {
 	// Line is the 1-based line number.
 	Line int `json:"line"`
 	// Column is the 1-based column number (0 means column is unknown).
+	// Note: BuildKit uses "Character" for this field.
 	Column int `json:"column,omitempty"`
 }
 
 // Location represents a range in a source file.
+// This extends parser.Range by adding the File path. BuildKit's Range only
+// contains Start/End positions without file context.
+//
+// See: github.com/moby/buildkit/frontend/dockerfile/parser.Range
 type Location struct {
-	// File is the path to the source file.
+	// File is the path to the source file (not in parser.Range).
 	File string `json:"file"`
 	// Start is the starting position (inclusive).
 	Start Position `json:"start"`

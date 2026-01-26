@@ -13,19 +13,19 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 )
 
-// LintWarning represents a warning from BuildKit's built-in linter.
-// These are captured during instruction parsing.
+// LintWarning captures parameters from BuildKit's linter.LintWarnFunc callback.
+// Fields match the callback signature exactly:
+//
+//	func(rulename, description, url, fmtmsg string, location []parser.Range)
+//
+// BuildKit doesn't export a struct for this, so we provide one.
+// See: github.com/moby/buildkit/frontend/dockerfile/linter.LintWarnFunc
 type LintWarning struct {
-	// RuleName is the BuildKit rule identifier (e.g., "StageNameCasing")
-	RuleName string
-	// Description is the rule's description
+	RuleName    string
 	Description string
-	// URL is the documentation URL for the rule
-	URL string
-	// Message is the formatted warning message
-	Message string
-	// Location is the source location(s) where the warning occurred
-	Location []parser.Range
+	URL         string
+	Message     string
+	Location    []parser.Range
 }
 
 // ParseResult contains the parsed Dockerfile information

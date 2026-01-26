@@ -3,6 +3,8 @@ package rules
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
 )
 
 func TestNewViolation(t *testing.T) {
@@ -127,5 +129,65 @@ func TestViolation_JSON_WithFix(t *testing.T) {
 	}
 	if parsed.SuggestedFix.Description != "Fix the issue" {
 		t.Errorf("SuggestedFix.Description = %q", parsed.SuggestedFix.Description)
+	}
+}
+
+func TestNewViolationFromBuildKitWarning(t *testing.T) {
+	// Test with location
+	location := []parser.Range{
+		{
+			Start: parser.Position{Line: 5, Character: 1},
+			End:   parser.Position{Line: 5, Character: 20},
+		},
+	}
+
+	v := NewViolationFromBuildKitWarning(
+		"Dockerfile",
+		"StageNameCasing",
+		"Stage names should be lowercase",
+		"https://docs.docker.com/go/dockerfile/rule/stage-name-casing/",
+		"Stage name 'Builder' should be lowercase",
+		location,
+	)
+
+	if v.RuleCode != "StageNameCasing" {
+		t.Errorf("RuleCode = %q, want %q", v.RuleCode, "StageNameCasing")
+	}
+	if v.Message != "Stage name 'Builder' should be lowercase" {
+		t.Errorf("Message = %q", v.Message)
+	}
+	if v.Detail != "Stage names should be lowercase" {
+		t.Errorf("Detail = %q", v.Detail)
+	}
+	if v.DocURL != "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/" {
+		t.Errorf("DocURL = %q", v.DocURL)
+	}
+	if v.Severity != SeverityWarning {
+		t.Errorf("Severity = %v, want %v", v.Severity, SeverityWarning)
+	}
+	if v.Location.Start.Line != 5 {
+		t.Errorf("Location.Start.Line = %d, want 5", v.Location.Start.Line)
+	}
+	if v.Location.Start.Column != 1 {
+		t.Errorf("Location.Start.Column = %d, want 1", v.Location.Start.Column)
+	}
+}
+
+func TestNewViolationFromBuildKitWarning_NoLocation(t *testing.T) {
+	// Test without location (file-level warning)
+	v := NewViolationFromBuildKitWarning(
+		"Dockerfile",
+		"SomeRule",
+		"Description",
+		"https://example.com",
+		"File-level warning",
+		nil,
+	)
+
+	if v.Location.File != "Dockerfile" {
+		t.Errorf("File = %q, want %q", v.Location.File, "Dockerfile")
+	}
+	if v.Location.Start.Line != 0 {
+		t.Errorf("Start.Line = %d, want 0 (file-level)", v.Location.Start.Line)
 	}
 }
