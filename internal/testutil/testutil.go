@@ -170,34 +170,3 @@ func AssertViolationAt(tb testing.TB, violations []rules.Violation, line int, co
 		tb.Logf("  - %s at line %d: %s", v.RuleCode, v.Line(), v.Message)
 	}
 }
-
-// CountLines counts total lines in the content.
-func CountLines(content string) int {
-	if content == "" {
-		return 0
-	}
-	return len(strings.Split(content, "\n"))
-}
-
-// CountBlankLines counts blank/whitespace-only lines.
-func CountBlankLines(content string) int {
-	count := 0
-	for line := range strings.SplitSeq(content, "\n") {
-		if strings.TrimSpace(line) == "" {
-			count++
-		}
-	}
-	return count
-}
-
-// CountCommentLines counts lines starting with # (comments).
-func CountCommentLines(content string) int {
-	count := 0
-	for line := range strings.SplitSeq(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
-			count++
-		}
-	}
-	return count
-}

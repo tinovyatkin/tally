@@ -42,6 +42,22 @@ func TestMakeLintInput(t *testing.T) {
 	}
 }
 
+func TestMakeLintInput_LineStats(t *testing.T) {
+	content := "# comment\nFROM alpine\n\nRUN echo hello\n# another comment"
+	input := MakeLintInput(t, "Dockerfile", content)
+
+	// Verify LineStats is populated from parser
+	if input.LineStats.Total != 5 {
+		t.Errorf("LineStats.Total = %d, want 5", input.LineStats.Total)
+	}
+	if input.LineStats.Blank != 1 {
+		t.Errorf("LineStats.Blank = %d, want 1", input.LineStats.Blank)
+	}
+	if input.LineStats.Comments != 2 {
+		t.Errorf("LineStats.Comments = %d, want 2", input.LineStats.Comments)
+	}
+}
+
 func TestMakeLintInputWithConfig(t *testing.T) {
 	content := "FROM alpine"
 	config := struct{ Max int }{Max: 100}
@@ -57,65 +73,6 @@ func TestMakeLintInputWithConfig(t *testing.T) {
 	}
 	if cfg.Max != 100 {
 		t.Errorf("Config.Max = %d, want 100", cfg.Max)
-	}
-}
-
-func TestCountLines(t *testing.T) {
-	tests := []struct {
-		content string
-		want    int
-	}{
-		{"", 0},
-		{"FROM alpine", 1},
-		{"FROM alpine\n", 2}, // trailing newline creates empty line
-		{"FROM alpine\nRUN echo", 2},
-		{"line1\nline2\nline3", 3},
-	}
-
-	for _, tc := range tests {
-		got := CountLines(tc.content)
-		if got != tc.want {
-			t.Errorf("CountLines(%q) = %d, want %d", tc.content, got, tc.want)
-		}
-	}
-}
-
-func TestCountBlankLines(t *testing.T) {
-	tests := []struct {
-		content string
-		want    int
-	}{
-		{"", 1}, // Empty string split gives one empty element
-		{"FROM alpine", 0},
-		{"FROM alpine\n\nRUN echo", 1},
-		{"\n\nFROM alpine\n", 3}, // leading newlines + trailing newline
-	}
-
-	for _, tc := range tests {
-		got := CountBlankLines(tc.content)
-		if got != tc.want {
-			t.Errorf("CountBlankLines(%q) = %d, want %d", tc.content, got, tc.want)
-		}
-	}
-}
-
-func TestCountCommentLines(t *testing.T) {
-	tests := []struct {
-		content string
-		want    int
-	}{
-		{"", 0},
-		{"FROM alpine", 0},
-		{"# comment\nFROM alpine", 1},
-		{"# comment 1\n# comment 2\nFROM alpine", 2},
-		{"  # indented comment", 1},
-	}
-
-	for _, tc := range tests {
-		got := CountCommentLines(tc.content)
-		if got != tc.want {
-			t.Errorf("CountCommentLines(%q) = %d, want %d", tc.content, got, tc.want)
-		}
 	}
 }
 
