@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -108,14 +109,17 @@ func TestCheck(t *testing.T) {
 			output, err := cmd.CombinedOutput()
 
 			// Check exit code
-			if tc.wantExit != 0 {
-				if err == nil {
-					t.Errorf("expected exit code %d, got 0", tc.wantExit)
+			exitCode := 0
+			if err != nil {
+				var exitErr *exec.ExitError
+				if errors.As(err, &exitErr) {
+					exitCode = exitErr.ExitCode()
+				} else {
+					t.Fatalf("command failed to start: %v", err)
 				}
-			} else {
-				if err != nil {
-					t.Errorf("expected exit code 0, got error: %v", err)
-				}
+			}
+			if exitCode != tc.wantExit {
+				t.Errorf("expected exit code %d, got %d", tc.wantExit, exitCode)
 			}
 
 			snaps.WithConfig(snaps.Ext(".json")).MatchStandaloneSnapshot(t, string(output))
