@@ -14,7 +14,7 @@ type Position struct {
 	Line int `json:"line"`
 	// Column is the 0-based column number (LSP semantics, same as BuildKit).
 	// Note: BuildKit uses "Character" for this field.
-	Column int `json:"column,omitempty"`
+	Column int `json:"column"`
 }
 
 // Location represents a range in a source file.

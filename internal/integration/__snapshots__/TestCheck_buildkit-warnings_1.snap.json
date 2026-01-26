@@ -6,10 +6,12 @@
         "location": {
           "file": "testdata/buildkit-warnings/Dockerfile",
           "start": {
-            "line": 2
+            "line": 2,
+            "column": 0
           },
           "end": {
-            "line": 2
+            "line": 2,
+            "column": 0
           }
         },
         "rule": "StageNameCasing",
@@ -22,10 +24,12 @@
         "location": {
           "file": "testdata/buildkit-warnings/Dockerfile",
           "start": {
-            "line": 3
+            "line": 3,
+            "column": 0
           },
           "end": {
-            "line": 3
+            "line": 3,
+            "column": 0
           }
         },
         "rule": "MaintainerDeprecated",
