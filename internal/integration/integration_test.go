@@ -85,6 +85,10 @@ func TestCheck(t *testing.T) {
 			[]string{"TALLY_RULES_MAX_LINES_MAX=2"},
 			0,
 		},
+
+		// BuildKit linter warnings tests
+		// These test that BuildKit's built-in warnings are captured and surfaced
+		{"buildkit-warnings", "buildkit-warnings", []string{"--format", "json"}, nil, 0},
 	}
 
 	for _, tc := range testCases {

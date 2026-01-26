@@ -98,6 +98,18 @@ func checkCommand() *cli.Command {
 					violations = append(violations, rule.Check(input)...)
 				}
 
+				// Convert BuildKit warnings to violations
+				for _, w := range parseResult.Warnings {
+					violations = append(violations, rules.NewViolationFromBuildKitWarning(
+						file,
+						w.RuleName,
+						w.Description,
+						w.URL,
+						w.Message,
+						w.Location,
+					))
+				}
+
 				if len(violations) > 0 {
 					hasViolations = true
 				}
