@@ -43,7 +43,6 @@ func (r *Rule) Metadata() rules.RuleMetadata {
 		Category:         "maintainability",
 		EnabledByDefault: false, // Requires configuration
 		IsExperimental:   false,
-		InstructionTypes: rules.InstructionNone, // File-level rule
 	}
 }
 

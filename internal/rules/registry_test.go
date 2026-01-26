@@ -11,7 +11,6 @@ type mockRule struct {
 	category string
 	severity Severity
 	expmt    bool
-	instType InstructionType
 }
 
 func (r *mockRule) Metadata() RuleMetadata {
@@ -23,7 +22,6 @@ func (r *mockRule) Metadata() RuleMetadata {
 		Category:         r.category,
 		EnabledByDefault: r.enabled,
 		IsExperimental:   r.expmt,
-		InstructionTypes: r.instType,
 	}
 }
 
@@ -153,26 +151,6 @@ func TestRegistry_BySeverity(t *testing.T) {
 	errorRules := reg.BySeverity(SeverityError)
 	if len(errorRules) != 2 {
 		t.Fatalf("BySeverity(error) returned %d, want 2", len(errorRules))
-	}
-}
-
-func TestRegistry_ForInstructionType(t *testing.T) {
-	reg := NewRegistry()
-	reg.Register(&mockRule{code: "from-rule", instType: InstructionFROM})
-	reg.Register(&mockRule{code: "run-rule", instType: InstructionRUN})
-	reg.Register(&mockRule{code: "all-rule", instType: InstructionAll})
-	reg.Register(&mockRule{code: "file-rule", instType: InstructionNone})
-
-	fromRules := reg.ForInstructionType(InstructionFROM)
-	// Should include: from-rule, all-rule, file-rule
-	if len(fromRules) != 3 {
-		t.Errorf("ForInstructionType(FROM) returned %d, want 3", len(fromRules))
-	}
-
-	runRules := reg.ForInstructionType(InstructionRUN)
-	// Should include: run-rule, all-rule, file-rule
-	if len(runRules) != 3 {
-		t.Errorf("ForInstructionType(RUN) returned %d, want 3", len(runRules))
 	}
 }
 

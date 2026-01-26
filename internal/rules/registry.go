@@ -127,27 +127,6 @@ func (r *Registry) BySeverity(severity Severity) []Rule {
 	return result
 }
 
-// ForInstructionType returns rules that apply to the given instruction type.
-func (r *Registry) ForInstructionType(instType InstructionType) []Rule {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make([]Rule, 0)
-	for _, rule := range r.rules {
-		meta := rule.Metadata()
-		// Include rules that have InstructionAll, InstructionNone (file-level), or match the type
-		if meta.InstructionTypes == InstructionAll ||
-			meta.InstructionTypes == InstructionNone ||
-			meta.InstructionTypes.Contains(instType) {
-			result = append(result, rule)
-		}
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Metadata().Code < result[j].Metadata().Code
-	})
-	return result
-}
-
 // Experimental returns rules marked as experimental.
 func (r *Registry) Experimental() []Rule {
 	r.mu.RLock()

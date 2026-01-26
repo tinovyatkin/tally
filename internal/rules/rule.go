@@ -66,10 +66,6 @@ type RuleMetadata struct {
 
 	// IsExperimental marks rules that may change or be removed.
 	IsExperimental bool
-
-	// InstructionTypes is a bitset of instructions this rule applies to.
-	// Used for dispatch optimization. InstructionNone means file-level rule.
-	InstructionTypes InstructionType
 }
 
 // Rule is the interface that all linting rules must implement.

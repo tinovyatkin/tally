@@ -115,7 +115,6 @@ These are explicitly front-loaded to avoid cross-blocking later.
    ├── rule.go              # Rule metadata + execution contract
    ├── severity.go          # Severity enum
    ├── location.go          # Range/Location types (line+col)
-   ├── instruction.go       # InstructionType bitset for dispatch hints
    └── violation.go         # Stable Violation schema
    ```
 
@@ -128,10 +127,7 @@ These are explicitly front-loaded to avoid cross-blocking later.
    - `EnabledByDefault`
    - `IsExperimental`
 
-5. Add **dispatch hints** (optional but low-cost) to avoid scaling pain later:
-   - Declare which instruction types a rule cares about (bitset). ([01](01-linter-pipeline-architecture.md))
-
-6. Make the rule execution signature **context-ready**:
+5. Make the rule execution signature **context-ready**:
    - `ctx *context.BuildContext` can be `nil` (v1.0 works without it). ([07](07-context-aware-foundation.md))
 
 **Success Criteria:**

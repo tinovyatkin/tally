@@ -17,9 +17,6 @@ func TestRule_Metadata(t *testing.T) {
 	if meta.EnabledByDefault {
 		t.Error("EnabledByDefault should be false")
 	}
-	if meta.InstructionTypes != rules.InstructionNone {
-		t.Errorf("InstructionTypes = %v, want InstructionNone", meta.InstructionTypes)
-	}
 }
 
 func TestRule_Check(t *testing.T) {
