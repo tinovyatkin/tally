@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 
+	"github.com/tinovyatkin/tally/internal/dockerfile"
 	"github.com/tinovyatkin/tally/internal/rules"
 )
 
@@ -23,20 +24,26 @@ func ParseDockerfile(tb testing.TB, content string) *parser.Result {
 }
 
 // MakeLintInput creates a LintInput for testing a rule.
-// Parses the Dockerfile content and constructs the input struct.
+// Parses the Dockerfile content and constructs the input struct with full
+// BuildKit instruction parsing including Stages and MetaArgs.
 func MakeLintInput(tb testing.TB, file, content string) rules.LintInput {
 	tb.Helper()
 
-	ast := ParseDockerfile(tb, content)
+	result, err := dockerfile.Parse(strings.NewReader(content))
+	if err != nil {
+		tb.Fatalf("failed to parse Dockerfile: %v", err)
+	}
 	lines := strings.Split(content, "\n")
 
 	return rules.LintInput{
-		File:    file,
-		AST:     ast,
-		Source:  []byte(content),
-		Lines:   lines,
-		Context: nil, // v1.0 doesn't require context
-		Config:  nil, // Set by individual tests if needed
+		File:     file,
+		AST:      result.AST,
+		Stages:   result.Stages,
+		MetaArgs: result.MetaArgs,
+		Source:   result.Source,
+		Lines:    lines,
+		Context:  nil, // v1.0 doesn't require context
+		Config:   nil, // Set by individual tests if needed
 	}
 }
 

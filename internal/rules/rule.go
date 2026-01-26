@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 )
 
@@ -26,6 +27,14 @@ type LintInput struct {
 
 	// AST is the parsed Dockerfile AST from BuildKit.
 	AST *parser.Result
+
+	// Stages contains the parsed build stages with typed instructions.
+	// This is populated by BuildKit's instructions.Parse().
+	Stages []instructions.Stage
+
+	// MetaArgs contains ARG instructions that appear before the first FROM.
+	// These are global build arguments that affect base image selection.
+	MetaArgs []instructions.ArgCommand
 
 	// Source is the raw source content of the Dockerfile.
 	// Used for snippet extraction and directive parsing.
