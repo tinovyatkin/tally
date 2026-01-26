@@ -78,23 +78,21 @@ func checkCommand() *cli.Command {
 					return fmt.Errorf("failed to parse %s: %w", file, err)
 				}
 
-				// Build LintInput for rules
-				input := rules.LintInput{
+				// Build base LintInput (without rule-specific config)
+				baseInput := rules.LintInput{
 					File:     file,
 					AST:      parseResult.AST,
 					Stages:   parseResult.Stages,
 					MetaArgs: parseResult.MetaArgs,
 					Source:   parseResult.Source,
-					Config: maxlines.Config{
-						Max:            cfg.Rules.MaxLines.Max,
-						SkipBlankLines: cfg.Rules.MaxLines.SkipBlankLines,
-						SkipComments:   cfg.Rules.MaxLines.SkipComments,
-					},
 				}
 
-				// Run all registered rules
+				// Run all registered rules with rule-specific config
 				var violations []rules.Violation
 				for _, rule := range rules.All() {
+					// Clone input and set rule-specific config
+					input := baseInput
+					input.Config = getRuleConfig(rule.Metadata().Code, cfg)
 					violations = append(violations, rule.Check(input)...)
 				}
 
@@ -203,4 +201,20 @@ func getFormat(cmd *cli.Command, results []FileResult) string {
 	}
 
 	return "text"
+}
+
+// getRuleConfig returns the appropriate config for a rule based on its code.
+// This allows each rule to receive its own typed config from the global config.
+func getRuleConfig(ruleCode string, cfg *config.Config) any {
+	switch ruleCode {
+	case "max-lines":
+		return maxlines.Config{
+			Max:            cfg.Rules.MaxLines.Max,
+			SkipBlankLines: cfg.Rules.MaxLines.SkipBlankLines,
+			SkipComments:   cfg.Rules.MaxLines.SkipComments,
+		}
+	default:
+		// Unknown rules get nil config (use their defaults)
+		return nil
+	}
 }
