@@ -15,7 +15,7 @@
           }
         },
         "rule": "max-lines",
-        "message": "file has 5 lines, maximum allowed is 2",
+        "message": "file has 3 lines, maximum allowed is 2",
         "severity": "error",
         "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md"
       }

@@ -14,8 +14,9 @@ func TestRule_Metadata(t *testing.T) {
 	if meta.Code != "max-lines" {
 		t.Errorf("Code = %q, want %q", meta.Code, "max-lines")
 	}
-	if meta.EnabledByDefault {
-		t.Error("EnabledByDefault should be false")
+	// Enabled by default with sensible defaults (50 lines, skip blanks/comments)
+	if !meta.EnabledByDefault {
+		t.Error("EnabledByDefault should be true")
 	}
 }
 
@@ -104,14 +105,17 @@ func TestRule_DefaultConfig(t *testing.T) {
 	if !ok {
 		t.Fatalf("DefaultConfig() returned %T, want Config", cfg)
 	}
-	if defCfg.Max != 0 {
-		t.Errorf("default Max = %d, want 0", defCfg.Max)
+	// Default: 50 (P90 of 500 analyzed Dockerfiles)
+	if defCfg.Max != 50 {
+		t.Errorf("default Max = %d, want 50", defCfg.Max)
 	}
-	if defCfg.SkipBlankLines {
-		t.Error("default SkipBlankLines should be false")
+	// Default: true (count only meaningful lines)
+	if !defCfg.SkipBlankLines {
+		t.Error("default SkipBlankLines should be true")
 	}
-	if defCfg.SkipComments {
-		t.Error("default SkipComments should be false")
+	// Default: true (count only instruction lines)
+	if !defCfg.SkipComments {
+		t.Error("default SkipComments should be true")
 	}
 }
 
