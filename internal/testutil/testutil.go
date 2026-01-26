@@ -5,18 +5,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/buildkit/frontend/dockerfile/parser"
-
 	"github.com/tinovyatkin/tally/internal/dockerfile"
 	"github.com/tinovyatkin/tally/internal/rules"
 )
 
-// ParseDockerfile parses a Dockerfile from a string.
-// Returns the AST result and source lines for use in tests.
-func ParseDockerfile(tb testing.TB, content string) *parser.Result {
+// ParseDockerfile parses a Dockerfile from a string using the full parsing pipeline.
+// Returns the complete ParseResult including AST, Stages, MetaArgs, and Warnings.
+//
+// Use this when you need the full parsed result (e.g., testing parser features).
+// For rule testing, prefer MakeLintInput which creates a ready-to-use LintInput.
+func ParseDockerfile(tb testing.TB, content string) *dockerfile.ParseResult {
 	tb.Helper()
 
-	result, err := parser.Parse(strings.NewReader(content))
+	result, err := dockerfile.Parse(strings.NewReader(content))
 	if err != nil {
 		tb.Fatalf("failed to parse Dockerfile: %v", err)
 	}

@@ -16,6 +16,13 @@ func TestParseDockerfile(t *testing.T) {
 	if result.AST == nil {
 		t.Error("AST is nil")
 	}
+	// Verify full ParseResult fields are populated
+	if len(result.Stages) != 1 {
+		t.Errorf("Stages = %d, want 1", len(result.Stages))
+	}
+	if len(result.Source) == 0 {
+		t.Error("Source is empty")
+	}
 }
 
 func TestMakeLintInput(t *testing.T) {
