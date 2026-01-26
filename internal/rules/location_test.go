@@ -3,6 +3,8 @@ package rules
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
 )
 
 func TestNewFileLocation(t *testing.T) {
@@ -77,5 +79,30 @@ func TestLocation_JSON(t *testing.T) {
 	}
 	if parsed.Start.Line != loc.Start.Line {
 		t.Errorf("Start.Line = %d, want %d", parsed.Start.Line, loc.Start.Line)
+	}
+}
+
+func TestNewLocationFromRange(t *testing.T) {
+	r := parser.Range{
+		Start: parser.Position{Line: 5, Character: 10},
+		End:   parser.Position{Line: 7, Character: 25},
+	}
+
+	loc := NewLocationFromRange("Dockerfile", r)
+
+	if loc.File != "Dockerfile" {
+		t.Errorf("File = %q, want %q", loc.File, "Dockerfile")
+	}
+	if loc.Start.Line != 5 {
+		t.Errorf("Start.Line = %d, want 5", loc.Start.Line)
+	}
+	if loc.Start.Column != 10 {
+		t.Errorf("Start.Column = %d, want 10", loc.Start.Column)
+	}
+	if loc.End.Line != 7 {
+		t.Errorf("End.Line = %d, want 7", loc.End.Line)
+	}
+	if loc.End.Column != 25 {
+		t.Errorf("End.Column = %d, want 25", loc.End.Column)
 	}
 }

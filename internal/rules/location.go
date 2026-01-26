@@ -1,5 +1,7 @@
 package rules
 
+import "github.com/moby/buildkit/frontend/dockerfile/parser"
+
 // Position represents a single point in a source file.
 type Position struct {
 	// Line is the 1-based line number.
@@ -40,6 +42,16 @@ func NewRangeLocation(file string, startLine, startCol, endLine, endCol int) Loc
 		File:  file,
 		Start: Position{Line: startLine, Column: startCol},
 		End:   Position{Line: endLine, Column: endCol},
+	}
+}
+
+// NewLocationFromRange converts a BuildKit parser.Range to our Location type.
+// This bridges BuildKit's internal types with our output schema.
+func NewLocationFromRange(file string, r parser.Range) Location {
+	return Location{
+		File:  file,
+		Start: Position{Line: r.Start.Line, Column: r.Start.Character},
+		End:   Position{Line: r.End.Line, Column: r.End.Character},
 	}
 }
 
