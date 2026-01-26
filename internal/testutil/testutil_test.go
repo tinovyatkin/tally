@@ -37,6 +37,14 @@ func TestMakeLintInput(t *testing.T) {
 	if input.Config != nil {
 		t.Error("Config should be nil")
 	}
+	// Verify Stages is populated (single FROM = 1 stage)
+	if len(input.Stages) != 1 {
+		t.Errorf("Stages = %d, want 1", len(input.Stages))
+	}
+	// MetaArgs should be empty for this content
+	if len(input.MetaArgs) != 0 {
+		t.Errorf("MetaArgs = %d, want 0", len(input.MetaArgs))
+	}
 }
 
 func TestMakeLintInputWithConfig(t *testing.T) {
