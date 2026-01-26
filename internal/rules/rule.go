@@ -26,6 +26,10 @@ type BuildContext struct {
 // The linter guarantees that AST and Source are always valid (non-nil) when
 // Check is called. If parsing fails, the linter reports parse errors and
 // exits without invoking any rules (following ESLint's approach).
+//
+// IMPORTANT: LintInput is read-only. Rules must not mutate any fields (File,
+// AST, Stages, MetaArgs, Source, Context, Config). If a rule needs to modify
+// data, it must copy it first. This prevents hidden coupling between rules.
 type LintInput struct {
 	// File is the path to the Dockerfile being linted.
 	File string
