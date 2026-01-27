@@ -95,6 +95,15 @@ jobs:
             ! -path "*/.git/*" \
             > files-to-scan.txt
 
-          # Run CPD - fail build if duplications are found
-          pmd-bin-7.20.0/bin/pmd cpd --language go --minimum-tokens 100 \
-            --file-list files-to-scan.txt --format text
+          # Show what we're scanning
+          echo "📋 Scanning $(wc -l < files-to-scan.txt) Go files for duplications (threshold: 100 tokens)..."
+
+          # Run CPD with debug output - fail build if duplications are found
+          echo "🔍 Running CPD..."
+          if pmd-bin-7.20.0/bin/pmd cpd --language go --minimum-tokens 100 \
+            --file-list files-to-scan.txt --format text --debug; then
+            echo "✅ No code duplications found!"
+          else
+            echo "❌ Code duplications detected above threshold"
+            exit 1
+          fi
