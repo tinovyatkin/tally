@@ -199,25 +199,33 @@ func (r *TextReporter) printViolation(w io.Writer, v rules.Violation, source []b
 			header += " - " + v.DocURL
 		}
 	}
-	fmt.Fprintln(w, header)
+	if _, err := fmt.Fprintln(w, header); err != nil {
+		return err
+	}
 
 	// Message
 	if r.colorEnabled {
-		fmt.Fprintln(w, messageStyle.Render(v.Message))
+		if _, err := fmt.Fprintln(w, messageStyle.Render(v.Message)); err != nil {
+			return err
+		}
 	} else {
-		fmt.Fprintln(w, v.Message)
+		if _, err := fmt.Fprintln(w, v.Message); err != nil {
+			return err
+		}
 	}
 
 	// Source snippet
 	if r.opts.ShowSource && !v.Location.IsFileLevel() && len(source) > 0 {
-		r.printSource(w, v.Location, source)
+		if err := r.printSource(w, v.Location, source); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // printSource renders the source code snippet with optional syntax highlighting.
-func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byte) {
+func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byte) error {
 	lines := strings.Split(string(source), "\n")
 
 	// Get start/end lines (BuildKit uses 1-based line numbers)
@@ -236,19 +244,42 @@ func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byt
 
 	// Bounds check
 	if start > len(lines) || start < 1 {
-		return
+		return nil
 	}
 	if end > len(lines) {
 		end = len(lines)
 	}
 
-	// Calculate padding (2-4 lines of context)
+	// Expand context padding around the violation
+	displayStart := start
+	start, end = r.expandContextPadding(start, end, len(lines))
+
+	// Write file:line header
+	if err := r.writeSourceHeader(w, loc.File, displayStart); err != nil {
+		return err
+	}
+
+	// Print lines with optional syntax highlighting
+	for i := start; i <= end; i++ {
+		if err := r.writeSourceLine(w, i, lines[i-1], lineInRange(i, loc.Start.Line, markerEnd)); err != nil {
+			return err
+		}
+	}
+
+	// Write closing separator
+	return r.writeSeparator(w)
+}
+
+// expandContextPadding adds 2-4 lines of context around the violation range.
+// Returns (newStart, newEnd) for the expanded range.
+//
+//nolint:gocritic // unnamed results preferred by nonamedreturns linter
+func (r *TextReporter) expandContextPadding(start, end, totalLines int) (int, int) {
 	pad := 2
 	if end == start {
 		pad = 4
 	}
 
-	displayStart := start
 	p := 0
 	for p < pad {
 		expanded := false
@@ -257,7 +288,7 @@ func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byt
 			p++
 			expanded = true
 		}
-		if end < len(lines) {
+		if end < totalLines {
 			end++
 			p++
 			expanded = true
@@ -266,59 +297,74 @@ func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byt
 			break
 		}
 	}
+	return start, end
+}
 
-	// File:line header
-	fmt.Fprintln(w)
+// writeSourceHeader writes the file:line header and opening separator.
+func (r *TextReporter) writeSourceHeader(w io.Writer, file string, line int) error {
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
 	if r.colorEnabled {
-		fmt.Fprintln(w, fileLocStyle.Render(fmt.Sprintf("%s:%d", loc.File, displayStart)))
-		fmt.Fprintln(w, separatorStyle.Render("────────────────────"))
-	} else {
-		fmt.Fprintf(w, "%s:%d\n", loc.File, displayStart)
-		fmt.Fprintln(w, "--------------------")
+		if _, err := fmt.Fprintln(w, fileLocStyle.Render(fmt.Sprintf("%s:%d", file, line))); err != nil {
+			return err
+		}
+		return r.writeSeparator(w)
 	}
-
-	// Print lines with optional syntax highlighting
-	for i := start; i <= end; i++ {
-		isAffected := lineInRange(i, loc.Start.Line, markerEnd)
-		lineContent := strings.TrimSuffix(lines[i-1], "\r") // Trim CRLF to avoid artifacts
-
-		// Format line number
-		var lineNum string
-		if r.colorEnabled {
-			lineNum = lineNumStyle.Render(fmt.Sprintf(" %3d │", i))
-		} else {
-			lineNum = fmt.Sprintf(" %3d |", i)
-		}
-
-		// Format marker
-		var marker string
-		if isAffected {
-			if r.colorEnabled {
-				marker = markerStyle.Render(">>>")
-			} else {
-				marker = ">>>"
-			}
-		} else {
-			marker = "   "
-		}
-
-		// Format line content with optional syntax highlighting
-		var content string
-		if r.colorEnabled && r.lexer != nil && r.style != nil && r.formatter != nil {
-			content = r.highlightLine(lineContent)
-		} else {
-			content = lineContent
-		}
-
-		fmt.Fprintf(w, "%s %s %s\n", lineNum, marker, content)
+	if _, err := fmt.Fprintf(w, "%s:%d\n", file, line); err != nil {
+		return err
 	}
+	return r.writeSeparator(w)
+}
 
-	// Closing separator
+// writeSeparator writes a horizontal separator line.
+func (r *TextReporter) writeSeparator(w io.Writer) error {
 	if r.colorEnabled {
-		fmt.Fprintln(w, separatorStyle.Render("────────────────────"))
-	} else {
-		fmt.Fprintln(w, "--------------------")
+		_, err := fmt.Fprintln(w, separatorStyle.Render("────────────────────"))
+		return err
 	}
+	_, err := fmt.Fprintln(w, "--------------------")
+	return err
+}
+
+// writeSourceLine writes a single source line with line number and marker.
+func (r *TextReporter) writeSourceLine(w io.Writer, lineNum int, lineContent string, isAffected bool) error {
+	lineContent = strings.TrimSuffix(lineContent, "\r") // Trim CRLF to avoid artifacts
+
+	// Format components
+	numStr := r.formatLineNumber(lineNum)
+	marker := r.formatMarker(isAffected)
+	content := r.formatLineContent(lineContent)
+
+	_, err := fmt.Fprintf(w, "%s %s %s\n", numStr, marker, content)
+	return err
+}
+
+// formatLineNumber formats a line number for display.
+func (r *TextReporter) formatLineNumber(num int) string {
+	if r.colorEnabled {
+		return lineNumStyle.Render(fmt.Sprintf(" %3d │", num))
+	}
+	return fmt.Sprintf(" %3d |", num)
+}
+
+// formatMarker formats the affected line marker.
+func (r *TextReporter) formatMarker(isAffected bool) string {
+	if !isAffected {
+		return "   "
+	}
+	if r.colorEnabled {
+		return markerStyle.Render(">>>")
+	}
+	return ">>>"
+}
+
+// formatLineContent formats line content with optional syntax highlighting.
+func (r *TextReporter) formatLineContent(content string) string {
+	if r.colorEnabled && r.lexer != nil && r.style != nil && r.formatter != nil {
+		return r.highlightLine(content)
+	}
+	return content
 }
 
 // highlightLine applies syntax highlighting to a single line.
