@@ -177,7 +177,7 @@ Configuration sources are applied in this order (highest priority first):
 | `TALLY_RULES_MAX_LINES_MAX` | Maximum lines allowed |
 | `TALLY_RULES_MAX_LINES_SKIP_BLANK_LINES` | Exclude blank lines (`true`/`false`) |
 | `TALLY_RULES_MAX_LINES_SKIP_COMMENTS` | Exclude comments (`true`/`false`) |
-| `TALLY_INLINE_DIRECTIVES_ENABLED` | Process inline directives (`true`/`false`) |
+| `TALLY_NO_INLINE_DIRECTIVES` | Disable inline directive processing (`true`/`false`) |
 | `TALLY_INLINE_DIRECTIVES_WARN_UNUSED` | Warn about unused directives (`true`/`false`) |
 
 ### CLI Flags

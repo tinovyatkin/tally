@@ -61,7 +61,7 @@ func checkCommand() *cli.Command {
 			&cli.BoolFlag{
 				Name:    "no-inline-directives",
 				Usage:   "Disable processing of inline ignore directives",
-				Sources: cli.EnvVars("TALLY_INLINE_DIRECTIVES_ENABLED"),
+				Sources: cli.EnvVars("TALLY_NO_INLINE_DIRECTIVES"),
 			},
 			&cli.BoolFlag{
 				Name:    "warn-unused-directives",
