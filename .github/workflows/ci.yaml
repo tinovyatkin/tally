@@ -83,25 +83,27 @@ jobs:
 
       - name: Run CPD
         run: |
-          # Create a list of Go files to analyze (exclude tests, generated files, and fixtures)
-          find . -type f -name "*.go" \
-            ! -name "*_test.go" \
-            ! -name "*.pb.go" \
-            ! -name "*_generated.go" \
-            ! -path "*/testdata/*" \
-            ! -path "*/__snapshots__/*" \
-            ! -path "*/packaging/*" \
-            ! -path "*/bin/*" \
-            ! -path "*/.git/*" \
-            > files-to-scan.txt
+          # Create exclusion list (tests, generated files, and fixtures)
+          find . -type f \( \
+            -name "*_test.go" \
+            -o -name "*.pb.go" \
+            -o -name "*_generated.go" \
+            -o -path "*/testdata/*" \
+            -o -path "*/__snapshots__/*" \
+            -o -path "*/packaging/*" \
+            -o -path "*/bin/*" \
+          \) > exclude-files.txt
 
-          # Show what we're scanning
-          echo "📋 Scanning $(wc -l < files-to-scan.txt) Go files for duplications (threshold: 100 tokens)..."
+          # Count files
+          TOTAL_GO=$(find . -type f -name "*.go" | wc -l)
+          EXCLUDED=$(wc -l < exclude-files.txt)
+          SCANNED=$((TOTAL_GO - EXCLUDED))
+          echo "📋 Scanning $SCANNED Go files (excluding $EXCLUDED test/generated files, threshold: 100 tokens)..."
 
-          # Run CPD with debug output - fail build if duplications are found
+          # Run CPD with exclusion list - fail build if duplications are found
           echo "🔍 Running CPD..."
           if pmd-bin-7.20.0/bin/pmd cpd --language go --minimum-tokens 100 \
-            --file-list files-to-scan.txt --format text --debug; then
+            --dir . --exclude-file-list exclude-files.txt --format text --debug; then
             echo "✅ No code duplications found!"
           else
             echo "❌ Code duplications detected above threshold"
