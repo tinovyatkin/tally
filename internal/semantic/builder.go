@@ -199,6 +199,9 @@ func (b *Builder) processCopyFrom(cmd *instructions.CopyCommand, stageIndex int,
 			ref.IsStageRef = true
 			ref.StageIndex = idx
 			graph.addEdge(idx, stageIndex)
+		} else if _, found := b.stagesByName[normalized]; found {
+			// Forward reference to a later stage - invalid but not external
+			ref.StageIndex = -1
 		} else {
 			// External image reference
 			ref.StageIndex = -1
