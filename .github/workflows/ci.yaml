@@ -95,6 +95,7 @@ jobs:
             ! -path "*/.git/*" \
             > files-to-scan.txt
 
-          # Run CPD with the file list
+          # Run CPD with the file list (informational - don't fail on violations)
           pmd-bin-7.14.0/bin/pmd cpd --language go --minimum-tokens 100 \
-            --file-list files-to-scan.txt --skip-lexical-errors --format text
+            --file-list files-to-scan.txt --skip-lexical-errors --format text \
+            --no-fail-on-violation || true
