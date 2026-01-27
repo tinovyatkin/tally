@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cpd-config xmlns="http://pmd.sourceforge.net/cpd-config/1.0.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://pmd.sourceforge.net/cpd-config/1.0.0 http://pmd.sourceforge.net/cpd-config_1_0_0.xsd">
+    
+    <!-- Configuration for Go Copy/Paste Detection -->
+    <language>go</language>
+    
+    <!-- Minimum number of tokens to consider as duplicate (100 is a good balance) -->
+    <minimumTokens>100</minimumTokens>
+    
+    <!-- Skip lexical errors to avoid failing on syntax issues -->
+    <skipLexicalErrors>true</skipLexicalErrors>
+    
+    <!-- Don't skip duplicate code blocks -->
+    <skipDuplicates>false</skipDuplicates>
+    
+    <!-- File exclusions -->
+    <exclude>
+        <!-- Exclude test fixtures and snapshots -->
+        <pattern>**/testdata/**</pattern>
+        <pattern>**/__snapshots__/**</pattern>
+        
+        <!-- Exclude generated files -->
+        <pattern>**/*.pb.go</pattern>
+        <pattern>**/*_generated.go</pattern>
+        
+        <!-- Exclude vendor directory if present -->
+        <pattern>**/vendor/**</pattern>
+        
+        <!-- Exclude packaging scripts (not Go) -->
+        <pattern>packaging/**</pattern>
+    </exclude>
+</cpd-config>

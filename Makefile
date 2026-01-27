@@ -1,4 +1,4 @@
-.PHONY: build test lint lint-fix clean release publish-prepare publish-npm publish-pypi publish-gem publish
+.PHONY: build test lint lint-fix cpd clean release publish-prepare publish-npm publish-pypi publish-gem publish
 
 build:
 	CGO_ENABLED=0 go build -ldflags "-s -w" -o tally
@@ -14,6 +14,30 @@ lint: bin/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
 lint-fix: bin/golangci-lint-$(GOLANGCI_LINT_VERSION)
 	bin/golangci-lint run --fix
+
+PMD_VERSION := 7.20.0
+
+cpd: bin/pmd-$(PMD_VERSION)
+	@find . -type f \( \
+		-name "*_test.go" \
+		-o -name "*.pb.go" \
+		-o -name "*_generated.go" \
+		-o -path "*/testdata/*" \
+		-o -path "*/__snapshots__/*" \
+		-o -path "*/packaging/*" \
+		-o -path "*/bin/*" \
+	\) > .cpd-exclude.txt
+	@bin/pmd-bin-$(PMD_VERSION)/bin/pmd cpd --language go --minimum-tokens 100 \
+		--dir . --exclude-file-list .cpd-exclude.txt --format markdown
+	@rm -f .cpd-exclude.txt
+
+bin/pmd-$(PMD_VERSION):
+	@mkdir -p bin
+	@if [ ! -d "bin/pmd-bin-$(PMD_VERSION)" ]; then \
+		curl -fL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F$(PMD_VERSION)/pmd-dist-$(PMD_VERSION)-bin.zip" -o bin/pmd.zip; \
+		cd bin && unzip -q pmd.zip && rm pmd.zip; \
+	fi
+	@touch $@
 
 bin/golangci-lint-$(GOLANGCI_LINT_VERSION):
 	@rm -f bin/golangci-lint bin/golangci-lint-*

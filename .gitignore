@@ -48,6 +48,10 @@ dist/
 # Build artifacts
 *.tar
 
+# CPD temp files
+.cpd-exclude.txt
+exclude-files.txt
+
 # NPM
 node_modules/
 package-lock.json
