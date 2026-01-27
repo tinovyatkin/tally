@@ -46,9 +46,11 @@ Do not re-implement functionality that exists in these libraries.
 ```bash
 # Build
 go build ./...
+make build
 
 # Run all tests
 go test ./...
+make test
 
 # Run tests with verbose output
 go test ./... -v
@@ -56,11 +58,32 @@ go test ./... -v
 # Update snapshots for integration tests
 UPDATE_SNAPS=true go test ./internal/integration/...
 
+# Run linting
+make lint
+
+# Run copy/paste detection (CPD)
+make cpd
+
 # Run the CLI
 go run . check --help
 go run . check Dockerfile
 go run . check --max-lines 100 Dockerfile
 ```
+
+## Code Quality Tools
+
+This project uses multiple code quality tools:
+
+1. **golangci-lint** - Go linting and static analysis
+   - Run locally: `make lint`
+   - Runs in CI on every PR
+
+2. **PMD CPD (Copy/Paste Detector)** - Detects duplicate code patterns
+   - Run locally: `make cpd`
+   - Runs in CI on every PR
+   - Threshold: 100 tokens minimum
+   - Exclusions: test fixtures, snapshots, generated files, packaging scripts
+   - Configuration: `.pmd/cpd-config.xml`
 
 ## Coverage Collection
 

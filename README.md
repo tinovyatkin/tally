@@ -144,6 +144,29 @@ Dockerfile:0: file has 150 lines, maximum allowed is 100 (max-lines)
 ]
 ```
 
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run linting
+make lint
+
+# Run copy/paste detection (CPD)
+make cpd
+```
+
+### Code Quality
+
+This project uses:
+- **golangci-lint** for Go linting
+- **PMD CPD** for copy/paste detection (minimum 100 tokens)
+
+Copy/paste detection runs automatically in CI and helps identify duplicate code patterns.
+
 ## Contributing
 
 See [CLAUDE.md](CLAUDE.md) for development guidelines.
