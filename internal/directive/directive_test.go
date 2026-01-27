@@ -578,3 +578,179 @@ func TestLineRange_Contains(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTallyWithReason(t *testing.T) {
+	content := `# tally ignore=DL3006 reason=Legacy base image required
+FROM ubuntu`
+	sm := sourcemap.New([]byte(content))
+	result := Parse(sm, nil)
+
+	if len(result.Directives) != 1 {
+		t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+	}
+	d := result.Directives[0]
+	if d.Reason != "Legacy base image required" {
+		t.Errorf("expected reason 'Legacy base image required', got %q", d.Reason)
+	}
+}
+
+func TestParseTallyGlobalWithReason(t *testing.T) {
+	content := `# tally global ignore=max-lines reason=Generated file, size is expected
+FROM alpine`
+	sm := sourcemap.New([]byte(content))
+	result := Parse(sm, nil)
+
+	if len(result.Directives) != 1 {
+		t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+	}
+	d := result.Directives[0]
+	if d.Reason != "Generated file, size is expected" {
+		t.Errorf("expected reason 'Generated file, size is expected', got %q", d.Reason)
+	}
+	if d.Type != TypeGlobal {
+		t.Errorf("expected TypeGlobal, got %v", d.Type)
+	}
+}
+
+func TestParseHadolintWithReason(t *testing.T) {
+	content := `# hadolint ignore=DL3006 reason=Using older ubuntu for compatibility
+FROM ubuntu`
+	sm := sourcemap.New([]byte(content))
+	result := Parse(sm, nil)
+
+	if len(result.Directives) != 1 {
+		t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+	}
+	d := result.Directives[0]
+	if d.Source != SourceHadolint {
+		t.Errorf("expected SourceHadolint, got %v", d.Source)
+	}
+	if d.Reason != "Using older ubuntu for compatibility" {
+		t.Errorf("expected reason, got %q", d.Reason)
+	}
+}
+
+func TestParseBuildxNoReason(t *testing.T) {
+	// buildx doesn't support reason=, so it should always have empty reason
+	content := `# check=skip=DL3006
+FROM ubuntu`
+	sm := sourcemap.New([]byte(content))
+	result := Parse(sm, nil)
+
+	if len(result.Directives) != 1 {
+		t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+	}
+	d := result.Directives[0]
+	if d.Source != SourceBuildx {
+		t.Errorf("expected SourceBuildx, got %v", d.Source)
+	}
+	if d.Reason != "" {
+		t.Errorf("buildx should have empty reason, got %q", d.Reason)
+	}
+}
+
+func TestParseTallyWithoutReason(t *testing.T) {
+	content := `# tally ignore=DL3006
+FROM ubuntu`
+	sm := sourcemap.New([]byte(content))
+	result := Parse(sm, nil)
+
+	if len(result.Directives) != 1 {
+		t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+	}
+	d := result.Directives[0]
+	if d.Reason != "" {
+		t.Errorf("expected empty reason, got %q", d.Reason)
+	}
+}
+
+func TestParseReasonCaseInsensitive(t *testing.T) {
+	content := `# tally ignore=DL3006 REASON=Some reason here
+FROM ubuntu`
+	sm := sourcemap.New([]byte(content))
+	result := Parse(sm, nil)
+
+	if len(result.Directives) != 1 {
+		t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+	}
+	d := result.Directives[0]
+	if d.Reason != "Some reason here" {
+		t.Errorf("expected reason 'Some reason here', got %q", d.Reason)
+	}
+}
+
+func TestParseReasonWithSpecialChars(t *testing.T) {
+	content := `# tally ignore=DL3006 reason=This is a reason with: colons, commas, and (parentheses)!
+FROM ubuntu`
+	sm := sourcemap.New([]byte(content))
+	result := Parse(sm, nil)
+
+	if len(result.Directives) != 1 {
+		t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+	}
+	d := result.Directives[0]
+	expected := "This is a reason with: colons, commas, and (parentheses)!"
+	if d.Reason != expected {
+		t.Errorf("expected reason %q, got %q", expected, d.Reason)
+	}
+}
+
+func TestParseRulesWithSpacesAroundCommas(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected []string
+	}{
+		{
+			name: "space after comma",
+			content: `# tally ignore=DL3006, DL3008
+FROM ubuntu`,
+			expected: []string{"DL3006", "DL3008"},
+		},
+		{
+			name: "space before comma",
+			content: `# tally ignore=DL3006 ,DL3008
+FROM ubuntu`,
+			expected: []string{"DL3006", "DL3008"},
+		},
+		{
+			name: "spaces around comma",
+			content: `# tally ignore=DL3006 , DL3008
+FROM ubuntu`,
+			expected: []string{"DL3006", "DL3008"},
+		},
+		{
+			name: "multiple rules with spaces",
+			content: `# hadolint ignore=DL3006, DL3008, DL3009
+FROM ubuntu`,
+			expected: []string{"DL3006", "DL3008", "DL3009"},
+		},
+		{
+			name: "buildx with spaces",
+			content: `# check=skip=DL3006, DL3008
+FROM ubuntu`,
+			expected: []string{"DL3006", "DL3008"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := sourcemap.New([]byte(tt.content))
+			result := Parse(sm, nil)
+
+			if len(result.Directives) != 1 {
+				t.Fatalf("expected 1 directive, got %d", len(result.Directives))
+			}
+			d := result.Directives[0]
+			if len(d.Rules) != len(tt.expected) {
+				t.Errorf("expected %d rules, got %d: %v", len(tt.expected), len(d.Rules), d.Rules)
+				return
+			}
+			for i, rule := range tt.expected {
+				if d.Rules[i] != rule {
+					t.Errorf("expected rule %d to be %q, got %q", i, rule, d.Rules[i])
+				}
+			}
+		})
+	}
+}
