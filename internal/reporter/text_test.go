@@ -340,3 +340,209 @@ func TestTextReporter_Print(t *testing.T) {
 		t.Errorf("Missing rule code in output:\n%s", output)
 	}
 }
+
+func TestPrintText(t *testing.T) {
+	// Test the PrintText convenience function
+	source := []byte("FROM alpine\nRUN echo hello")
+	violations := []rules.Violation{
+		{
+			Location: rules.NewLineLocation("Dockerfile", 1),
+			RuleCode: "TestRule",
+			Message:  "Test message",
+			Severity: rules.SeverityWarning,
+		},
+	}
+	sources := map[string][]byte{"Dockerfile": source}
+
+	var buf bytes.Buffer
+	err := PrintText(&buf, violations, sources)
+	if err != nil {
+		t.Fatalf("PrintText failed: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "TestRule") {
+		t.Errorf("Missing rule code in output:\n%s", output)
+	}
+	if !strings.Contains(output, "Test message") {
+		t.Errorf("Missing message in output:\n%s", output)
+	}
+}
+
+func TestPrintTextPlain_CRLF(t *testing.T) {
+	// Test that CRLF line endings are handled properly
+	source := []byte("FROM alpine\r\nRUN echo hello\r\nCMD [\"sh\"]\r\n")
+	violations := []rules.Violation{
+		{
+			Location: rules.NewLineLocation("Dockerfile", 2),
+			RuleCode: "TestRule",
+			Message:  "Test",
+			Severity: rules.SeverityWarning,
+		},
+	}
+	sources := map[string][]byte{"Dockerfile": source}
+
+	var buf bytes.Buffer
+	err := PrintTextPlain(&buf, violations, sources)
+	if err != nil {
+		t.Fatalf("PrintTextPlain failed: %v", err)
+	}
+
+	output := buf.String()
+	// Should not contain \r in output
+	if strings.Contains(output, "\r") {
+		t.Errorf("Output contains carriage return, should be trimmed:\n%q", output)
+	}
+}
+
+func TestPrintTextPlain_ExclusiveEnd(t *testing.T) {
+	// Test that exclusive end (End.Column == 0) is handled correctly
+	source := []byte("FROM alpine\nRUN echo 1\nRUN echo 2\nRUN echo 3\nCMD [\"sh\"]")
+	violations := []rules.Violation{
+		{
+			// Range with End.Column == 0 means end is exclusive (ends at start of line 4)
+			// So only lines 2 and 3 should be marked
+			Location: rules.NewRangeLocation("Dockerfile", 2, 0, 4, 0),
+			RuleCode: "TestRule",
+			Message:  "Test",
+			Severity: rules.SeverityWarning,
+		},
+	}
+	sources := map[string][]byte{"Dockerfile": source}
+
+	var buf bytes.Buffer
+	err := PrintTextPlain(&buf, violations, sources)
+	if err != nil {
+		t.Fatalf("PrintTextPlain failed: %v", err)
+	}
+
+	output := buf.String()
+	lines := strings.Split(output, "\n")
+
+	// Count marked lines (lines with >>>)
+	markedCount := 0
+	for _, line := range lines {
+		if strings.Contains(line, ">>>") {
+			markedCount++
+		}
+	}
+
+	// With exclusive end at line 4 column 0, only lines 2-3 should be marked
+	if markedCount != 2 {
+		t.Errorf("Expected 2 marked lines (exclusive end), got %d:\n%s", markedCount, output)
+	}
+}
+
+func TestPrintTextPlain_EmptyViolations(t *testing.T) {
+	var buf bytes.Buffer
+	err := PrintTextPlain(&buf, nil, nil)
+	if err != nil {
+		t.Fatalf("PrintTextPlain failed: %v", err)
+	}
+
+	output := buf.String()
+	if output != "" {
+		t.Errorf("Expected empty output for no violations, got:\n%s", output)
+	}
+}
+
+func TestPrintTextPlain_NoSource(t *testing.T) {
+	// Test violation without corresponding source
+	violations := []rules.Violation{
+		{
+			Location: rules.NewLineLocation("missing.dockerfile", 1),
+			RuleCode: "TestRule",
+			Message:  "Test message",
+			Severity: rules.SeverityWarning,
+		},
+	}
+	sources := map[string][]byte{} // No source provided
+
+	var buf bytes.Buffer
+	err := PrintTextPlain(&buf, violations, sources)
+	if err != nil {
+		t.Fatalf("PrintTextPlain failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Should still show the warning header and message
+	if !strings.Contains(output, "WARNING: TestRule") {
+		t.Errorf("Missing warning header, got:\n%s", output)
+	}
+	// But should not show snippet (no separator)
+	if strings.Contains(output, "--------------------") {
+		t.Errorf("Should not show snippet without source, got:\n%s", output)
+	}
+}
+
+func TestPrintTextPlain_OutOfBoundsLine(t *testing.T) {
+	// Test violation pointing to line beyond source
+	source := []byte("FROM alpine")
+	violations := []rules.Violation{
+		{
+			Location: rules.NewLineLocation("Dockerfile", 999), // Way beyond source
+			RuleCode: "TestRule",
+			Message:  "Test message",
+			Severity: rules.SeverityWarning,
+		},
+	}
+	sources := map[string][]byte{"Dockerfile": source}
+
+	var buf bytes.Buffer
+	err := PrintTextPlain(&buf, violations, sources)
+	if err != nil {
+		t.Fatalf("PrintTextPlain failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Should show warning but gracefully handle out-of-bounds line
+	if !strings.Contains(output, "WARNING: TestRule") {
+		t.Errorf("Missing warning header, got:\n%s", output)
+	}
+}
+
+func TestNewTextReporter_InvalidStyle(t *testing.T) {
+	// Test with non-existent style name - should fall back
+	colorOn := true
+	opts := TextOptions{
+		Color:           &colorOn,
+		SyntaxHighlight: true,
+		ChromaStyle:     "nonexistent-style-name",
+	}
+
+	r := NewTextReporter(opts)
+	if r == nil {
+		t.Fatal("NewTextReporter returned nil")
+	}
+	// Should have fallback style
+	if r.style == nil {
+		t.Error("Expected fallback style, got nil")
+	}
+}
+
+func TestTextReporter_HighlightLine(t *testing.T) {
+	// Test syntax highlighting
+	colorOn := true
+	opts := TextOptions{
+		Color:           &colorOn,
+		SyntaxHighlight: true,
+		ChromaStyle:     "monokai",
+	}
+
+	r := NewTextReporter(opts)
+	if r.lexer == nil {
+		t.Skip("Lexer not initialized (likely no color support)")
+	}
+
+	// Test highlighting a Dockerfile line
+	highlighted := r.highlightLine("FROM alpine")
+	if highlighted == "" {
+		t.Error("highlightLine returned empty string")
+	}
+	// Should not have trailing newline
+	if strings.HasSuffix(highlighted, "\n") {
+		t.Error("highlightLine should not have trailing newline")
+	}
+}
