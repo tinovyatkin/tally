@@ -766,6 +766,19 @@ COPY --from=builder /app /app
 	if len(dependents) != 2 {
 		t.Fatalf("expected 2 dependents, got %d: %v", len(dependents), dependents)
 	}
+	// Verify actual values (order may vary, so check both are present)
+	hasDep1, hasDep2 := false, false
+	for _, d := range dependents {
+		if d == 1 {
+			hasDep1 = true
+		}
+		if d == 2 {
+			hasDep2 = true
+		}
+	}
+	if !hasDep1 || !hasDep2 {
+		t.Errorf("expected dependents 1 and 2, got %v", dependents)
+	}
 }
 
 func TestPlatformInBaseImage(t *testing.T) {
