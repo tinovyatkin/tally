@@ -212,12 +212,6 @@ func (b *Builder) processCopyFrom(cmd *instructions.CopyCommand, stageIndex int,
 // parseOnbuildCopy parses an ONBUILD expression to extract a COPY command.
 // Returns nil if the expression is not a COPY with --from.
 func (b *Builder) parseOnbuildCopy(expr string) *instructions.CopyCommand {
-	// Quick check: only parse if it looks like COPY --from
-	upper := strings.ToUpper(strings.TrimSpace(expr))
-	if !strings.HasPrefix(upper, "COPY") || !strings.Contains(upper, "--FROM") {
-		return nil
-	}
-
 	// Parse by wrapping in a minimal Dockerfile
 	dummyDockerfile := "FROM scratch\n" + expr + "\n"
 	result, err := parser.Parse(strings.NewReader(dummyDockerfile))
@@ -230,7 +224,7 @@ func (b *Builder) parseOnbuildCopy(expr string) *instructions.CopyCommand {
 		return nil
 	}
 
-	// Extract the COPY command
+	// Extract the COPY command with --from
 	for _, cmd := range stages[0].Commands {
 		if copyCmd, ok := cmd.(*instructions.CopyCommand); ok && copyCmd.From != "" {
 			return copyCmd
