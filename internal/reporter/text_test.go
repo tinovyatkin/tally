@@ -193,6 +193,11 @@ func TestPrintTextPlain_Sorted(t *testing.T) {
 	idx3 := strings.Index(output, "Rule3")
 	idx2 := strings.Index(output, "Rule2")
 
+	// Ensure all rules are present before comparing indices
+	if idx1 == -1 || idx3 == -1 || idx2 == -1 {
+		t.Fatalf("Expected all rule codes in output, got:\n%s", output)
+	}
+
 	if idx1 > idx3 {
 		t.Errorf("Rule1 should come before Rule3, got:\n%s", output)
 	}
