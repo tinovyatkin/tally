@@ -12,7 +12,7 @@ func TestPrintTextPlain_SingleViolation(t *testing.T) {
 	source := []byte("FROM alpine\nRUN echo hello\nCMD [\"sh\"]")
 	violations := []rules.Violation{
 		{
-			Location: rules.NewRangeLocation("Dockerfile", 1, 0, 1, 14),
+			Location: rules.NewRangeLocation("Dockerfile", 2, 0, 2, 14), // Line 2 (1-based) = "RUN echo hello"
 			RuleCode: "TestRule",
 			Message:  "Test message",
 			Severity: rules.SeverityWarning,
@@ -70,7 +70,7 @@ func TestPrintTextPlain_DifferentSeverities(t *testing.T) {
 		t.Run(tt.want, func(t *testing.T) {
 			violations := []rules.Violation{
 				{
-					Location: rules.NewLineLocation("Dockerfile", 0),
+					Location: rules.NewLineLocation("Dockerfile", 1), // Line 1 (1-based) = "FROM alpine"
 					RuleCode: "TestRule",
 					Message:  "Test",
 					Severity: tt.severity,
@@ -95,7 +95,7 @@ func TestPrintTextPlain_NoURL(t *testing.T) {
 	source := []byte("FROM alpine\nRUN echo hello")
 	violations := []rules.Violation{
 		{
-			Location: rules.NewLineLocation("Dockerfile", 0),
+			Location: rules.NewLineLocation("Dockerfile", 1), // Line 1 (1-based)
 			RuleCode: "TestRule",
 			Message:  "Test message",
 			Severity: rules.SeverityWarning,
@@ -205,7 +205,7 @@ func TestPrintTextPlain_MultipleLines(t *testing.T) {
 	source := []byte("FROM alpine\nRUN echo 1\nRUN echo 2\nRUN echo 3\nCMD [\"sh\"]")
 	violations := []rules.Violation{
 		{
-			Location: rules.NewRangeLocation("Dockerfile", 1, 0, 3, 10),
+			Location: rules.NewRangeLocation("Dockerfile", 2, 0, 4, 10), // Lines 2-4 (1-based)
 			RuleCode: "MultiLine",
 			Message:  "Spans multiple lines",
 			Severity: rules.SeverityWarning,
@@ -242,7 +242,7 @@ func TestPrintTextPlain_Padding(t *testing.T) {
 	source := []byte("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8")
 	violations := []rules.Violation{
 		{
-			Location: rules.NewLineLocation("test", 4), // Line 5 (0-based: 4)
+			Location: rules.NewLineLocation("test", 5), // Line 5 (1-based)
 			RuleCode: "Test",
 			Message:  "Middle line",
 			Severity: rules.SeverityWarning,
@@ -319,7 +319,7 @@ func TestTextReporter_Print(t *testing.T) {
 	source := []byte("FROM alpine\nRUN echo hello")
 	violations := []rules.Violation{
 		{
-			Location: rules.NewLineLocation("Dockerfile", 0),
+			Location: rules.NewLineLocation("Dockerfile", 1), // Line 1 (1-based)
 			RuleCode: "TestRule",
 			Message:  "Test message",
 			Severity: rules.SeverityError,

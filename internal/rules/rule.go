@@ -76,12 +76,15 @@ func (input LintInput) Snippet(startLine, endLine int) string {
 // If the location is file-level (no specific line), returns empty string.
 // If the location is a point, returns just that line.
 // If the location is a range, returns all lines in the range.
+//
+// Note: Location uses 1-based line numbers, SourceMap uses 0-based.
 func (input LintInput) SnippetForLocation(loc Location) string {
 	if loc.IsFileLevel() {
 		return ""
 	}
+	// Convert from 1-based (Location) to 0-based (SourceMap)
 	if loc.IsPointLocation() {
-		return input.SourceMap().Line(loc.Start.Line)
+		return input.SourceMap().Line(loc.Start.Line - 1)
 	}
 	// End is exclusive, so we want lines [Start.Line, End.Line)
 	// For snippet we use inclusive, so endLine = End.Line - 1
@@ -90,7 +93,8 @@ func (input LintInput) SnippetForLocation(loc Location) string {
 	if loc.End.Column == 0 && endLine > loc.Start.Line {
 		endLine--
 	}
-	return input.SourceMap().Snippet(loc.Start.Line, endLine)
+	// Convert to 0-based for SourceMap
+	return input.SourceMap().Snippet(loc.Start.Line-1, endLine-1)
 }
 
 // RuleMetadata contains static information about a rule.

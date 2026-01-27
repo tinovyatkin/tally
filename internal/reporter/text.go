@@ -236,9 +236,9 @@ func (r *TextReporter) printViolation(w io.Writer, v rules.Violation, source []b
 func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byte, colorEnabled bool) {
 	lines := strings.Split(string(source), "\n")
 
-	// Get start/end lines (convert from 0-based to 1-based for display)
-	start := loc.Start.Line + 1
-	end := loc.End.Line + 1
+	// Get start/end lines (BuildKit uses 1-based line numbers)
+	start := loc.Start.Line
+	end := loc.End.Line
 	if loc.IsPointLocation() || end < start {
 		end = start
 	}
@@ -283,7 +283,7 @@ func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byt
 
 	// Print lines with optional syntax highlighting
 	for i := start; i <= end; i++ {
-		isAffected := lineInRange(i, loc.Start.Line+1, loc.End.Line+1)
+		isAffected := lineInRange(i, loc.Start.Line, loc.End.Line)
 		lineContent := lines[i-1]
 
 		// Format line number

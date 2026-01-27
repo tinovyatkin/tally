@@ -52,7 +52,8 @@ func TestLintInput_Snippet(t *testing.T) {
 }
 
 func TestLintInput_SnippetForLocation(t *testing.T) {
-	source := []byte("line0\nline1\nline2\nline3\nline4")
+	// Source lines named to match 1-based line numbers
+	source := []byte("line1\nline2\nline3\nline4\nline5")
 	input := LintInput{
 		Source: source,
 	}
@@ -69,22 +70,22 @@ func TestLintInput_SnippetForLocation(t *testing.T) {
 		},
 		{
 			name: "point location",
-			loc:  NewLineLocation("test", 2),
+			loc:  NewLineLocation("test", 2), // 1-based: line 2
 			want: "line2",
 		},
 		{
 			name: "range same line",
-			loc:  NewRangeLocation("test", 1, 0, 1, 5),
+			loc:  NewRangeLocation("test", 1, 0, 1, 5), // 1-based: line 1
 			want: "line1",
 		},
 		{
 			name: "range multiple lines",
-			loc:  NewRangeLocation("test", 1, 0, 3, 5),
+			loc:  NewRangeLocation("test", 1, 0, 3, 5), // 1-based: lines 1-3
 			want: "line1\nline2\nline3",
 		},
 		{
 			name: "range end column 0",
-			loc:  NewRangeLocation("test", 1, 0, 3, 0),
+			loc:  NewRangeLocation("test", 1, 0, 3, 0), // 1-based: lines 1-2 (end exclusive)
 			want: "line1\nline2",
 		},
 	}
@@ -104,8 +105,8 @@ func TestLintInput_SnippetForLocation_EmptySource(t *testing.T) {
 		Source: []byte{},
 	}
 
-	// Should not panic with empty source
-	got := input.SnippetForLocation(NewLineLocation("test", 0))
+	// Should not panic with empty source (line 1 doesn't exist)
+	got := input.SnippetForLocation(NewLineLocation("test", 1))
 	if got != "" {
 		t.Errorf("SnippetForLocation with empty source = %q, want empty", got)
 	}
