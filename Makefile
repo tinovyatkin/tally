@@ -35,7 +35,7 @@ cpd: bin/pmd-$(PMD_VERSION)
 bin/pmd-$(PMD_VERSION):
 	@mkdir -p bin
 	@if [ ! -d "bin/pmd-bin-$(PMD_VERSION)" ]; then \
-		curl -L "https://github.com/pmd/pmd/releases/download/pmd_releases%2F$(PMD_VERSION)/pmd-dist-$(PMD_VERSION)-bin.zip" -o bin/pmd.zip; \
+		curl -fL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F$(PMD_VERSION)/pmd-dist-$(PMD_VERSION)-bin.zip" -o bin/pmd.zip; \
 		cd bin && unzip -q pmd.zip && rm pmd.zip; \
 	fi
 	@touch $@

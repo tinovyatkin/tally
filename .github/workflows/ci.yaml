@@ -77,7 +77,7 @@ jobs:
       - name: Setup PMD
         run: |
           PMD_VERSION=7.14.0
-          curl -L "https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip" -o pmd.zip
+          curl -fL "https://github.com/pmd/pmd/releases/download/pmd_releases%2F${PMD_VERSION}/pmd-dist-${PMD_VERSION}-bin.zip" -o pmd.zip
           unzip -q pmd.zip
           rm pmd.zip
 
