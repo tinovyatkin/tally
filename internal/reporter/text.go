@@ -260,15 +260,20 @@ func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byt
 	displayStart := start
 	p := 0
 	for p < pad {
+		expanded := false
 		if start > 1 {
 			start--
 			p++
+			expanded = true
 		}
 		if end < len(lines) {
 			end++
 			p++
+			expanded = true
 		}
-		p++
+		if !expanded {
+			break
+		}
 	}
 
 	// File:line header
