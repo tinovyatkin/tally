@@ -29,7 +29,7 @@ cpd: bin/pmd-$(PMD_VERSION)
 		! -path "*/.git/*" \
 		> .cpd-files.txt
 	@bin/pmd-bin-$(PMD_VERSION)/bin/pmd cpd --language go --minimum-tokens 100 \
-		--file-list .cpd-files.txt --skip-lexical-errors
+		--file-list .cpd-files.txt
 	@rm -f .cpd-files.txt
 
 bin/pmd-$(PMD_VERSION):

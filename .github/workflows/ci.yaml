@@ -97,5 +97,5 @@ jobs:
 
           # Run CPD with the file list (informational - don't fail on violations)
           pmd-bin-7.20.0/bin/pmd cpd --language go --minimum-tokens 100 \
-            --file-list files-to-scan.txt --skip-lexical-errors --format text \
+            --file-list files-to-scan.txt --format text \
             --no-fail-on-violation || true
