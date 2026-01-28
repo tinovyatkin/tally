@@ -134,17 +134,18 @@ func TestMarkdownReporterEmpty(t *testing.T) {
 
 func TestMarkdownReporterSeverityEmojis(t *testing.T) {
 	tests := []struct {
+		name     string
 		severity rules.Severity
 		emoji    string
 	}{
-		{rules.SeverityError, "❌"},
-		{rules.SeverityWarning, "⚠️"},
-		{rules.SeverityInfo, "ℹ️"},
-		{rules.SeverityStyle, "💅"},
+		{"error", rules.SeverityError, "❌"},
+		{"warning", rules.SeverityWarning, "⚠️"},
+		{"info", rules.SeverityInfo, "ℹ️"},
+		{"style", rules.SeverityStyle, "💅"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.emoji, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			result := severityEmoji(tt.severity)
 			if result != tt.emoji {
 				t.Errorf("severityEmoji(%v) = %q, want %q", tt.severity, result, tt.emoji)
