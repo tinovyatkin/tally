@@ -337,11 +337,11 @@ tally check --fail-level error Dockerfile
 # Never fail (useful for CI reporting without blocking)
 tally check --fail-level none --format sarif Dockerfile > results.sarif
 
-# Fail on warnings and above (default behavior)
-tally check --fail-level warning Dockerfile
+# Fail on any violation including style issues (default behavior)
+tally check --fail-level style Dockerfile
 ```
 
-Available levels (from most to least severe): `error`, `warning`, `info`, `style`, `none`
+Available levels (from most to least severe): `error`, `warning`, `info`, `style` (default), `none`
 
 ## Development
 
