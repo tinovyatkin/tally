@@ -247,6 +247,10 @@ func TestSortViolationsBySeverity(t *testing.T) {
 		rules.SeverityStyle,
 	}
 
+	if len(sorted) != len(expectedOrder) {
+		t.Fatalf("expected %d violations, got %d", len(expectedOrder), len(sorted))
+	}
+
 	for i, expected := range expectedOrder {
 		if sorted[i].Severity != expected {
 			t.Errorf("Position %d: expected %v, got %v", i, expected, sorted[i].Severity)
