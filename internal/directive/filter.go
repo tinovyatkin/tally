@@ -21,6 +21,11 @@ type FilterResult struct {
 //
 // Line number conversion: Violations use 1-based lines; directives use 0-based.
 // We convert violation lines to 0-based for comparison.
+//
+// Matching precedence: Uses first-match-wins semantics. When multiple directives
+// could suppress the same violation (e.g., a global and a next-line directive),
+// only the first matching directive is marked as Used. This keeps suppression
+// deterministic but may cause subsequent matching directives to appear unused.
 func Filter(violations []rules.Violation, directives []Directive) *FilterResult {
 	result := &FilterResult{
 		Violations: make([]rules.Violation, 0, len(violations)),
