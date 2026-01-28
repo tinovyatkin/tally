@@ -438,8 +438,8 @@ func determineExitCode(violations []rules.Violation, failLevel string) int {
 	// Parse fail-level
 	threshold, err := parseFailLevel(failLevel)
 	if err != nil {
-		// Invalid fail-level, treat as "style" (any violation fails)
-		return ExitViolations
+		fmt.Fprintf(os.Stderr, "Error: invalid --fail-level %q\n", failLevel)
+		return ExitConfigError
 	}
 
 	// Check if any violation meets or exceeds the threshold
