@@ -2,6 +2,7 @@
 package discovery
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"slices"
@@ -82,13 +83,7 @@ func Discover(inputs []string, opts Options) ([]DiscoveredFile, error) {
 
 	// Sort by path for deterministic output
 	slices.SortFunc(results, func(a, b DiscoveredFile) int {
-		if a.Path < b.Path {
-			return -1
-		}
-		if a.Path > b.Path {
-			return 1
-		}
-		return 0
+		return cmp.Compare(a.Path, b.Path)
 	})
 
 	return results, nil
