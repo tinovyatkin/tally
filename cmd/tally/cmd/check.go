@@ -77,9 +77,8 @@ func checkCommand() *cli.Command {
 				Sources: cli.EnvVars("TALLY_OUTPUT_SHOW_SOURCE"),
 			},
 			&cli.BoolFlag{
-				Name:    "hide-source",
-				Usage:   "Hide source code snippets",
-				Sources: cli.EnvVars("TALLY_OUTPUT_HIDE_SOURCE"),
+				Name:  "hide-source",
+				Usage: "Hide source code snippets",
 			},
 			&cli.StringFlag{
 				Name:    "fail-level",
