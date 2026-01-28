@@ -14,8 +14,10 @@ var dockerignoreNames = []string{
 	".containerignore",
 }
 
-// LoadDockerignore reads .dockerignore patterns from a directory.
-// Returns an empty slice if no ignore file exists.
+// LoadDockerignore reads ignore patterns from the first existing ignore file
+// (.dockerignore preferred, then .containerignore). Returns nil if no ignore file exists.
+// An empty ignore file is valid and means "ignore no files" - we don't fall through
+// to the next file in that case.
 func LoadDockerignore(contextDir string) ([]string, error) {
 	for _, name := range dockerignoreNames {
 		ignorePath := filepath.Join(contextDir, name)
@@ -26,9 +28,8 @@ func LoadDockerignore(contextDir string) ([]string, error) {
 			}
 			return nil, err
 		}
-		if len(patterns) > 0 {
-			return patterns, nil
-		}
+		// Return patterns even if empty - an existing empty file is valid
+		return patterns, nil
 	}
 	return nil, nil
 }
