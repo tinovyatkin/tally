@@ -225,6 +225,9 @@ func TestGitHubActionsReporterSorting(t *testing.T) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines, got %d: %q", len(lines), buf.String())
+	}
 
 	// Should be sorted: a.Dockerfile:1, a.Dockerfile:5, b.Dockerfile:10
 	if !strings.Contains(lines[0], "a.Dockerfile") || !strings.Contains(lines[0], "line=1") {
