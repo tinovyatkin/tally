@@ -54,8 +54,8 @@ tally check Dockerfile.dev Dockerfile.prod
 
 ## Available Rules
 
-| Rule | Description | Options |
-|------|-------------|---------|
+| Rule        | Description                     | Options                                    |
+| ----------- | ------------------------------- | ------------------------------------------ |
 | `max-lines` | Enforce maximum number of lines | `max`, `skip-blank-lines`, `skip-comments` |
 
 ## Ignoring Violations
@@ -139,11 +139,11 @@ FROM Ubuntu AS Build
 
 ### CLI Options
 
-| Flag | Description |
-|------|-------------|
-| `--no-inline-directives` | Disable processing of inline ignore directives |
-| `--warn-unused-directives` | Warn about directives that don't suppress any violations |
-| `--require-reason` | Warn about ignore directives without `reason=` explanation |
+| Flag                       | Description                                                |
+| -------------------------- | ---------------------------------------------------------- |
+| `--no-inline-directives`   | Disable processing of inline ignore directives             |
+| `--warn-unused-directives` | Warn about directives that don't suppress any violations   |
+| `--require-reason`         | Warn about ignore directives without `reason=` explanation |
 
 ### Configuration
 
@@ -199,20 +199,20 @@ Configuration sources are applied in this order (highest priority first):
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `TALLY_FORMAT` | Output format (`text`, `json`, `sarif`, `github-actions`) |
-| `TALLY_OUTPUT_FORMAT` | Alias for `TALLY_FORMAT` |
-| `TALLY_OUTPUT_PATH` | Output destination (`stdout`, `stderr`, or file path) |
-| `TALLY_OUTPUT_SHOW_SOURCE` | Show source snippets (`true`/`false`) |
-| `TALLY_OUTPUT_FAIL_LEVEL` | Minimum severity for non-zero exit |
-| `NO_COLOR` | Disable colored output (standard env var) |
-| `TALLY_RULES_MAX_LINES_MAX` | Maximum lines allowed |
-| `TALLY_RULES_MAX_LINES_SKIP_BLANK_LINES` | Exclude blank lines (`true`/`false`) |
-| `TALLY_RULES_MAX_LINES_SKIP_COMMENTS` | Exclude comments (`true`/`false`) |
-| `TALLY_NO_INLINE_DIRECTIVES` | Disable inline directive processing (`true`/`false`) |
-| `TALLY_INLINE_DIRECTIVES_WARN_UNUSED` | Warn about unused directives (`true`/`false`) |
-| `TALLY_INLINE_DIRECTIVES_REQUIRE_REASON` | Require reason= on ignore directives (`true`/`false`) |
+| Variable                                 | Description                                               |
+| ---------------------------------------- | --------------------------------------------------------- |
+| `TALLY_FORMAT`                           | Output format (`text`, `json`, `sarif`, `github-actions`) |
+| `TALLY_OUTPUT_FORMAT`                    | Alias for `TALLY_FORMAT`                                  |
+| `TALLY_OUTPUT_PATH`                      | Output destination (`stdout`, `stderr`, or file path)     |
+| `TALLY_OUTPUT_SHOW_SOURCE`               | Show source snippets (`true`/`false`)                     |
+| `TALLY_OUTPUT_FAIL_LEVEL`                | Minimum severity for non-zero exit                        |
+| `NO_COLOR`                               | Disable colored output (standard env var)                 |
+| `TALLY_RULES_MAX_LINES_MAX`              | Maximum lines allowed                                     |
+| `TALLY_RULES_MAX_LINES_SKIP_BLANK_LINES` | Exclude blank lines (`true`/`false`)                      |
+| `TALLY_RULES_MAX_LINES_SKIP_COMMENTS`    | Exclude comments (`true`/`false`)                         |
+| `TALLY_NO_INLINE_DIRECTIVES`             | Disable inline directive processing (`true`/`false`)      |
+| `TALLY_INLINE_DIRECTIVES_WARN_UNUSED`    | Warn about unused directives (`true`/`false`)             |
+| `TALLY_INLINE_DIRECTIVES_REQUIRE_REASON` | Require reason= on ignore directives (`true`/`false`)     |
 
 ### CLI Flags
 
@@ -239,7 +239,7 @@ Human-readable output with colors and source code snippets:
 tally check Dockerfile
 ```
 
-```
+```text
 WARNING: StageNameCasing - https://docs.docker.com/go/dockerfile/rule/stage-name-casing/
 Stage name 'Builder' should be lowercase
 
@@ -266,7 +266,10 @@ tally check --format json Dockerfile
       "file": "Dockerfile",
       "violations": [
         {
-          "location": { "file": "Dockerfile", "start": { "line": 2, "column": 0 } },
+          "location": {
+            "file": "Dockerfile",
+            "start": { "line": 2, "column": 0 }
+          },
           "rule": "StageNameCasing",
           "message": "Stage name 'Builder' should be lowercase",
           "severity": "warning",
@@ -302,27 +305,27 @@ Native GitHub Actions workflow command format for inline annotations:
 tally check --format github-actions Dockerfile
 ```
 
-```
+```text
 ::warning file=Dockerfile,line=2,title=StageNameCasing::Stage name 'Builder' should be lowercase
 ```
 
 ### Output Options
 
-| Flag | Description |
-|------|-------------|
-| `--format, -f` | Output format: `text`, `json`, `sarif`, `github-actions` |
-| `--output, -o` | Output destination: `stdout`, `stderr`, or file path |
-| `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
-| `--show-source` | Show source code snippets (default: true) |
-| `--hide-source` | Hide source code snippets |
+| Flag            | Description                                               |
+| --------------- | --------------------------------------------------------- |
+| `--format, -f`  | Output format: `text`, `json`, `sarif`, `github-actions`  |
+| `--output, -o`  | Output destination: `stdout`, `stderr`, or file path      |
+| `--no-color`    | Disable colored output (also respects `NO_COLOR` env var) |
+| `--show-source` | Show source code snippets (default: true)                 |
+| `--hide-source` | Hide source code snippets                                 |
 
 ### Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | No violations (or below `--fail-level` threshold) |
-| `1` | Violations found at or above `--fail-level` |
-| `2` | Parse or configuration error |
+| Code | Meaning                                           |
+| ---- | ------------------------------------------------- |
+| `0`  | No violations (or below `--fail-level` threshold) |
+| `1`  | Violations found at or above `--fail-level`       |
+| `2`  | Parse or configuration error                      |
 
 ### Fail Level
 
@@ -359,6 +362,7 @@ make cpd
 ### Code Quality
 
 This project uses:
+
 - **golangci-lint** for Go linting
 - **PMD CPD** for copy/paste detection (minimum 100 tokens)
 
