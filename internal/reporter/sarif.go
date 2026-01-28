@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"io"
+	"path/filepath"
 	"sort"
 
 	"github.com/owenrumney/go-sarif/v2/sarif"
@@ -58,10 +59,13 @@ func (r *SARIFReporter) Report(violations []rules.Violation, _ map[string][]byte
 	}
 
 	// Collect unique rule codes and files
+	// Normalize paths to forward slashes for SARIF URIs (cross-platform consistency)
 	ruleSet := make(map[string]rules.Violation)
 	fileSet := make(map[string]struct{})
 
 	for _, v := range violations {
+		// Normalize file path for SARIF output
+		v.Location.File = filepath.ToSlash(v.Location.File)
 		if _, exists := ruleSet[v.RuleCode]; !exists {
 			ruleSet[v.RuleCode] = v
 		}

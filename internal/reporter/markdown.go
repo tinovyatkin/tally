@@ -3,6 +3,7 @@ package reporter
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,6 +30,11 @@ func (r *MarkdownReporter) Report(violations []rules.Violation, _ map[string][]b
 	}
 
 	sorted := SortViolationsBySeverity(violations)
+
+	// Normalize file paths for consistent output
+	for i := range sorted {
+		sorted[i].Location.File = filepath.ToSlash(sorted[i].Location.File)
+	}
 
 	// Count files and issues
 	fileSet := make(map[string]struct{})

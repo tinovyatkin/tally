@@ -3,6 +3,7 @@ package reporter
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/tinovyatkin/tally/internal/rules"
@@ -30,10 +31,13 @@ func (r *GitHubActionsReporter) Report(violations []rules.Violation, _ map[strin
 	for _, v := range sorted {
 		level := severityToGitHubLevel(v.Severity)
 
+		// Normalize file path to forward slashes for consistent output
+		filePath := filepath.ToSlash(v.Location.File)
+
 		// Build the annotation
 		// Format: ::{level} file={file},line={line},col={col},title={title}::{message}
 		var parts []string
-		parts = append(parts, "file="+escapeGitHubProperty(v.Location.File))
+		parts = append(parts, "file="+escapeGitHubProperty(filePath))
 
 		if !v.Location.IsFileLevel() {
 			parts = append(parts, fmt.Sprintf("line=%d", v.Location.Start.Line))
