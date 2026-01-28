@@ -43,11 +43,11 @@ func NewJSONReporter(w io.Writer) *JSONReporter {
 
 // Report implements Reporter.
 func (r *JSONReporter) Report(violations []rules.Violation, _ map[string][]byte) error {
-	// Group violations by file
+	// Group violations by file (deterministic order)
 	byFile := make(map[string][]rules.Violation)
 	filesOrder := make([]string, 0)
 
-	for _, v := range violations {
+	for _, v := range SortViolations(violations) {
 		file := v.Location.File
 		if _, exists := byFile[file]; !exists {
 			filesOrder = append(filesOrder, file)
