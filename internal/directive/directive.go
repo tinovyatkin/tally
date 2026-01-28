@@ -10,7 +10,10 @@
 //   - Global: Affects the entire file
 package directive
 
-import "math"
+import (
+	"math"
+	"strings"
+)
 
 // DirectiveType indicates the scope of a directive.
 type DirectiveType int
@@ -97,12 +100,42 @@ const (
 )
 
 // SuppressesRule returns true if this directive suppresses the given rule code.
+// Supports both namespaced (tally/max-lines) and non-namespaced (max-lines) forms.
 func (d *Directive) SuppressesRule(ruleCode string) bool {
 	for _, r := range d.Rules {
-		if r == "all" || r == ruleCode {
+		if r == "all" || matchesRule(r, ruleCode) {
 			return true
 		}
 	}
+	return false
+}
+
+// matchesRule checks if a directive rule pattern matches a rule code.
+// Supports:
+//   - Exact match: "tally/max-lines" matches "tally/max-lines"
+//   - Suffix match: "max-lines" matches "tally/max-lines"
+//   - Prefix match: "tally/max-lines" matches "max-lines" (directive is more specific)
+func matchesRule(pattern, ruleCode string) bool {
+	if pattern == ruleCode {
+		return true
+	}
+
+	// Check if pattern matches the suffix (rule name without namespace)
+	// e.g., pattern "max-lines" should match ruleCode "tally/max-lines"
+	if idx := strings.LastIndexByte(ruleCode, '/'); idx != -1 {
+		if pattern == ruleCode[idx+1:] {
+			return true
+		}
+	}
+
+	// Check if ruleCode matches the suffix of pattern
+	// e.g., pattern "tally/max-lines" should match ruleCode "max-lines"
+	if idx := strings.LastIndexByte(pattern, '/'); idx != -1 {
+		if ruleCode == pattern[idx+1:] {
+			return true
+		}
+	}
+
 	return false
 }
 

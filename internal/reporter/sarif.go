@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"io"
+	"path/filepath"
 	"sort"
 
 	"github.com/owenrumney/go-sarif/v2/sarif"
@@ -65,7 +66,9 @@ func (r *SARIFReporter) Report(violations []rules.Violation, _ map[string][]byte
 		if _, exists := ruleSet[v.RuleCode]; !exists {
 			ruleSet[v.RuleCode] = v
 		}
-		fileSet[v.Location.File] = struct{}{}
+		// Normalize path for SARIF URIs (cross-platform consistency)
+		filePath := filepath.ToSlash(v.Location.File)
+		fileSet[filePath] = struct{}{}
 	}
 
 	// Add rule definitions
@@ -99,6 +102,9 @@ func (r *SARIFReporter) Report(violations []rules.Violation, _ map[string][]byte
 
 	// Add results
 	for _, v := range violations {
+		// Normalize file path (must do in each loop since range copies values)
+		filePath := filepath.ToSlash(v.Location.File)
+
 		result := sarif.NewRuleResult(v.RuleCode).
 			WithMessage(sarif.NewTextMessage(v.Message)).
 			WithLevel(severityToSARIFLevel(v.Severity))
@@ -127,7 +133,7 @@ func (r *SARIFReporter) Report(violations []rules.Violation, _ map[string][]byte
 			}
 
 			physicalLocation := sarif.NewPhysicalLocation().
-				WithArtifactLocation(sarif.NewSimpleArtifactLocation(v.Location.File)).
+				WithArtifactLocation(sarif.NewSimpleArtifactLocation(filePath)).
 				WithRegion(region)
 
 			result.WithLocations([]*sarif.Location{
@@ -136,7 +142,7 @@ func (r *SARIFReporter) Report(violations []rules.Violation, _ map[string][]byte
 		} else {
 			// File-level violation - just include the file
 			physicalLocation := sarif.NewPhysicalLocation().
-				WithArtifactLocation(sarif.NewSimpleArtifactLocation(v.Location.File))
+				WithArtifactLocation(sarif.NewSimpleArtifactLocation(filePath))
 
 			result.WithLocations([]*sarif.Location{
 				sarif.NewLocationWithPhysicalLocation(physicalLocation),

@@ -34,6 +34,13 @@
       "depNameTemplate": "golang.org/x/tools",
       "datasourceTemplate": "go",
       "versioningTemplate": "go"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.lefthook\\.yml$"],
+      "matchStrings": ["uv tool run (?<depName>[a-z0-9_-]+)==(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "datasourceTemplate": "pypi",
+      "versioningTemplate": "pep440"
     }
   ],
   "packageRules": [
@@ -44,6 +51,10 @@
     {
       "matchManagers": ["dockerfile"],
       "matchFileNames": ["internal/integration/testdata/**"],
+      "enabled": false
+    },
+    {
+      "matchFileNames": ["packaging/**"],
       "enabled": false
     },
     {

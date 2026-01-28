@@ -65,11 +65,21 @@ func NewViolation(loc Location, ruleCode, message string, severity Severity) Vio
 	}
 }
 
+// BuildKitRulePrefix is the namespace prefix for rules from BuildKit's linter.
+const BuildKitRulePrefix = "buildkit/"
+
+// TallyRulePrefix is the namespace prefix for tally's own rules.
+const TallyRulePrefix = "tally/"
+
+// HadolintRulePrefix is the namespace prefix for Hadolint-compatible rules.
+const HadolintRulePrefix = "hadolint/"
+
 // NewViolationFromBuildKitWarning converts BuildKit linter callback parameters
 // to our Violation type. This bridges BuildKit's linter.LintWarnFunc with our
 // output schema.
 //
 // Parameters match linter.LintWarnFunc: (rulename, description, url, fmtmsg, location)
+// The rule code is automatically namespaced with "buildkit/" prefix.
 func NewViolationFromBuildKitWarning(
 	file string,
 	ruleName string,
@@ -88,7 +98,7 @@ func NewViolationFromBuildKitWarning(
 
 	return Violation{
 		Location: loc,
-		RuleCode: ruleName,
+		RuleCode: BuildKitRulePrefix + ruleName,
 		Message:  message,
 		Detail:   description,
 		Severity: SeverityWarning, // BuildKit warnings map to our warning severity

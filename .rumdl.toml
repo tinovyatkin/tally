@@ -1,3 +1,6 @@
+[global]
+exclude = ["**/__snapshots__/*.snap.md"]
+
 [MD013]
 line_length = 150
 headings = false
@@ -7,3 +10,11 @@ code-blocks = false
 [MD031]
 
 [MD040]
+
+[MD060]
+style = "aligned"
+max-width = 0     # Uses MD013's line-length (100)
+
+# Headings: ATX-style (# Heading) - Prettier converts setext to ATX
+[MD003]
+style = "atx"

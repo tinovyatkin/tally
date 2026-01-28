@@ -2,6 +2,18 @@
 
 A fast, configurable linter for Dockerfiles and Containerfiles.
 
+## Supported Rules
+
+tally integrates rules from multiple sources:
+
+| Source | Rules | Description |
+|--------|-------|-------------|
+| **[BuildKit](https://docs.docker.com/reference/build-checks/)** | 15+ rules | Docker's official Dockerfile checks (automatically captured) |
+| **tally** | 3 rules | Custom rules including secret detection with [gitleaks](https://github.com/gitleaks/gitleaks) |
+| **[Hadolint](https://github.com/hadolint/hadolint)** | 1 rule | Shell best practices (expanding) |
+
+**See [RULES.md](RULES.md) for the complete rules reference.**
+
 ## Installation
 
 ### NPM
@@ -42,6 +54,15 @@ go build .
 # Check a Dockerfile
 tally check Dockerfile
 
+# Check all Dockerfiles in current directory (recursive)
+tally check .
+
+# Check with glob patterns
+tally check "**/*.Dockerfile"
+
+# Exclude patterns
+tally check --exclude "vendor/*" --exclude "test/*" .
+
 # Check with max lines limit
 tally check --max-lines 100 Dockerfile
 
@@ -50,13 +71,59 @@ tally check --format json Dockerfile
 
 # Check multiple files
 tally check Dockerfile.dev Dockerfile.prod
+
+# Enable context-aware rules (e.g., copy-ignored-file)
+tally check --context . Dockerfile
 ```
 
-## Available Rules
+### File Discovery
 
-| Rule        | Description                     | Options                                    |
-| ----------- | ------------------------------- | ------------------------------------------ |
-| `max-lines` | Enforce maximum number of lines | `max`, `skip-blank-lines`, `skip-comments` |
+When given a directory, tally recursively searches for Dockerfiles using these default patterns:
+
+- `Dockerfile`
+- `Dockerfile.*` (e.g., `Dockerfile.dev`, `Dockerfile.prod`)
+- `*.Dockerfile` (e.g., `api.Dockerfile`, `frontend.Dockerfile`)
+- `Containerfile` (Podman convention)
+- `Containerfile.*`
+- `*.Containerfile`
+
+Use `--exclude` to filter out unwanted files:
+
+```bash
+# Exclude vendor and test directories
+tally check --exclude "vendor/*" --exclude "test/*" .
+
+# Exclude all .bak files
+tally check --exclude "*.bak" .
+```
+
+## Rules Overview
+
+For the complete list of all supported rules, see **[RULES.md](RULES.md)**.
+
+### Context-Aware Rules
+
+Some rules require build context awareness. Enable them with the `--context` flag:
+
+```bash
+# Enable context-aware rules
+tally check --context . Dockerfile
+```
+
+**copy-ignored-file**: Detects when `COPY` or `ADD` commands reference files that would be excluded by `.dockerignore`. This helps catch mistakes
+where files are copied but won't actually be included in the build.
+
+```dockerfile
+# .dockerignore contains: *.log
+
+# This will trigger a warning:
+COPY app.log /app/  # File matches .dockerignore pattern
+
+# Heredoc sources are exempt (they're inline, not from context):
+COPY <<EOF /app/config.txt
+inline content
+EOF
+```
 
 ## Ignoring Violations
 
@@ -206,6 +273,8 @@ Configuration sources are applied in this order (highest priority first):
 | `TALLY_OUTPUT_SHOW_SOURCE`               | Show source snippets (`true`/`false`)                     |
 | `TALLY_OUTPUT_FAIL_LEVEL`                | Minimum severity for non-zero exit                        |
 | `NO_COLOR`                               | Disable colored output (standard env var)                 |
+| `TALLY_EXCLUDE`                          | Glob pattern(s) to exclude files (comma-separated)        |
+| `TALLY_CONTEXT`                          | Build context directory for context-aware rules           |
 | `TALLY_RULES_MAX_LINES_MAX`              | Maximum lines allowed                                     |
 | `TALLY_RULES_MAX_LINES_SKIP_BLANK_LINES` | Exclude blank lines (`true`/`false`)                      |
 | `TALLY_RULES_MAX_LINES_SKIP_COMMENTS`    | Exclude comments (`true`/`false`)                         |
@@ -326,6 +395,7 @@ tally check --format markdown Dockerfile
 ```
 
 Features:
+
 - Summary upfront with issue counts
 - Sorted by severity (errors first)
 - Emoji indicators: ❌ error, ⚠️ warning, ℹ️ info, 💅 style
