@@ -118,7 +118,6 @@ func TestGetWriterFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetWriter() error = %v", err)
 	}
-	defer func() { _ = closer() }()
 
 	// Write something
 	_, err = w.Write([]byte("test"))
