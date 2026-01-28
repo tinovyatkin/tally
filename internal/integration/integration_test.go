@@ -74,10 +74,10 @@ func TestCheck(t *testing.T) {
 		{"simple-max-lines-fail", "simple", []string{"--max-lines", "2", "--format", "json"}, nil, 1},
 
 		// Config file discovery tests
-		{"config-file-discovery", "with-config", nil, nil, 1},
-		{"config-cascading-discovery", "nested/subdir", nil, nil, 1},
-		{"config-skip-options", "with-blanks-and-comments", nil, nil, 0},
-		{"cli-overrides-config", "with-config", []string{"--max-lines", "100"}, nil, 0},
+		{"config-file-discovery", "with-config", []string{"--format", "json"}, nil, 1},
+		{"config-cascading-discovery", "nested/subdir", []string{"--format", "json"}, nil, 1},
+		{"config-skip-options", "with-blanks-and-comments", []string{"--format", "json"}, nil, 0},
+		{"cli-overrides-config", "with-config", []string{"--max-lines", "100", "--format", "json"}, nil, 0},
 
 		// Environment variable tests
 		{
