@@ -54,6 +54,10 @@
       "enabled": false
     },
     {
+      "matchFileNames": ["packaging/**"],
+      "enabled": false
+    },
+    {
       "matchManagers": ["github-actions"],
       "pinDigests": false
     },
