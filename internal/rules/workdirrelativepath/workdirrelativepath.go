@@ -5,7 +5,6 @@ package workdirrelativepath
 
 import (
 	"path"
-	"runtime"
 	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
@@ -97,11 +96,8 @@ func isAbsPath(p, os string) bool {
 	return path.IsAbs(p)
 }
 
-// init registers the rule if running tests on the current platform.
-// This allows the rule to work correctly regardless of host OS.
+// init registers the rule with the default registry.
 func init() {
-	// Ensure rule works correctly on any host OS
-	_ = runtime.GOOS
 	rules.Register(New())
 }
 
