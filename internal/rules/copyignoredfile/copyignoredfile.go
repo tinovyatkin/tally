@@ -143,13 +143,15 @@ func isURL(path string) bool {
 
 // normalizePath normalizes a source path for comparison.
 // Handles edge cases like trailing slashes, double slashes, and redundant segments.
+// Uses forward slashes for cross-platform compatibility with .dockerignore patterns.
 func normalizePath(path string) string {
 	cleaned := filepath.Clean(path)
 	// filepath.Clean converts "." to ".", keep it as-is for root context
 	if cleaned == "." {
 		return "."
 	}
-	return cleaned
+	// Convert to forward slashes for consistent matching across platforms
+	return filepath.ToSlash(cleaned)
 }
 
 // New creates a new copy-ignored-file rule instance.
