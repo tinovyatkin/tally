@@ -105,7 +105,14 @@ func (r *Rule) checkCopyAdd(
 		// Check if ignored
 		ignored, err := ctx.IsIgnored(normalizedSrc)
 		if err != nil {
-			// Skip on error - don't block linting
+			// Surface the error as a warning so users know the rule was skipped
+			loc := rules.NewLocationFromRanges(file, location)
+			violations = append(violations, rules.NewViolation(
+				loc,
+				r.Metadata().Code,
+				"failed to evaluate .dockerignore for '"+src+"'",
+				rules.SeverityWarning,
+			).WithDocURL(r.Metadata().DocURL).WithDetail(err.Error()))
 			continue
 		}
 
