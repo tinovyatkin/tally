@@ -282,26 +282,7 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 		cfg.Rules.MaxLines.SkipComments = cmd.Bool("skip-comments")
 	}
 
-	// Output settings
-	if cmd.IsSet("format") {
-		cfg.Output.Format = cmd.String("format")
-	}
-
-	if cmd.IsSet("output") {
-		cfg.Output.Path = cmd.String("output")
-	}
-
-	if cmd.IsSet("show-source") {
-		cfg.Output.ShowSource = cmd.Bool("show-source")
-	}
-
-	if cmd.IsSet("hide-source") && cmd.Bool("hide-source") {
-		cfg.Output.ShowSource = false
-	}
-
-	if cmd.IsSet("fail-level") {
-		cfg.Output.FailLevel = cmd.String("fail-level")
-	}
+	// Output settings are handled in getOutputConfig to avoid duplication
 
 	// --no-inline-directives flag inverts the enabled setting
 	if cmd.IsSet("no-inline-directives") {
