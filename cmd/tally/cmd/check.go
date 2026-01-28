@@ -193,14 +193,14 @@ func checkCommand() *cli.Command {
 			formatType, err := reporter.ParseFormat(outCfg.format)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(ExitConfigError)
+				return cli.Exit("", ExitConfigError)
 			}
 
 			// Get output writer
 			writer, closeWriter, err := reporter.GetWriter(outCfg.path)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(ExitConfigError)
+				return cli.Exit("", ExitConfigError)
 			}
 			defer func() {
 				if err := closeWriter(); err != nil {
@@ -228,19 +228,19 @@ func checkCommand() *cli.Command {
 			rep, err := reporter.New(opts)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: failed to create reporter: %v\n", err)
-				os.Exit(ExitConfigError)
+				return cli.Exit("", ExitConfigError)
 			}
 
 			// Report violations
 			if err := rep.Report(allViolations, fileSources); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: failed to write output: %v\n", err)
-				os.Exit(ExitConfigError)
+				return cli.Exit("", ExitConfigError)
 			}
 
 			// Determine exit code based on fail-level
 			exitCode := determineExitCode(allViolations, outCfg.failLevel)
 			if exitCode != ExitSuccess {
-				os.Exit(exitCode)
+				return cli.Exit("", exitCode)
 			}
 
 			return nil
