@@ -134,13 +134,10 @@ func TestGitHubActionsReporterMessageEscaping(t *testing.T) {
 
 	output := buf.String()
 
-	// Newlines should be escaped
-	if strings.Contains(output, "\n::") || strings.ContainsAny(output[strings.Index(output, "::")+2:], "\n\r") {
-		// The output should be a single line (except the final newline)
-		lines := strings.Split(strings.TrimSpace(output), "\n")
-		if len(lines) != 1 {
-			t.Errorf("Expected single line output, got %d lines: %q", len(lines), output)
-		}
+	// The output should be a single line (except the final newline)
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) != 1 {
+		t.Errorf("Expected single line output, got %d lines: %q", len(lines), output)
 	}
 
 	if !strings.Contains(output, "%0A") {
