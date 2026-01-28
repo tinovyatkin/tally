@@ -5,6 +5,7 @@
 //   - json: Machine-readable JSON output
 //   - sarif: Static Analysis Results Interchange Format for CI/CD integration
 //   - github-actions: Native GitHub Actions workflow annotations
+//   - markdown: Concise markdown tables for AI agents
 package reporter
 
 import (
@@ -54,6 +55,8 @@ const (
 	FormatSARIF Format = "sarif"
 	// FormatGitHubActions is GitHub Actions workflow command output.
 	FormatGitHubActions Format = "github-actions"
+	// FormatMarkdown is concise markdown tables for AI agents.
+	FormatMarkdown Format = "markdown"
 )
 
 // ParseFormat parses a format string into a Format type.
@@ -68,8 +71,10 @@ func ParseFormat(s string) (Format, error) {
 		return FormatSARIF, nil
 	case "github-actions", "github":
 		return FormatGitHubActions, nil
+	case "markdown", "md":
+		return FormatMarkdown, nil
 	default:
-		return "", fmt.Errorf("unknown format: %q (valid: text, json, sarif, github-actions)", s)
+		return "", fmt.Errorf("unknown format: %q (valid: text, json, sarif, github-actions, markdown)", s)
 	}
 }
 
@@ -137,6 +142,9 @@ func New(opts Options) (Reporter, error) {
 
 	case FormatGitHubActions:
 		return NewGitHubActionsReporter(opts.Writer), nil
+
+	case FormatMarkdown:
+		return NewMarkdownReporter(opts.Writer), nil
 
 	default:
 		return nil, fmt.Errorf("unknown format: %q", opts.Format)

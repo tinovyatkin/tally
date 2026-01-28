@@ -167,7 +167,7 @@ Create a `.tally.toml` or `tally.toml` file in your project:
 
 ```toml
 [output]
-format = "text"          # text, json, sarif, github-actions
+format = "text"          # text, json, sarif, github-actions, markdown
 path = "stdout"          # stdout, stderr, or file path
 show-source = true       # Show source code snippets
 fail-level = "style"     # Minimum severity for exit code 1
@@ -201,7 +201,7 @@ Configuration sources are applied in this order (highest priority first):
 
 | Variable                                 | Description                                               |
 | ---------------------------------------- | --------------------------------------------------------- |
-| `TALLY_OUTPUT_FORMAT`                    | Output format (`text`, `json`, `sarif`, `github-actions`) |
+| `TALLY_OUTPUT_FORMAT`                    | Output format (`text`, `json`, `sarif`, `github-actions`, `markdown`) |
 | `TALLY_OUTPUT_PATH`                      | Output destination (`stdout`, `stderr`, or file path)     |
 | `TALLY_OUTPUT_SHOW_SOURCE`               | Show source snippets (`true`/`false`)                     |
 | `TALLY_OUTPUT_FAIL_LEVEL`                | Minimum severity for non-zero exit                        |
@@ -308,11 +308,35 @@ tally check --format github-actions Dockerfile
 ::warning file=Dockerfile,line=2,title=StageNameCasing::Stage name 'Builder' should be lowercase
 ```
 
+### Markdown
+
+Concise markdown tables optimized for AI agents and token efficiency:
+
+```bash
+tally check --format markdown Dockerfile
+```
+
+```markdown
+**2 issues** in `Dockerfile`
+
+| Line | Issue |
+|------|-------|
+| 10 | ❌ Use absolute WORKDIR |
+| 2 | ⚠️ Stage name 'Builder' should be lowercase |
+```
+
+Features:
+- Summary upfront with issue counts
+- Sorted by severity (errors first)
+- Emoji indicators: ❌ error, ⚠️ warning, ℹ️ info, 💅 style
+- No rule codes or doc URLs (token-efficient)
+- Multi-file support with File column when needed
+
 ### Output Options
 
-| Flag            | Description                                               |
-| --------------- | --------------------------------------------------------- |
-| `--format, -f`  | Output format: `text`, `json`, `sarif`, `github-actions`  |
+| Flag            | Description                                                        |
+| --------------- | ------------------------------------------------------------------ |
+| `--format, -f`  | Output format: `text`, `json`, `sarif`, `github-actions`, `markdown` |
 | `--output, -o`  | Output destination: `stdout`, `stderr`, or file path      |
 | `--no-color`    | Disable colored output (also respects `NO_COLOR` env var) |
 | `--show-source` | Show source code snippets (default: true)                 |

@@ -151,6 +151,11 @@ func TestCheck(t *testing.T) {
 			[]string{"--format", "github-actions"},
 			nil, 1, ".txt", // Plain text workflow commands
 		},
+		{
+			"format-markdown", "buildkit-warnings",
+			[]string{"--format", "markdown"},
+			nil, 1, ".md", // Markdown table format
+		},
 
 		// Fail-level tests
 		{
