@@ -78,17 +78,18 @@ func TestGitHubActionsReporter(t *testing.T) {
 
 func TestGitHubActionsReporterSeverityMapping(t *testing.T) {
 	tests := []struct {
+		name     string
 		severity rules.Severity
 		expected string
 	}{
-		{rules.SeverityError, "error"},
-		{rules.SeverityWarning, "warning"},
-		{rules.SeverityInfo, "notice"},
-		{rules.SeverityStyle, "notice"},
+		{"error", rules.SeverityError, "error"},
+		{"warning", rules.SeverityWarning, "warning"},
+		{"info", rules.SeverityInfo, "notice"},
+		{"style", rules.SeverityStyle, "notice"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			result := severityToGitHubLevel(tt.severity)
 			if result != tt.expected {
 				t.Errorf("severityToGitHubLevel(%v) = %q, want %q", tt.severity, result, tt.expected)
