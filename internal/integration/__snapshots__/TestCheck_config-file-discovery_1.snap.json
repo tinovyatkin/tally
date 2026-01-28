@@ -1,24 +1,12 @@
-[
-  {
-    "file": "testdata/with-config/Dockerfile",
-    "violations": [
-      {
-        "location": {
-          "file": "testdata/with-config/Dockerfile",
-          "start": {
-            "line": 3,
-            "column": 0
-          },
-          "end": {
-            "line": -1,
-            "column": -1
-          }
-        },
-        "rule": "max-lines",
-        "message": "file has 3 lines, maximum allowed is 2",
-        "severity": "error",
-        "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md"
-      }
-    ]
-  }
-]
+
+[1;91mERROR:[0m [1;91mmax-lines[0m - [4;94;4mh[0m[4;94;4mt[0m[4;94;4mt[0m[4;94;4mp[0m[4;94;4ms[0m[4;94;4m:[0m[4;94;4m/[0m[4;94;4m/[0m[4;94;4mg[0m[4;94;4mi[0m[4;94;4mt[0m[4;94;4mh[0m[4;94;4mu[0m[4;94;4mb[0m[4;94;4m.[0m[4;94;4mc[0m[4;94;4mo[0m[4;94;4mm[0m[4;94;4m/[0m[4;94;4mt[0m[4;94;4mi[0m[4;94;4mn[0m[4;94;4mo[0m[4;94;4mv[0m[4;94;4my[0m[4;94;4ma[0m[4;94;4mt[0m[4;94;4mk[0m[4;94;4mi[0m[4;94;4mn[0m[4;94;4m/[0m[4;94;4mt[0m[4;94;4ma[0m[4;94;4ml[0m[4;94;4ml[0m[4;94;4my[0m[4;94;4m/[0m[4;94;4mb[0m[4;94;4ml[0m[4;94;4mo[0m[4;94;4mb[0m[4;94;4m/[0m[4;94;4mm[0m[4;94;4ma[0m[4;94;4mi[0m[4;94;4mn[0m[4;94;4m/[0m[4;94;4md[0m[4;94;4mo[0m[4;94;4mc[0m[4;94;4ms[0m[4;94;4m/[0m[4;94;4mr[0m[4;94;4mu[0m[4;94;4ml[0m[4;94;4me[0m[4;94;4ms[0m[4;94;4m/[0m[4;94;4mm[0m[4;94;4ma[0m[4;94;4mx[0m[4;94;4m-[0m[4;94;4ml[0m[4;94;4mi[0m[4;94;4mn[0m[4;94;4me[0m[4;94;4ms[0m[4;94;4m.[0m[4;94;4mm[0m[4;94;4md[0m
+[97mfile has 3 lines, maximum allowed is 2[0m
+
+[1;37mtestdata/with-config/Dockerfile:3[0m
+[90m────────────────────[0m
+[90m   1 │[0m     [38;5;81mFROM[0m[38;5;231m [0m[38;5;186malpine:3.18[0m
+[90m   2 │[0m     
+[90m   3 │[0m [1;91m>>>[0m [38;5;81mRUN[0m[38;5;231m apk add --no-cache curl[0m
+[90m   4 │[0m     
+[90m   5 │[0m     [38;5;81mCMD[0m[38;5;231m [0m[38;5;231m[[0m[38;5;186m"sh"[0m[38;5;231m][0m
+[90m────────────────────[0m

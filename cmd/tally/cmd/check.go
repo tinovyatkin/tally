@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -17,13 +16,15 @@ import (
 	_ "github.com/tinovyatkin/tally/internal/rules/nounreachablestages" // Register rule
 	"github.com/tinovyatkin/tally/internal/semantic"
 	"github.com/tinovyatkin/tally/internal/sourcemap"
+	"github.com/tinovyatkin/tally/internal/version"
 )
 
-// FileResult contains the linting results for a single file.
-type FileResult struct {
-	File       string            `json:"file"`
-	Violations []rules.Violation `json:"violations"`
-}
+// Exit codes
+const (
+	ExitSuccess     = 0 // No violations (or below fail-level threshold)
+	ExitViolations  = 1 // Violations found at or above fail-level
+	ExitConfigError = 2 // Parse or config error
+)
 
 func checkCommand() *cli.Command {
 	return &cli.Command{
@@ -55,8 +56,35 @@ func checkCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "format",
 				Aliases: []string{"f"},
-				Usage:   "Output format: text, json",
-				Sources: cli.EnvVars("TALLY_FORMAT"),
+				Usage:   "Output format: text, json, sarif, github-actions",
+				Sources: cli.EnvVars("TALLY_FORMAT", "TALLY_OUTPUT_FORMAT"),
+			},
+			&cli.StringFlag{
+				Name:    "output",
+				Aliases: []string{"o"},
+				Usage:   "Output path: stdout, stderr, or file path",
+				Sources: cli.EnvVars("TALLY_OUTPUT_PATH"),
+			},
+			&cli.BoolFlag{
+				Name:    "no-color",
+				Usage:   "Disable colored output",
+				Sources: cli.EnvVars("NO_COLOR"),
+			},
+			&cli.BoolFlag{
+				Name:    "show-source",
+				Usage:   "Show source code snippets (default: true)",
+				Value:   true,
+				Sources: cli.EnvVars("TALLY_OUTPUT_SHOW_SOURCE"),
+			},
+			&cli.BoolFlag{
+				Name:    "hide-source",
+				Usage:   "Hide source code snippets",
+				Sources: cli.EnvVars("TALLY_OUTPUT_HIDE_SOURCE"),
+			},
+			&cli.StringFlag{
+				Name:    "fail-level",
+				Usage:   "Minimum severity to cause non-zero exit: error, warning, info, style, none",
+				Sources: cli.EnvVars("TALLY_OUTPUT_FAIL_LEVEL"),
 			},
 			&cli.BoolFlag{
 				Name:    "no-inline-directives",
@@ -82,27 +110,28 @@ func checkCommand() *cli.Command {
 				files = []string{"Dockerfile"}
 			}
 
-			var allResults []FileResult
-			hasViolations := false
-			var configFormat string // Store format from first file's config
+			var allViolations []rules.Violation //nolint:prealloc // Size unknown upfront
 			fileSources := make(map[string][]byte)
+			var firstCfg *config.Config // Store first file's config for output settings
 
 			for _, file := range files {
 				// Load config for this specific file (cascading discovery)
 				cfg, err := loadConfigForFile(cmd, file)
 				if err != nil {
-					return fmt.Errorf("failed to load config for %s: %w", file, err)
+					fmt.Fprintf(os.Stderr, "Error: failed to load config for %s: %v\n", file, err)
+					os.Exit(ExitConfigError)
 				}
 
-				// Store format from first file's config (used if CLI flag not set)
-				if configFormat == "" {
-					configFormat = cfg.Format
+				// Store first config for output settings
+				if firstCfg == nil {
+					firstCfg = cfg
 				}
 
 				// Parse the Dockerfile
 				parseResult, err := dockerfile.ParseFile(ctx, file)
 				if err != nil {
-					return fmt.Errorf("failed to parse %s: %w", file, err)
+					fmt.Fprintf(os.Stderr, "Error: failed to parse %s: %v\n", file, err)
+					os.Exit(ExitConfigError)
 				}
 
 				// Store source for later use in text output
@@ -152,92 +181,67 @@ func checkCommand() *cli.Command {
 					))
 				}
 
-				// Parse and apply inline directives (only when enabled)
-				if cfg.InlineDirectives.Enabled {
-					sm := sourcemap.New(parseResult.Source)
-					var validator directive.RuleValidator
-					if cfg.InlineDirectives.ValidateRules {
-						validator = rules.DefaultRegistry().Has
-					}
-					directiveResult := directive.Parse(sm, validator)
+				// Apply inline directives if enabled
+				violations = processInlineDirectives(file, parseResult.Source, violations, cfg)
 
-					// Report parse errors as warnings
-					for _, parseErr := range directiveResult.Errors {
-						violations = append(violations, rules.NewViolation(
-							rules.NewLineLocation(file, parseErr.Line+1),
-							"invalid-ignore-directive",
-							parseErr.Message,
-							rules.SeverityWarning,
-						).WithDetail("Directive: "+parseErr.RawText))
-					}
-
-					// Filter violations based on inline directives
-					if len(directiveResult.Directives) > 0 {
-						filterResult := directive.Filter(violations, directiveResult.Directives)
-						violations = filterResult.Violations
-
-						// Report unused directives if configured
-						if cfg.InlineDirectives.WarnUnused {
-							for _, unused := range filterResult.UnusedDirectives {
-								violations = append(violations, rules.NewViolation(
-									rules.NewLineLocation(file, unused.Line+1),
-									"unused-ignore-directive",
-									"ignore directive does not suppress any violations",
-									rules.SeverityWarning,
-								).WithDetail("Directive: "+unused.RawText))
-							}
-						}
-					}
-
-					// Report directives without reason if configured
-					// Only applies to tally and hadolint sources (buildx doesn't support reason=)
-					if cfg.InlineDirectives.RequireReason {
-						for _, d := range directiveResult.Directives {
-							if d.Source != directive.SourceBuildx && d.Reason == "" {
-								violations = append(violations, rules.NewViolation(
-									rules.NewLineLocation(file, d.Line+1),
-									"missing-directive-reason",
-									"ignore directive is missing reason= explanation",
-									rules.SeverityWarning,
-								).WithDetail("Directive: "+d.RawText))
-							}
-						}
-					}
-				}
-
-				if len(violations) > 0 {
-					hasViolations = true
-				}
-
-				allResults = append(allResults, FileResult{
-					File:       file,
-					Violations: violations,
-				})
+				allViolations = append(allViolations, violations...)
 			}
 
-			// Output results
-			format := getFormat(cmd, configFormat)
-			switch format {
-			case "json":
-				enc := json.NewEncoder(os.Stdout)
-				enc.SetIndent("", "  ")
-				if err := enc.Encode(allResults); err != nil {
-					return fmt.Errorf("failed to encode JSON: %w", err)
-				}
-			default:
-				// Collect all violations for the reporter
-				var allViolations []rules.Violation
-				for _, result := range allResults {
-					allViolations = append(allViolations, result.Violations...)
-				}
-				if err := reporter.PrintText(os.Stdout, allViolations, fileSources); err != nil {
-					return fmt.Errorf("failed to print results: %w", err)
-				}
+			// Get output configuration
+			outCfg := getOutputConfig(cmd, firstCfg)
+
+			// Parse format
+			formatType, err := reporter.ParseFormat(outCfg.format)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(ExitConfigError)
 			}
 
-			// Exit with error code if violations found (consistent for all formats)
-			if hasViolations {
-				os.Exit(1)
+			// Get output writer
+			writer, closeWriter, err := reporter.GetWriter(outCfg.path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(ExitConfigError)
+			}
+			defer func() {
+				if err := closeWriter(); err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: failed to close output: %v\n", err)
+				}
+			}()
+
+			// Build reporter options
+			opts := reporter.Options{
+				Format:      formatType,
+				Writer:      writer,
+				ShowSource:  outCfg.showSource,
+				ToolName:    "tally",
+				ToolVersion: version.Version(),
+				ToolURI:     "https://github.com/tinovyatkin/tally",
+			}
+
+			// Handle color flag
+			if cmd.IsSet("no-color") && cmd.Bool("no-color") {
+				noColor := false
+				opts.Color = &noColor
+			}
+
+			// Create reporter
+			rep, err := reporter.New(opts)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: failed to create reporter: %v\n", err)
+				os.Exit(ExitConfigError)
+			}
+
+			// Report violations
+			if err := rep.Report(allViolations, fileSources); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: failed to write output: %v\n", err)
+				os.Exit(ExitConfigError)
+			}
+
+			// Determine exit code based on fail-level
+			exitCode := determineExitCode(allViolations, outCfg.failLevel)
+			if exitCode != ExitSuccess {
+				os.Exit(exitCode)
 			}
 
 			return nil
@@ -279,8 +283,25 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 		cfg.Rules.MaxLines.SkipComments = cmd.Bool("skip-comments")
 	}
 
+	// Output settings
 	if cmd.IsSet("format") {
-		cfg.Format = cmd.String("format")
+		cfg.Output.Format = cmd.String("format")
+	}
+
+	if cmd.IsSet("output") {
+		cfg.Output.Path = cmd.String("output")
+	}
+
+	if cmd.IsSet("show-source") {
+		cfg.Output.ShowSource = cmd.Bool("show-source")
+	}
+
+	if cmd.IsSet("hide-source") && cmd.Bool("hide-source") {
+		cfg.Output.ShowSource = false
+	}
+
+	if cmd.IsSet("fail-level") {
+		cfg.Output.FailLevel = cmd.String("fail-level")
 	}
 
 	// --no-inline-directives flag inverts the enabled setting
@@ -299,20 +320,170 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 	return cfg, nil
 }
 
-// getFormat determines the output format.
-// Uses CLI flag if set, otherwise falls back to the provided config format.
-func getFormat(cmd *cli.Command, configFormat string) string {
-	// CLI flag takes precedence
+// processInlineDirectives handles parsing and applying inline ignore directives.
+// It filters violations based on directives and reports directive-related warnings.
+func processInlineDirectives(
+	file string,
+	source []byte,
+	violations []rules.Violation,
+	cfg *config.Config,
+) []rules.Violation {
+	if !cfg.InlineDirectives.Enabled {
+		return violations
+	}
+
+	sm := sourcemap.New(source)
+	var validator directive.RuleValidator
+	if cfg.InlineDirectives.ValidateRules {
+		validator = rules.DefaultRegistry().Has
+	}
+	directiveResult := directive.Parse(sm, validator)
+
+	// Report parse errors as warnings
+	for _, parseErr := range directiveResult.Errors {
+		violations = append(violations, rules.NewViolation(
+			rules.NewLineLocation(file, parseErr.Line+1),
+			"invalid-ignore-directive",
+			parseErr.Message,
+			rules.SeverityWarning,
+		).WithDetail("Directive: "+parseErr.RawText))
+	}
+
+	// Filter violations based on inline directives
+	if len(directiveResult.Directives) > 0 {
+		filterResult := directive.Filter(violations, directiveResult.Directives)
+		violations = filterResult.Violations
+
+		// Report unused directives if configured
+		if cfg.InlineDirectives.WarnUnused {
+			for _, unused := range filterResult.UnusedDirectives {
+				violations = append(violations, rules.NewViolation(
+					rules.NewLineLocation(file, unused.Line+1),
+					"unused-ignore-directive",
+					"ignore directive does not suppress any violations",
+					rules.SeverityWarning,
+				).WithDetail("Directive: "+unused.RawText))
+			}
+		}
+	}
+
+	// Report directives without reason if configured
+	// Only applies to tally and hadolint sources (buildx doesn't support reason=)
+	if cfg.InlineDirectives.RequireReason {
+		for _, d := range directiveResult.Directives {
+			if d.Source != directive.SourceBuildx && d.Reason == "" {
+				violations = append(violations, rules.NewViolation(
+					rules.NewLineLocation(file, d.Line+1),
+					"missing-directive-reason",
+					"ignore directive is missing reason= explanation",
+					rules.SeverityWarning,
+				).WithDetail("Directive: "+d.RawText))
+			}
+		}
+	}
+
+	return violations
+}
+
+// outputConfig holds output configuration values.
+type outputConfig struct {
+	format     string
+	path       string
+	showSource bool
+	failLevel  string
+}
+
+// getOutputConfig returns output configuration from CLI flags and config.
+func getOutputConfig(cmd *cli.Command, cfg *config.Config) outputConfig {
+	// Start with defaults
+	oc := outputConfig{
+		format:     "text",
+		path:       "stdout",
+		showSource: true,
+		failLevel:  "style",
+	}
+
+	if cfg != nil {
+		// Apply config values
+		if cfg.Output.Format != "" {
+			oc.format = cfg.Output.Format
+		} else if cfg.Format != "" {
+			// Backward compatibility
+			oc.format = cfg.Format
+		}
+
+		if cfg.Output.Path != "" {
+			oc.path = cfg.Output.Path
+		}
+
+		oc.showSource = cfg.Output.ShowSource
+
+		if cfg.Output.FailLevel != "" {
+			oc.failLevel = cfg.Output.FailLevel
+		}
+	}
+
+	// CLI flags take precedence
 	if cmd.IsSet("format") {
-		return cmd.String("format")
+		oc.format = cmd.String("format")
 	}
 
-	// Use format from config if set
-	if configFormat != "" {
-		return configFormat
+	if cmd.IsSet("output") {
+		oc.path = cmd.String("output")
 	}
 
-	return "text"
+	if cmd.IsSet("show-source") {
+		oc.showSource = cmd.Bool("show-source")
+	}
+
+	if cmd.IsSet("hide-source") && cmd.Bool("hide-source") {
+		oc.showSource = false
+	}
+
+	if cmd.IsSet("fail-level") {
+		oc.failLevel = cmd.String("fail-level")
+	}
+
+	return oc
+}
+
+// determineExitCode returns the appropriate exit code based on violations and fail-level.
+func determineExitCode(violations []rules.Violation, failLevel string) int {
+	if len(violations) == 0 {
+		return ExitSuccess
+	}
+
+	// "none" means never fail due to violations
+	if failLevel == "none" {
+		return ExitSuccess
+	}
+
+	// Parse fail-level
+	threshold, err := parseFailLevel(failLevel)
+	if err != nil {
+		// Invalid fail-level, treat as "style" (any violation fails)
+		return ExitViolations
+	}
+
+	// Check if any violation meets or exceeds the threshold
+	for _, v := range violations {
+		if v.Severity.IsAtLeast(threshold) {
+			return ExitViolations
+		}
+	}
+
+	return ExitSuccess
+}
+
+// parseFailLevel parses a fail-level string to a Severity.
+func parseFailLevel(level string) (rules.Severity, error) {
+	switch level {
+	case "", "style":
+		// Default to "style" (any violation fails)
+		return rules.SeverityStyle, nil
+	default:
+		return rules.ParseSeverity(level)
+	}
 }
 
 // getRuleConfig returns the appropriate config for a rule based on its code.

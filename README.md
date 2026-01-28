@@ -166,8 +166,11 @@ tally supports configuration via TOML config files, environment variables, and C
 Create a `.tally.toml` or `tally.toml` file in your project:
 
 ```toml
-# Output format: "text" or "json"
-format = "json"
+[output]
+format = "text"          # text, json, sarif, github-actions
+path = "stdout"          # stdout, stderr, or file path
+show-source = true       # Show source code snippets
+fail-level = "style"     # Minimum severity for exit code 1
 
 [rules.max-lines]
 max = 500
@@ -198,7 +201,12 @@ Configuration sources are applied in this order (highest priority first):
 
 | Variable | Description |
 |----------|-------------|
-| `TALLY_FORMAT` | Output format (`text` or `json`) |
+| `TALLY_FORMAT` | Output format (`text`, `json`, `sarif`, `github-actions`) |
+| `TALLY_OUTPUT_FORMAT` | Alias for `TALLY_FORMAT` |
+| `TALLY_OUTPUT_PATH` | Output destination (`stdout`, `stderr`, or file path) |
+| `TALLY_OUTPUT_SHOW_SOURCE` | Show source snippets (`true`/`false`) |
+| `TALLY_OUTPUT_FAIL_LEVEL` | Minimum severity for non-zero exit |
+| `NO_COLOR` | Disable colored output (standard env var) |
 | `TALLY_RULES_MAX_LINES_MAX` | Maximum lines allowed |
 | `TALLY_RULES_MAX_LINES_SKIP_BLANK_LINES` | Exclude blank lines (`true`/`false`) |
 | `TALLY_RULES_MAX_LINES_SKIP_COMMENTS` | Exclude comments (`true`/`false`) |
@@ -221,30 +229,117 @@ tally check --max-lines 100 --skip-blank-lines --skip-comments Dockerfile
 
 ## Output Formats
 
+tally supports multiple output formats for different use cases.
+
 ### Text (default)
 
+Human-readable output with colors and source code snippets:
+
+```bash
+tally check Dockerfile
 ```
-Dockerfile:0: file has 150 lines, maximum allowed is 100 (max-lines)
+
+```
+WARNING: StageNameCasing - https://docs.docker.com/go/dockerfile/rule/stage-name-casing/
+Stage name 'Builder' should be lowercase
+
+Dockerfile:2
+────────────────────
+   1 │ FROM alpine
+>>>2 │ FROM ubuntu AS Builder
+   3 │ RUN echo "hello"
+────────────────────
 ```
 
 ### JSON
 
-```json
-[
-  {
-    "file": "Dockerfile",
-    "lines": 150,
-    "issues": [
-      {
-        "rule": "max-lines",
-        "line": 0,
-        "message": "file has 150 lines, maximum allowed is 100",
-        "severity": "error"
-      }
-    ]
-  }
-]
+Machine-readable format with summary statistics:
+
+```bash
+tally check --format json Dockerfile
 ```
+
+```json
+{
+  "files": [
+    {
+      "file": "Dockerfile",
+      "violations": [
+        {
+          "location": { "file": "Dockerfile", "start": { "line": 2, "column": 0 } },
+          "rule": "StageNameCasing",
+          "message": "Stage name 'Builder' should be lowercase",
+          "severity": "warning",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "errors": 0,
+    "warnings": 1,
+    "info": 0,
+    "style": 0,
+    "files": 1
+  }
+}
+```
+
+### SARIF
+
+[Static Analysis Results Interchange Format](https://docs.oasis-open.org/sarif/sarif/v2.1.0/) for CI/CD integration with GitHub Code Scanning, Azure DevOps, and other tools:
+
+```bash
+tally check --format sarif Dockerfile > results.sarif
+```
+
+### GitHub Actions
+
+Native GitHub Actions workflow command format for inline annotations:
+
+```bash
+tally check --format github-actions Dockerfile
+```
+
+```
+::warning file=Dockerfile,line=2,title=StageNameCasing::Stage name 'Builder' should be lowercase
+```
+
+### Output Options
+
+| Flag | Description |
+|------|-------------|
+| `--format, -f` | Output format: `text`, `json`, `sarif`, `github-actions` |
+| `--output, -o` | Output destination: `stdout`, `stderr`, or file path |
+| `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
+| `--show-source` | Show source code snippets (default: true) |
+| `--hide-source` | Hide source code snippets |
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | No violations (or below `--fail-level` threshold) |
+| `1` | Violations found at or above `--fail-level` |
+| `2` | Parse or configuration error |
+
+### Fail Level
+
+Control which severity levels cause a non-zero exit code:
+
+```bash
+# Fail only on errors (ignore warnings)
+tally check --fail-level error Dockerfile
+
+# Never fail (useful for CI reporting without blocking)
+tally check --fail-level none --format sarif Dockerfile > results.sarif
+
+# Fail on warnings and above (default behavior)
+tally check --fail-level warning Dockerfile
+```
+
+Available levels (from most to least severe): `error`, `warning`, `info`, `style`, `none`
 
 ## Development
 

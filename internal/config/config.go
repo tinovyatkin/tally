@@ -35,7 +35,12 @@ type Config struct {
 	// Rules contains configuration for individual linting rules.
 	Rules RulesConfig `koanf:"rules"`
 
-	// Format specifies the output format: "text" or "json".
+	// Output configures output format and destination.
+	Output OutputConfig `koanf:"output"`
+
+	// Format specifies the output format: "text", "json", "sarif", "github-actions".
+	//
+	// Deprecated: Use Output.Format instead. Kept for backward compatibility.
 	Format string `koanf:"format"`
 
 	// InlineDirectives controls inline suppression directives.
@@ -44,6 +49,26 @@ type Config struct {
 	// ConfigFile is the path to the config file that was loaded (if any).
 	// This is metadata, not loaded from config.
 	ConfigFile string `koanf:"-"`
+}
+
+// OutputConfig configures output formatting and behavior.
+type OutputConfig struct {
+	// Format specifies the output format: "text", "json", "sarif", "github-actions".
+	// Default: "text"
+	Format string `koanf:"format"`
+
+	// Path specifies where to write output: "stdout", "stderr", or a file path.
+	// Default: "stdout"
+	Path string `koanf:"path"`
+
+	// ShowSource enables source code snippets in text output.
+	// Default: true
+	ShowSource bool `koanf:"show-source"`
+
+	// FailLevel sets the minimum severity level that causes a non-zero exit code.
+	// Valid values: "error", "warning", "info", "style", "none"
+	// Default: "style" (any violation causes exit code 1)
+	FailLevel string `koanf:"fail-level"`
 }
 
 // RulesConfig contains configuration for all linting rules.
@@ -116,7 +141,13 @@ func (r MaxLinesRule) Enabled() bool {
 // Default returns the default configuration.
 func Default() *Config {
 	return &Config{
-		Format: "text",
+		Format: "text", // Deprecated, kept for backward compatibility
+		Output: OutputConfig{
+			Format:     "text",
+			Path:       "stdout",
+			ShowSource: true,
+			FailLevel:  "style", // Any violation causes exit code 1
+		},
 		Rules: RulesConfig{
 			MaxLines: MaxLinesRule{
 				Max:            50,   // P90 of 500 analyzed Dockerfiles
@@ -131,6 +162,18 @@ func Default() *Config {
 			RequireReason: false, // Don't require reason= by default
 		},
 	}
+}
+
+// GetFormat returns the effective output format.
+// Prefers Output.Format if set, falls back to deprecated Format field.
+func (c *Config) GetFormat() string {
+	if c.Output.Format != "" {
+		return c.Output.Format
+	}
+	if c.Format != "" {
+		return c.Format
+	}
+	return "text"
 }
 
 // Load loads configuration for a target file path.
@@ -188,6 +231,8 @@ var knownHyphenatedKeys = map[string]string{
 	"warn.unused":       "warn-unused",
 	"validate.rules":    "validate-rules",
 	"require.reason":    "require-reason",
+	"show.source":       "show-source",
+	"fail.level":        "fail-level",
 }
 
 // envKeyTransform converts environment variable names to config keys.

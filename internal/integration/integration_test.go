@@ -138,6 +138,35 @@ func TestCheck(t *testing.T) {
 			[]string{"--format", "json", "--require-reason"},
 			nil, 1, // Warns about directive without reason
 		},
+
+		// Output format tests
+		{
+			"format-sarif", "buildkit-warnings",
+			[]string{"--format", "sarif"},
+			nil, 1,
+		},
+		{
+			"format-github-actions", "buildkit-warnings",
+			[]string{"--format", "github-actions"},
+			nil, 1,
+		},
+
+		// Fail-level tests
+		{
+			"fail-level-none", "buildkit-warnings",
+			[]string{"--format", "json", "--fail-level", "none"},
+			nil, 0, // No exit code even with violations
+		},
+		{
+			"fail-level-error", "buildkit-warnings",
+			[]string{"--format", "json", "--fail-level", "error"},
+			nil, 0, // Only warnings, no errors
+		},
+		{
+			"fail-level-warning", "buildkit-warnings",
+			[]string{"--format", "json", "--fail-level", "warning"},
+			nil, 1, // Has warnings
+		},
 	}
 
 	for _, tc := range testCases {
