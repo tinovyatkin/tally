@@ -224,16 +224,26 @@ func discoverGlob(pattern string, opts Options, seen map[string]bool) ([]Discove
 //
 // Complexity: O(patterns × path_depth) matching operations per file, which is
 // acceptable for typical directory hierarchies (5-10 levels) with modest patterns.
+//
+// Note: doublestar.Match expects forward slashes as path separators even on Windows.
+// We normalize all paths to forward slashes before matching for cross-platform compatibility.
 func isExcluded(absPath string, excludePatterns []string) bool {
+	// Normalize path to forward slashes for doublestar (which always uses /)
+	absPathSlash := filepath.ToSlash(absPath)
+	base := filepath.ToSlash(filepath.Base(absPath))
+
 	for _, pattern := range excludePatterns {
+		// Normalize pattern to forward slashes as well
+		pattern = filepath.ToSlash(pattern)
+
 		// Step 1: Match against full absolute path
-		matched, err := doublestar.Match(pattern, absPath)
+		matched, err := doublestar.Match(pattern, absPathSlash)
 		if err == nil && matched {
 			return true
 		}
 
 		// Step 2: Match against just the filename
-		matched, err = doublestar.Match(pattern, filepath.Base(absPath))
+		matched, err = doublestar.Match(pattern, base)
 		if err == nil && matched {
 			return true
 		}
@@ -243,7 +253,7 @@ func isExcluded(absPath string, excludePatterns []string) bool {
 		// at any level in the path hierarchy
 		parts := splitPath(absPath)
 		for i := range parts {
-			subpath := filepath.Join(parts[i:]...)
+			subpath := filepath.ToSlash(filepath.Join(parts[i:]...))
 			matched, err = doublestar.Match(pattern, subpath)
 			if err == nil && matched {
 				return true
