@@ -95,7 +95,7 @@ func discoverInput(input string, opts Options, seen map[string]bool) ([]Discover
 	// Check if the input contains glob characters. If so, treat it as a glob pattern
 	// without trying os.Stat (which fails on Windows with glob chars like *).
 	if containsGlobChars(input) {
-		return discoverGlob(input, opts, seen)
+		return globMatches(input, opts, seen)
 	}
 
 	// Try as a literal file or directory
@@ -112,7 +112,7 @@ func discoverInput(input string, opts Options, seen map[string]bool) ([]Discover
 		return nil, err
 	}
 
-	return discoverGlob(input, opts, seen)
+	return globMatches(input, opts, seen)
 }
 
 // containsGlobChars returns true if the path contains glob special characters.
@@ -220,11 +220,6 @@ func globMatches(pattern string, opts Options, seen map[string]bool) ([]Discover
 	}
 
 	return results, nil
-}
-
-// discoverGlob expands a glob pattern and returns matching files.
-func discoverGlob(pattern string, opts Options, seen map[string]bool) ([]DiscoveredFile, error) {
-	return globMatches(pattern, opts, seen)
 }
 
 // isExcluded checks if a path matches any exclusion pattern.
