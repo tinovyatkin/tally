@@ -261,9 +261,11 @@ func TestCheck(t *testing.T) {
 			outputStr := string(output)
 			if tc.isDir {
 				// Replace absolute paths with relative ones for reproducible snapshots
+				// Use filepath.ToSlash for cross-platform compatibility (Windows backslashes -> slashes)
 				wd, err := os.Getwd()
 				if err == nil {
-					outputStr = strings.ReplaceAll(outputStr, wd+"/", "")
+					wdSlash := filepath.ToSlash(wd) + "/"
+					outputStr = strings.ReplaceAll(filepath.ToSlash(outputStr), wdSlash, "")
 				}
 			}
 
