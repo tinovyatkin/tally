@@ -38,11 +38,6 @@ type Config struct {
 	// Output configures output format and destination.
 	Output OutputConfig `koanf:"output"`
 
-	// Format specifies the output format: "text", "json", "sarif", "github-actions".
-	//
-	// Deprecated: Use Output.Format instead. Kept for backward compatibility.
-	Format string `koanf:"format"`
-
 	// InlineDirectives controls inline suppression directives.
 	InlineDirectives InlineDirectivesConfig `koanf:"inline-directives"`
 
@@ -141,7 +136,6 @@ func (r MaxLinesRule) Enabled() bool {
 // Default returns the default configuration.
 func Default() *Config {
 	return &Config{
-		Format: "text", // Deprecated, kept for backward compatibility
 		Output: OutputConfig{
 			Format:     "text",
 			Path:       "stdout",
@@ -162,18 +156,6 @@ func Default() *Config {
 			RequireReason: false, // Don't require reason= by default
 		},
 	}
-}
-
-// GetFormat returns the effective output format.
-// Prefers Output.Format if set, falls back to deprecated Format field.
-func (c *Config) GetFormat() string {
-	if c.Output.Format != "" {
-		return c.Output.Format
-	}
-	if c.Format != "" {
-		return c.Format
-	}
-	return "text"
 }
 
 // Load loads configuration for a target file path.

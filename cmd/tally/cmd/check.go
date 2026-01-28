@@ -407,9 +407,6 @@ func getOutputConfig(cmd *cli.Command, cfg *config.Config) outputConfig {
 		// Apply config values
 		if cfg.Output.Format != "" {
 			oc.format = cfg.Output.Format
-		} else if cfg.Format != "" {
-			// Backward compatibility
-			oc.format = cfg.Format
 		}
 
 		if cfg.Output.Path != "" {

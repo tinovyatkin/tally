@@ -201,8 +201,7 @@ Configuration sources are applied in this order (highest priority first):
 
 | Variable                                 | Description                                               |
 | ---------------------------------------- | --------------------------------------------------------- |
-| `TALLY_FORMAT`                           | Output format (`text`, `json`, `sarif`, `github-actions`) |
-| `TALLY_OUTPUT_FORMAT`                    | Alias for `TALLY_FORMAT`                                  |
+| `TALLY_OUTPUT_FORMAT`                    | Output format (`text`, `json`, `sarif`, `github-actions`) |
 | `TALLY_OUTPUT_PATH`                      | Output destination (`stdout`, `stderr`, or file path)     |
 | `TALLY_OUTPUT_SHOW_SOURCE`               | Show source snippets (`true`/`false`)                     |
 | `TALLY_OUTPUT_FAIL_LEVEL`                | Minimum severity for non-zero exit                        |
