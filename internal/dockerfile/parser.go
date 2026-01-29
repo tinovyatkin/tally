@@ -145,14 +145,15 @@ func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter
 
 	// Check Include patterns for experimental rules
 	for _, pattern := range cfg.Rules.Include {
-		// Handle specific buildkit rule: "buildkit/InvalidDefinitionDescription"
-		if ns, name := parseRuleCode(pattern); ns == "buildkit" {
-			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, name)
-		}
 		// Handle "buildkit/*" - enable all experimental rules
 		if pattern == "buildkit/*" {
 			// Add known experimental rules
 			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, "InvalidDefinitionDescription")
+			continue
+		}
+		// Handle specific buildkit rule: "buildkit/InvalidDefinitionDescription"
+		if ns, name := parseRuleCode(pattern); ns == "buildkit" {
+			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, name)
 		}
 	}
 
