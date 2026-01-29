@@ -76,6 +76,11 @@ func (ctx *Context) GetSourceMap(file string) *sourcemap.SourceMap {
 		source, ok = ctx.FileSources[windowsPath]
 	}
 	if !ok {
+		// Also try forward-slash variant when caller passes backslashes.
+		unixPath := strings.ReplaceAll(file, "\\", "/")
+		source, ok = ctx.FileSources[unixPath]
+	}
+	if !ok {
 		return nil
 	}
 
