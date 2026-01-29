@@ -14,25 +14,19 @@ import (
 //	skip-blank-lines = true
 type RuleConfig struct {
 	// Severity overrides the rule's default severity.
-	// Empty string means use the rule's default.
-	// Valid values: "error", "warning", "info", "style", "off"
-	// Use "off" to disable the rule (similar to ESLint).
-	Severity string `koanf:"severity"`
+	Severity string `json:"severity,omitempty" jsonschema:"enum=error,enum=warning,enum=info,enum=style" koanf:"severity"`
 
 	// Exclude contains path patterns where this rule should not run.
-	Exclude ExcludeConfig `koanf:"exclude"`
+	Exclude ExcludeConfig `json:"exclude" koanf:"exclude"`
 
 	// Options contains rule-specific configuration options.
-	// For max-lines: max, skip-blank-lines, skip-comments
-	// These are stored as a map and passed to the rule's Config.
-	Options map[string]any `koanf:",remain"`
+	Options map[string]any `json:"-" koanf:",remain"`
 }
 
 // ExcludeConfig defines file exclusion patterns for a rule.
 type ExcludeConfig struct {
 	// Paths contains glob patterns for files to exclude.
-	// Example: ["test/**", "testdata/**", "*_test.go"]
-	Paths []string `koanf:"paths"`
+	Paths []string `json:"paths,omitempty" jsonschema:"description=Glob patterns for files to exclude (e.g. test/**)" koanf:"paths"`
 }
 
 // RulesConfig contains rule selection and per-rule configuration.
@@ -51,24 +45,20 @@ type ExcludeConfig struct {
 //	severity = "warning"
 //	trusted-registries = ["docker.io", "gcr.io"]
 type RulesConfig struct {
-	// Include explicitly enables rules. Supports patterns:
-	// - "buildkit/*" - all rules in namespace
-	// - "buildkit/StageNameCasing" - specific rule
-	// Empty means use each rule's default (EnabledByDefault).
-	Include []string `koanf:"include"`
+	// Include explicitly enables rules.
+	Include []string `json:"include,omitempty" jsonschema:"description=Enable rules by pattern (e.g. buildkit/*)" koanf:"include"`
 
-	// Exclude explicitly disables rules. Same pattern syntax as Include.
-	// Exclude takes precedence over Include.
-	Exclude []string `koanf:"exclude"`
+	// Exclude explicitly disables rules. Takes precedence over Include.
+	Exclude []string `json:"exclude,omitempty" jsonschema:"description=Disable rules by pattern (takes precedence)" koanf:"exclude"`
 
 	// Tally contains configuration for tally/* rules.
-	Tally map[string]RuleConfig `koanf:"tally"`
+	Tally map[string]RuleConfig `json:"tally,omitempty" jsonschema:"description=Configuration for tally/* rules" koanf:"tally"`
 
 	// Buildkit contains configuration for buildkit/* rules.
-	Buildkit map[string]RuleConfig `koanf:"buildkit"`
+	Buildkit map[string]RuleConfig `json:"buildkit,omitempty" jsonschema:"description=Configuration for buildkit/* rules" koanf:"buildkit"`
 
 	// Hadolint contains configuration for hadolint/* rules.
-	Hadolint map[string]RuleConfig `koanf:"hadolint"`
+	Hadolint map[string]RuleConfig `json:"hadolint,omitempty" jsonschema:"description=Configuration for hadolint/* rules" koanf:"hadolint"`
 }
 
 // Get returns the configuration for a specific rule.
@@ -168,7 +158,12 @@ func (rc *RulesConfig) GetExcludePaths(ruleCode string) []string {
 		return nil
 	}
 	if cfg := rc.Get(ruleCode); cfg != nil {
-		return cfg.Exclude.Paths
+		if cfg.Exclude.Paths == nil {
+			return nil
+		}
+		out := make([]string, len(cfg.Exclude.Paths))
+		copy(out, cfg.Exclude.Paths)
+		return out
 	}
 	return nil
 }
