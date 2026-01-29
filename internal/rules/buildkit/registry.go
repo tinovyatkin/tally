@@ -6,6 +6,8 @@
 package buildkit
 
 import (
+	"slices"
+
 	"github.com/moby/buildkit/frontend/dockerfile/linter"
 
 	"github.com/tinovyatkin/tally/internal/rules"
@@ -165,6 +167,7 @@ func ByCategory(category string) []string {
 			names = append(names, name)
 		}
 	}
+	slices.Sort(names)
 	return names
 }
 
@@ -178,5 +181,6 @@ func Categories() []string {
 	for cat := range seen {
 		categories = append(categories, cat)
 	}
+	slices.Sort(categories)
 	return categories
 }
