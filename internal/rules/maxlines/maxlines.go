@@ -16,23 +16,28 @@ import (
 // This was determined by analyzing 500 public Dockerfiles on GitHub:
 // P90 = 53 lines. With skip-blank-lines and skip-comments enabled by default,
 // this provides a comfortable margin while flagging unusually long Dockerfiles.
+//
+// Pointer types are used for fields that need tri-state semantics (unset vs explicit-zero).
 type Config struct {
-	// Max is the maximum number of lines allowed (0 = disabled).
-	Max int `json:"max,omitempty" jsonschema:"description=Maximum number of lines allowed (0 = disabled),default=50,minimum=0"`
+	// Max is the maximum number of lines allowed (0 = disabled, nil = use default).
+	Max *int `json:"max,omitempty" jsonschema:"description=Maximum number of lines allowed (0 = disabled),default=50,minimum=0"`
 
-	// SkipBlankLines excludes blank lines from the count.
-	SkipBlankLines bool `json:"skip-blank-lines,omitempty" jsonschema:"description=Exclude blank lines from the count,default=true"`
+	// SkipBlankLines excludes blank lines from the count (nil = use default).
+	SkipBlankLines *bool `json:"skip-blank-lines,omitempty" jsonschema:"description=Exclude blank lines from the count,default=true"`
 
-	// SkipComments excludes comment lines from the count.
-	SkipComments bool `json:"skip-comments,omitempty" jsonschema:"description=Exclude comment lines from the count,default=true"`
+	// SkipComments excludes comment lines from the count (nil = use default).
+	SkipComments *bool `json:"skip-comments,omitempty" jsonschema:"description=Exclude comment lines from the count,default=true"`
 }
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() Config {
+	maxLines := 50
+	skipBlankLines := true
+	skipComments := true
 	return Config{
-		Max:            50,   // P90 of 500 analyzed Dockerfiles
-		SkipBlankLines: true, // Count only meaningful lines
-		SkipComments:   true, // Count only instruction lines
+		Max:            &maxLines,       // P90 of 500 analyzed Dockerfiles
+		SkipBlankLines: &skipBlankLines, // Count only meaningful lines
+		SkipComments:   &skipComments,   // Count only instruction lines
 	}
 }
 
@@ -59,10 +64,11 @@ func (r *Rule) Metadata() rules.RuleMetadata {
 func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	cfg := r.resolveConfig(input.Config)
 
-	// Rule is disabled if Max is 0
-	if cfg.Max <= 0 {
+	// Rule is disabled if Max is nil or 0
+	if cfg.Max == nil || *cfg.Max <= 0 {
 		return nil
 	}
+	maxLines := *cfg.Max
 
 	// Get total lines from the AST root node's EndLine
 	// This gives us the last line of actual content
@@ -71,26 +77,26 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	count := totalLines
 
 	// Subtract comment lines if configured (using AST's PrevComment data)
-	if cfg.SkipComments {
+	if cfg.SkipComments != nil && *cfg.SkipComments {
 		count -= countCommentLines(input.AST.AST)
 	}
 
 	// Handle blank lines
-	if cfg.SkipBlankLines {
+	if cfg.SkipBlankLines != nil && *cfg.SkipBlankLines {
 		count -= countBlankLines(input.AST)
-	} else if count <= cfg.Max {
+	} else if count <= maxLines {
 		// Trailing blanks only matter if not already over limit
 		count += countTrailingBlanks(input.Source)
 	}
 
-	if count > cfg.Max {
+	if count > maxLines {
 		// Report from the first line exceeding the limit (like ESLint)
 		// With 1-based line numbers, line (Max+1) is the first line over
 		return []rules.Violation{
 			rules.NewViolation(
-				rules.NewLineLocation(input.File, cfg.Max+1), // 1-based: first line over max
+				rules.NewLineLocation(input.File, maxLines+1), // 1-based: first line over max
 				r.Metadata().Code,
-				fmt.Sprintf("file has %d lines, maximum allowed is %d", count, cfg.Max),
+				fmt.Sprintf("file has %d lines, maximum allowed is %d", count, maxLines),
 				r.Metadata().DefaultSeverity,
 			).WithDocURL(r.Metadata().DocURL),
 		}
@@ -234,8 +240,8 @@ func (r *Rule) ValidateConfig(config any) error {
 	default:
 		return fmt.Errorf("expected Config, got %T", config)
 	}
-	if cfg.Max < 0 {
-		return fmt.Errorf("max must be >= 0, got %d", cfg.Max)
+	if cfg.Max != nil && *cfg.Max < 0 {
+		return fmt.Errorf("max must be >= 0, got %d", *cfg.Max)
 	}
 	return nil
 }
