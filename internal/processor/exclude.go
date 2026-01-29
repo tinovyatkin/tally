@@ -25,6 +25,9 @@ func (p *PathExclusionFilter) Process(violations []rules.Violation, ctx *Context
 	return filterViolations(violations, func(v rules.Violation) bool {
 		// Get config for the violation's file
 		cfg := ctx.ConfigForFile(v.Location.File)
+		if cfg == nil {
+			return true // no config = no exclusions
+		}
 
 		patterns := cfg.Rules.GetExcludePaths(v.RuleCode)
 		if len(patterns) == 0 {

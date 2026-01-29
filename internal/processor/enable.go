@@ -35,6 +35,14 @@ func (p *EnableFilter) Process(violations []rules.Violation, ctx *Context) []rul
 	return filterViolations(violations, func(v rules.Violation) bool {
 		// Get config for the violation's file
 		cfg := ctx.ConfigForFile(v.Location.File)
+		if cfg == nil {
+			// No config - check rule's EnabledByDefault below
+			rule := p.registry.Get(v.RuleCode)
+			if rule != nil {
+				return rule.Metadata().EnabledByDefault
+			}
+			return true
+		}
 
 		// Check config-based enable/disable
 		enabled := cfg.Rules.IsEnabled(v.RuleCode)

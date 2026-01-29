@@ -96,6 +96,9 @@ func (p *InlineDirectiveFilter) processFile(
 ) []rules.Violation {
 	// Get config for this specific file
 	cfg := ctx.ConfigForFile(file)
+	if cfg == nil {
+		return violations
+	}
 
 	// Skip if inline directives are disabled for this file
 	if !cfg.InlineDirectives.Enabled {

@@ -23,6 +23,9 @@ func (p *SeverityOverride) Process(violations []rules.Violation, ctx *Context) [
 	return transformViolations(violations, func(v rules.Violation) rules.Violation {
 		// Get config for the violation's file
 		cfg := ctx.ConfigForFile(v.Location.File)
+		if cfg == nil {
+			return v
+		}
 
 		override := cfg.Rules.GetSeverity(v.RuleCode)
 		if override == "" {
