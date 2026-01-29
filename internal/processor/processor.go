@@ -37,6 +37,9 @@ type Processor interface {
 
 // Context provides shared state for processors.
 // Populated once before running the chain, then passed to each processor.
+//
+// NOTE: Context is not safe for concurrent access. The processor chain
+// runs sequentially, so no synchronization is needed.
 type Context struct {
 	// Config is the loaded configuration.
 	Config *config.Config
@@ -62,6 +65,8 @@ func NewContext(cfg *config.Config, fileSources map[string][]byte) *Context {
 // GetSourceMap returns or creates a SourceMap for the given file.
 // Returns nil if the file is not in FileSources.
 // Handles cross-platform path lookups by trying both forward and backslash variants.
+//
+// NOTE: This method is not safe for concurrent calls. See Context docs.
 func (ctx *Context) GetSourceMap(file string) *sourcemap.SourceMap {
 	if sm, ok := ctx.sourceMaps[file]; ok {
 		return sm
