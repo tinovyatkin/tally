@@ -114,12 +114,16 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	count := totalLines
 
 	// Subtract comment lines if configured (using AST's PrevComment data)
-	if cfg.SkipComments != nil && *cfg.SkipComments {
+	// nil defaults to true (skip comments)
+	skipComments := cfg.SkipComments == nil || *cfg.SkipComments
+	if skipComments {
 		count -= countCommentLines(input.AST.AST)
 	}
 
 	// Handle blank lines
-	if cfg.SkipBlankLines != nil && *cfg.SkipBlankLines {
+	// nil defaults to true (skip blank lines)
+	skipBlankLines := cfg.SkipBlankLines == nil || *cfg.SkipBlankLines
+	if skipBlankLines {
 		count -= countBlankLines(input.AST)
 	} else if count <= maxLines {
 		// Trailing blanks only matter if not already over limit
