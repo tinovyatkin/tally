@@ -105,6 +105,9 @@ func (ctx *Context) ConfigForFile(file string) *config.Config {
 //
 // NOTE: This method is not safe for concurrent calls. See Context docs.
 func (ctx *Context) GetSourceMap(file string) *sourcemap.SourceMap {
+	if ctx.sourceMaps == nil {
+		ctx.sourceMaps = make(map[string]*sourcemap.SourceMap)
+	}
 	if sm, ok := ctx.sourceMaps[file]; ok {
 		return sm
 	}
