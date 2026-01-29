@@ -8,19 +8,15 @@ import (
 // Can be specified in TOML as:
 //
 //	[rules.tally.max-lines]
-//	enabled = true
 //	severity = "warning"
 //	# Rule-specific options are flattened at this level
 //	max = 100
 //	skip-blank-lines = true
 type RuleConfig struct {
-	// Enabled controls whether the rule runs.
-	// nil means use the rule's default (EnabledByDefault from metadata).
-	Enabled *bool `koanf:"enabled"`
-
 	// Severity overrides the rule's default severity.
 	// Empty string means use the rule's default.
-	// Valid values: "error", "warning", "info", "style"
+	// Valid values: "error", "warning", "info", "style", "off"
+	// Use "off" to disable the rule (similar to ESLint).
 	Severity string `koanf:"severity"`
 
 	// Exclude contains path patterns where this rule should not run.
@@ -95,12 +91,22 @@ func parseRuleCode(ruleCode string) (string, string) {
 
 // IsEnabled checks if a rule is enabled.
 // Returns nil if no configuration specifies enabled/disabled (use rule default).
+// A rule is disabled if severity = "off".
 func (rc *RulesConfig) IsEnabled(ruleCode string) *bool {
 	if rc == nil {
 		return nil
 	}
-	if cfg := rc.Get(ruleCode); cfg != nil && cfg.Enabled != nil {
-		return cfg.Enabled
+	cfg := rc.Get(ruleCode)
+	if cfg == nil {
+		return nil
+	}
+	// severity = "off" disables the rule
+	if cfg.Severity == "off" {
+		return boolPtr(false)
+	}
+	// Any other severity means enabled (if configured)
+	if cfg.Severity != "" {
+		return boolPtr(true)
 	}
 	return nil
 }

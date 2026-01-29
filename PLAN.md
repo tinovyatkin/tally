@@ -23,29 +23,28 @@ fail-level = "style"
 
 # Per-rule configuration with namespaced keys
 # Rules are organized by namespace: tally, buildkit, hadolint
+# Use severity = "off" to disable a rule (similar to ESLint)
 [rules.tally.max-lines]
-enabled = true
 severity = "warning"    # Override default severity
 max = 100
 skip-blank-lines = true
 skip-comments = true
 
 [rules.tally.secrets-in-code]
-enabled = true
+severity = "error"
 exclude.paths = ["test/**", "testdata/**"]
 
 [rules.buildkit.StageNameCasing]
-enabled = true
 severity = "info"       # Downgrade from default warning
 
 [rules.buildkit.MaintainerDeprecated]
-enabled = false         # Disable a rule
+severity = "off"        # Disable a rule
 
 [rules.hadolint.DL3006]
-enabled = false         # Disable hadolint-compat rule
+severity = "off"        # Disable hadolint-compat rule
 
 [rules.hadolint.DL3026]
-enabled = true
+severity = "warning"
 trusted-registries = ["docker.io", "gcr.io"]
 ```
 
@@ -475,7 +474,7 @@ skip-comments = true
 
 - [ ] Output is stable across runs (sorting processor ensures deterministic order)
 - [ ] Severity overrides work via config (`[rules.buildkit.StageNameCasing] severity = "info"`)
-- [ ] Rules can be enabled/disabled via config (`[rules.buildkit.MaintainerDeprecated] enabled = false`)
+- [ ] Rules can be disabled via config (`[rules.buildkit.MaintainerDeprecated] severity = "off"`)
 - [ ] BuildKit rules are individually configurable (all 22 in registry)
 - [ ] Snippet attachment works without reporter-specific hacks
 - [ ] Deduplication prevents same violation from appearing twice

@@ -281,8 +281,7 @@ func TestParse_SkipsDisabledBuildKitRules(t *testing.T) {
 
 	// Parse with StageNameCasing disabled - should NOT get the warning
 	cfg := config.Default()
-	disabled := false
-	cfg.Rules.Set("buildkit/StageNameCasing", config.RuleConfig{Enabled: &disabled})
+	cfg.Rules.Set("buildkit/StageNameCasing", config.RuleConfig{Severity: "off"})
 
 	resultWithConfig, err := Parse(strings.NewReader(content), cfg)
 	if err != nil {
@@ -323,8 +322,7 @@ FROM alpine:3.18
 
 	// Parse with experimental rule enabled
 	cfg := config.Default()
-	enabled := true
-	cfg.Rules.Set("buildkit/InvalidDefinitionDescription", config.RuleConfig{Enabled: &enabled})
+	cfg.Rules.Set("buildkit/InvalidDefinitionDescription", config.RuleConfig{Severity: "warning"})
 
 	resultWithConfig, err := Parse(strings.NewReader(content), cfg)
 	if err != nil {

@@ -102,7 +102,7 @@ func Default() *Config {
 	rules := RulesConfig{
 		Tally: map[string]RuleConfig{
 			"max-lines": {
-				Enabled: boolPtr(true),
+				Severity: "error", // Default severity for max-lines
 				Options: map[string]any{
 					"max":              maxLinesDefaults.Max,
 					"skip-blank-lines": maxLinesDefaults.SkipBlankLines,

@@ -210,14 +210,14 @@ skip-comments = true
 		}
 	})
 
-	t.Run("rule enable/disable", func(t *testing.T) {
+	t.Run("rule enable/disable via severity", func(t *testing.T) {
 		configPath := filepath.Join(tmpDir, ".tally.toml")
 		configContent := `
 [rules.buildkit.MaintainerDeprecated]
-enabled = false
+severity = "off"
 
 [rules.tally.max-lines]
-enabled = true
+severity = "error"
 max = 100
 `
 		if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
@@ -230,13 +230,13 @@ max = 100
 			t.Fatalf("Load() error = %v", err)
 		}
 
-		// Check buildkit rule is disabled
+		// Check buildkit rule is disabled (severity=off)
 		enabled := cfg.Rules.IsEnabled("buildkit/MaintainerDeprecated")
 		if enabled == nil || *enabled != false {
-			t.Error("buildkit/MaintainerDeprecated should be disabled")
+			t.Error("buildkit/MaintainerDeprecated should be disabled (severity=off)")
 		}
 
-		// Check tally rule is enabled
+		// Check tally rule is enabled (has severity configured)
 		enabled = cfg.Rules.IsEnabled("tally/max-lines")
 		if enabled == nil || *enabled != true {
 			t.Error("tally/max-lines should be enabled")
@@ -310,23 +310,21 @@ func TestRulesConfigNestedStructure(t *testing.T) {
 	rc := &RulesConfig{
 		Buildkit: map[string]RuleConfig{
 			"StageNameCasing": {
-				Enabled:  boolPtr(true),
 				Severity: "warning",
 			},
 			"MaintainerDeprecated": {
-				Enabled:  boolPtr(false),
-				Severity: "info",
+				Severity: "off", // disabled via severity
 			},
 		},
 		Tally: map[string]RuleConfig{
 			"max-lines": {
-				Enabled: boolPtr(true),
-				Options: map[string]any{"max": 100},
+				Severity: "error",
+				Options:  map[string]any{"max": 100},
 			},
 		},
 		Hadolint: map[string]RuleConfig{
 			"DL3026": {
-				Enabled: boolPtr(true),
+				Severity: "warning",
 				Options: map[string]any{
 					"trusted-registries": []string{"docker.io", "gcr.io"},
 				},
@@ -342,12 +340,12 @@ func TestRulesConfigNestedStructure(t *testing.T) {
 
 	enabled = rc.IsEnabled("buildkit/MaintainerDeprecated")
 	if enabled == nil || *enabled != false {
-		t.Error("buildkit/MaintainerDeprecated should be disabled")
+		t.Error("buildkit/MaintainerDeprecated should be disabled (severity=off)")
 	}
 
 	sev := rc.GetSeverity("buildkit/MaintainerDeprecated")
-	if sev != "info" {
-		t.Errorf("GetSeverity(buildkit/MaintainerDeprecated) = %q, want %q", sev, "info")
+	if sev != "off" {
+		t.Errorf("GetSeverity(buildkit/MaintainerDeprecated) = %q, want %q", sev, "off")
 	}
 
 	// Tally rules
@@ -376,10 +374,10 @@ func TestRulesConfigNestedStructure(t *testing.T) {
 		t.Errorf("unconfigured rule should return nil, got %v", *enabled)
 	}
 
-	// Test Set method
-	rc.Set("hadolint/DL3008", RuleConfig{Enabled: boolPtr(false)})
+	// Test Set method with severity=off
+	rc.Set("hadolint/DL3008", RuleConfig{Severity: "off"})
 	enabled = rc.IsEnabled("hadolint/DL3008")
 	if enabled == nil || *enabled != false {
-		t.Error("hadolint/DL3008 should be disabled after Set")
+		t.Error("hadolint/DL3008 should be disabled after Set with severity=off")
 	}
 }

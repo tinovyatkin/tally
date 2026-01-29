@@ -105,9 +105,8 @@ func TestEnableFilter(t *testing.T) {
 	}
 
 	cfg := config.Default()
-	// Disable tally/max-lines
-	disabled := false
-	cfg.Rules.Set("tally/max-lines", config.RuleConfig{Enabled: &disabled})
+	// Disable tally/max-lines via severity=off
+	cfg.Rules.Set("tally/max-lines", config.RuleConfig{Severity: "off"})
 
 	p := NewEnableFilter()
 	ctx := NewContext(cfg, nil)
@@ -204,9 +203,8 @@ func TestEnableFilter_HadolintRules(t *testing.T) {
 	}
 
 	cfg := config.Default()
-	// Disable hadolint/DL3024
-	disabled := false
-	cfg.Rules.Set("hadolint/DL3024", config.RuleConfig{Enabled: &disabled})
+	// Disable hadolint/DL3024 via severity=off
+	cfg.Rules.Set("hadolint/DL3024", config.RuleConfig{Severity: "off"})
 
 	p := NewEnableFilter()
 	ctx := NewContext(cfg, nil)

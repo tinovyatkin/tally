@@ -130,14 +130,12 @@ func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter
 
 	// Check each configured BuildKit rule
 	for ruleName, ruleCfg := range cfg.Rules.Buildkit {
-		// If explicitly disabled, add to SkipRules
-		if ruleCfg.Enabled != nil && !*ruleCfg.Enabled {
+		// If severity = "off", add to SkipRules
+		if ruleCfg.Severity == "off" {
 			lintCfg.SkipRules = append(lintCfg.SkipRules, ruleName)
-		}
-
-		// If explicitly enabled, could be an experimental rule - add to ExperimentalRules
-		// (BuildKit ignores this for non-experimental rules, so it's safe)
-		if ruleCfg.Enabled != nil && *ruleCfg.Enabled {
+		} else if ruleCfg.Severity != "" {
+			// If explicitly configured (not off), could be an experimental rule
+			// Add to ExperimentalRules (BuildKit ignores this for non-experimental rules)
 			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, ruleName)
 		}
 	}

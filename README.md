@@ -241,19 +241,19 @@ fail-level = "style"     # Minimum severity for exit code 1
 
 # Rules are organized by namespace: tally, buildkit, hadolint
 [rules.tally.max-lines]
+severity = "error"
 max = 500
 skip-blank-lines = true
 skip-comments = true
 
 [rules.buildkit.StageNameCasing]
-enabled = true
 severity = "warning"
 
 [rules.buildkit.MaintainerDeprecated]
-enabled = false          # Disable this rule
+severity = "off"          # Disable this rule
 
 [rules.hadolint.DL3026]
-enabled = true
+severity = "warning"
 trusted-registries = ["docker.io", "gcr.io"]
 ```
 
