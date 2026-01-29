@@ -54,9 +54,8 @@ func (r *Rule) Schema() map[string]any {
 			"trusted-registries": map[string]any{
 				"type":        "array",
 				"items":       map[string]any{"type": "string", "minLength": 1},
-				"minItems":    1,
 				"uniqueItems": true,
-				"description": "Allowed registries (at least one required to enable rule)",
+				"description": "Allowed registries (empty or omitted disables the rule)",
 			},
 		},
 		"additionalProperties": false,
