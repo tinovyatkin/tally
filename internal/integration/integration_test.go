@@ -212,6 +212,13 @@ func TestCheck(t *testing.T) {
 			args:  []string{"--format", "json", "--exclude", "test/*", "--exclude", "vendor/*"},
 			isDir: true,
 		},
+		{
+			name:     "per-file-configs",
+			dir:      "per-file-configs",
+			args:     []string{"--format", "json"},
+			isDir:    true,
+			wantExit: 1,
+		},
 	}
 
 	for _, tc := range testCases {
