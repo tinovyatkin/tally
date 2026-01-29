@@ -11,6 +11,10 @@ import (
 // Resolve merges user options over defaults and unmarshals to typed config.
 // If opts is nil or empty, returns defaults unchanged.
 // This eliminates duplicated map-to-struct conversion in each rule.
+//
+// Note: For slice/map fields, only nil values are replaced with defaults.
+// An explicitly empty slice ([]string{}) preserves the empty value,
+// allowing users to explicitly clear defaults.
 func Resolve[T any](opts map[string]any, defaults T) T {
 	if len(opts) == 0 {
 		return defaults
