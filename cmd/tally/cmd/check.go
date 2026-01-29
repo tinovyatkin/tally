@@ -306,9 +306,11 @@ func checkCommand() *cli.Command {
 			}
 
 			// Calculate metadata for report
+			// Count rules that are effectively enabled based on config
+			rulesEnabled := countEffectivelyEnabledRules(firstCfg)
 			metadata := reporter.ReportMetadata{
 				FilesScanned: len(discovered),
-				RulesEnabled: countEnabledRules(),
+				RulesEnabled: rulesEnabled,
 			}
 
 			// Report violations
@@ -501,16 +503,50 @@ func getRuleConfig(ruleCode string, cfg *config.Config) any {
 	return cfg.Rules.GetOptions(ruleCode)
 }
 
-// countEnabledRules returns the number of rules with DefaultSeverity != Off.
-func countEnabledRules() int {
+// countEffectivelyEnabledRules returns the number of rules that are actually enabled
+// after applying config overrides (include/exclude patterns and severity overrides).
+func countEffectivelyEnabledRules(cfg *config.Config) int {
 	registry := rules.DefaultRegistry()
 	allRules := registry.All()
 	count := 0
+
 	for _, rule := range allRules {
-		if rule.Metadata().DefaultSeverity != rules.SeverityOff {
+		meta := rule.Metadata()
+		ruleCode := meta.Code
+
+		// Check if explicitly disabled by exclude pattern
+		if cfg != nil {
+			enabled := cfg.Rules.IsEnabled(ruleCode)
+			if enabled != nil && !*enabled {
+				continue // Explicitly disabled
+			}
+			if enabled != nil && *enabled {
+				count++ // Explicitly enabled
+				continue
+			}
+
+			// Check if severity is overridden to "off"
+			if sev := cfg.Rules.GetSeverity(ruleCode); sev == "off" {
+				continue // Disabled via severity
+			}
+
+			// Check if "off" rule is auto-enabled by having config options
+			if meta.DefaultSeverity == rules.SeverityOff {
+				ruleConfig := cfg.Rules.Get(ruleCode)
+				if ruleConfig != nil && len(ruleConfig.Options) > 0 {
+					count++ // Auto-enabled
+					continue
+				}
+				continue // Still off (no config to enable it)
+			}
+		}
+
+		// Use default severity
+		if meta.DefaultSeverity != rules.SeverityOff {
 			count++
 		}
 	}
+
 	return count
 }
 
