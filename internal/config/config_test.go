@@ -141,7 +141,6 @@ func TestLoad(t *testing.T) {
 format = "json"
 
 [rules.tally.max-lines]
-enabled = true
 max = 500
 skip-blank-lines = true
 skip-comments = true
