@@ -163,6 +163,10 @@ func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter
 
 // experimentalBuildKitRules is the list of known experimental BuildKit linter rules.
 // These rules are disabled by default and must be explicitly enabled.
+//
+// NOTE: This list must be kept in sync with BuildKit's experimental rules.
+// When BuildKit introduces new experimental rules, add them here.
+// Check BuildKit release notes or linter/linter.go for updates.
 var experimentalBuildKitRules = []string{
 	"InvalidDefinitionDescription",
 }
