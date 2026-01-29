@@ -165,14 +165,14 @@ func TestLoad(t *testing.T) {
 		}
 	})
 
-	t.Run("loads config file with new format", func(t *testing.T) {
+	t.Run("loads config file with nested format", func(t *testing.T) {
 		configPath := filepath.Join(tmpDir, ".tally.toml")
-		// New config format with namespaced rules
+		// Nested config format with namespaced rules
 		configContent := `
 [output]
 format = "json"
 
-[rules."tally/max-lines"]
+[rules.tally.max-lines]
 enabled = true
 max = 500
 skip-blank-lines = true
@@ -213,10 +213,10 @@ skip-comments = true
 	t.Run("rule enable/disable", func(t *testing.T) {
 		configPath := filepath.Join(tmpDir, ".tally.toml")
 		configContent := `
-[rules."buildkit/MaintainerDeprecated"]
+[rules.buildkit.MaintainerDeprecated]
 enabled = false
 
-[rules."tally/max-lines"]
+[rules.tally.max-lines]
 enabled = true
 max = 100
 `
@@ -252,10 +252,10 @@ max = 100
 	t.Run("severity override", func(t *testing.T) {
 		configPath := filepath.Join(tmpDir, ".tally.toml")
 		configContent := `
-[rules."buildkit/StageNameCasing"]
+[rules.buildkit.StageNameCasing]
 severity = "info"
 
-[rules."tally/max-lines"]
+[rules.tally.max-lines]
 severity = "error"
 max = 100
 `
@@ -306,42 +306,80 @@ func TestEnvKeyTransform(t *testing.T) {
 	}
 }
 
-func TestRulesConfigNamespaceDefaults(t *testing.T) {
+func TestRulesConfigNestedStructure(t *testing.T) {
 	rc := &RulesConfig{
-		Defaults: map[string]RuleConfig{
-			"buildkit/*": {
+		Buildkit: map[string]RuleConfig{
+			"StageNameCasing": {
+				Enabled:  boolPtr(true),
+				Severity: "warning",
+			},
+			"MaintainerDeprecated": {
 				Enabled:  boolPtr(false),
 				Severity: "info",
 			},
 		},
-		PerRule: map[string]RuleConfig{
-			"buildkit/StageNameCasing": {
-				Enabled: boolPtr(true), // Override namespace default
+		Tally: map[string]RuleConfig{
+			"max-lines": {
+				Enabled: boolPtr(true),
+				Options: map[string]any{"max": 100},
+			},
+		},
+		Hadolint: map[string]RuleConfig{
+			"DL3026": {
+				Enabled: boolPtr(true),
+				Options: map[string]any{
+					"trusted-registries": []string{"docker.io", "gcr.io"},
+				},
 			},
 		},
 	}
 
-	// Rule with explicit config overrides namespace default
+	// BuildKit rules via namespaced lookup
 	enabled := rc.IsEnabled("buildkit/StageNameCasing")
 	if enabled == nil || *enabled != true {
-		t.Error("buildkit/StageNameCasing should be enabled (explicit override)")
+		t.Error("buildkit/StageNameCasing should be enabled")
 	}
 
-	// Rule without explicit config uses namespace default
 	enabled = rc.IsEnabled("buildkit/MaintainerDeprecated")
 	if enabled == nil || *enabled != false {
-		t.Error("buildkit/MaintainerDeprecated should be disabled (namespace default)")
+		t.Error("buildkit/MaintainerDeprecated should be disabled")
 	}
 
-	// Severity from namespace default
 	sev := rc.GetSeverity("buildkit/MaintainerDeprecated")
 	if sev != "info" {
-		t.Errorf("GetSeverity() = %q, want %q", sev, "info")
+		t.Errorf("GetSeverity(buildkit/MaintainerDeprecated) = %q, want %q", sev, "info")
 	}
 
-	// Rule outside namespace returns nil (no default)
+	// Tally rules
 	enabled = rc.IsEnabled("tally/max-lines")
+	if enabled == nil || *enabled != true {
+		t.Error("tally/max-lines should be enabled")
+	}
+
+	opts := rc.GetOptions("tally/max-lines")
+	if opts == nil {
+		t.Fatal("tally/max-lines options should not be nil")
+	}
+	if maxVal, ok := opts["max"].(int); !ok || maxVal != 100 {
+		t.Errorf("tally/max-lines max = %v, want 100", opts["max"])
+	}
+
+	// Hadolint rules
+	enabled = rc.IsEnabled("hadolint/DL3026")
+	if enabled == nil || *enabled != true {
+		t.Error("hadolint/DL3026 should be enabled")
+	}
+
+	// Unconfigured rule returns nil
+	enabled = rc.IsEnabled("buildkit/UndefinedVar")
 	if enabled != nil {
-		t.Errorf("tally/max-lines should return nil, got %v", *enabled)
+		t.Errorf("unconfigured rule should return nil, got %v", *enabled)
+	}
+
+	// Test Set method
+	rc.Set("hadolint/DL3008", RuleConfig{Enabled: boolPtr(false)})
+	enabled = rc.IsEnabled("hadolint/DL3008")
+	if enabled == nil || *enabled != false {
+		t.Error("hadolint/DL3008 should be disabled after Set")
 	}
 }

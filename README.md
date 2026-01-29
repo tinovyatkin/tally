@@ -239,10 +239,22 @@ path = "stdout"          # stdout, stderr, or file path
 show-source = true       # Show source code snippets
 fail-level = "style"     # Minimum severity for exit code 1
 
-[rules.max-lines]
+# Rules are organized by namespace: tally, buildkit, hadolint
+[rules.tally.max-lines]
 max = 500
 skip-blank-lines = true
 skip-comments = true
+
+[rules.buildkit.StageNameCasing]
+enabled = true
+severity = "warning"
+
+[rules.buildkit.MaintainerDeprecated]
+enabled = false          # Disable this rule
+
+[rules.hadolint.DL3026]
+enabled = true
+trusted-registries = ["docker.io", "gcr.io"]
 ```
 
 ### Config File Discovery

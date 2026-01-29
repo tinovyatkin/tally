@@ -1,5 +1,5 @@
 # Test config file
 format = "json"
 
-[rules."tally/max-lines"]
+[rules.tally.max-lines]
 max = 2

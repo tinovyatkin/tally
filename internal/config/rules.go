@@ -7,7 +7,7 @@ import (
 // RuleConfig represents per-rule configuration.
 // Can be specified in TOML as:
 //
-//	[rules."tally/max-lines"]
+//	[rules.tally.max-lines]
 //	enabled = true
 //	severity = "warning"
 //	# Rule-specific options are flattened at this level
@@ -39,65 +39,69 @@ type ExcludeConfig struct {
 	Paths []string `koanf:"paths"`
 }
 
-// RulesConfig contains per-rule configuration as a map.
-// Keys use namespaced format: "buildkit/StageNameCasing", "tally/max-lines", etc.
+// RulesConfig contains per-rule configuration organized by namespace.
 //
 // Example TOML:
 //
-//	[rules."tally/max-lines"]
+//	[rules.tally.max-lines]
 //	enabled = true
 //	severity = "warning"
 //	max = 100
 //
-//	[rules."buildkit/MaintainerDeprecated"]
+//	[rules.buildkit.MaintainerDeprecated]
 //	enabled = false
 //
-//	[rules.defaults]
-//	"buildkit/*" = { enabled = true }
+//	[rules.hadolint.DL3026]
+//	enabled = true
+//	trusted-registries = ["docker.io", "gcr.io"]
 type RulesConfig struct {
-	// PerRule maps rule code to its configuration.
-	PerRule map[string]RuleConfig `koanf:",remain"`
+	// Tally contains configuration for tally/* rules.
+	Tally map[string]RuleConfig `koanf:"tally"`
 
-	// Defaults contains namespace-level defaults.
-	// Keys are patterns like "buildkit/*", "tally/*", "hadolint/*".
-	Defaults map[string]RuleConfig `koanf:"defaults"`
+	// Buildkit contains configuration for buildkit/* rules.
+	Buildkit map[string]RuleConfig `koanf:"buildkit"`
+
+	// Hadolint contains configuration for hadolint/* rules.
+	Hadolint map[string]RuleConfig `koanf:"hadolint"`
 }
 
 // Get returns the configuration for a specific rule.
 // Returns nil if no configuration exists for the rule.
+// ruleCode should be namespaced (e.g., "buildkit/StageNameCasing").
 func (rc *RulesConfig) Get(ruleCode string) *RuleConfig {
-	if rc == nil || rc.PerRule == nil {
+	if rc == nil {
 		return nil
 	}
-	if cfg, ok := rc.PerRule[ruleCode]; ok {
+	ns, name := parseRuleCode(ruleCode)
+	nsMap := rc.namespaceMap(ns)
+	if nsMap == nil {
+		return nil
+	}
+	if cfg, ok := nsMap[name]; ok {
 		return &cfg
 	}
 	return nil
 }
 
+// parseRuleCode parses a rule code into namespace and name.
+// "buildkit/StageNameCasing" -> ("buildkit", "StageNameCasing")
+// "max-lines" -> ("", "max-lines")
+func parseRuleCode(ruleCode string) (string, string) {
+	if idx := strings.Index(ruleCode, "/"); idx > 0 {
+		return ruleCode[:idx], ruleCode[idx+1:]
+	}
+	return "", ruleCode
+}
+
 // IsEnabled checks if a rule is enabled.
-// Priority: explicit rule config > namespace default > rule's EnabledByDefault.
 // Returns nil if no configuration specifies enabled/disabled (use rule default).
 func (rc *RulesConfig) IsEnabled(ruleCode string) *bool {
 	if rc == nil {
 		return nil
 	}
-
-	// Check explicit rule config first
 	if cfg := rc.Get(ruleCode); cfg != nil && cfg.Enabled != nil {
 		return cfg.Enabled
 	}
-
-	// Check namespace defaults
-	if rc.Defaults != nil {
-		ns := getNamespace(ruleCode)
-		pattern := ns + "/*"
-		if def, ok := rc.Defaults[pattern]; ok && def.Enabled != nil {
-			return def.Enabled
-		}
-	}
-
-	// No config - return nil to indicate "use rule default"
 	return nil
 }
 
@@ -107,48 +111,21 @@ func (rc *RulesConfig) GetSeverity(ruleCode string) string {
 	if rc == nil {
 		return ""
 	}
-
-	// Check explicit rule config first
 	if cfg := rc.Get(ruleCode); cfg != nil && cfg.Severity != "" {
 		return cfg.Severity
 	}
-
-	// Check namespace defaults
-	if rc.Defaults != nil {
-		ns := getNamespace(ruleCode)
-		pattern := ns + "/*"
-		if def, ok := rc.Defaults[pattern]; ok && def.Severity != "" {
-			return def.Severity
-		}
-	}
-
 	return ""
 }
 
 // GetExcludePaths returns the exclusion patterns for a rule.
-// Combines rule-specific and namespace-level exclusions.
 func (rc *RulesConfig) GetExcludePaths(ruleCode string) []string {
 	if rc == nil {
 		return nil
 	}
-
-	var paths []string
-
-	// Add namespace defaults first
-	if rc.Defaults != nil {
-		ns := getNamespace(ruleCode)
-		pattern := ns + "/*"
-		if def, ok := rc.Defaults[pattern]; ok {
-			paths = append(paths, def.Exclude.Paths...)
-		}
-	}
-
-	// Add rule-specific exclusions (may override namespace patterns)
 	if cfg := rc.Get(ruleCode); cfg != nil {
-		paths = append(paths, cfg.Exclude.Paths...)
+		return cfg.Exclude.Paths
 	}
-
-	return paths
+	return nil
 }
 
 // GetOptions returns rule-specific options.
@@ -164,22 +141,40 @@ func (rc *RulesConfig) GetOptions(ruleCode string) map[string]any {
 }
 
 // Set stores configuration for a rule.
-// Creates the PerRule map if nil.
+// Creates the namespace map if nil.
 func (rc *RulesConfig) Set(ruleCode string, cfg RuleConfig) {
-	if rc.PerRule == nil {
-		rc.PerRule = make(map[string]RuleConfig)
+	ns, name := parseRuleCode(ruleCode)
+	switch ns {
+	case "tally":
+		if rc.Tally == nil {
+			rc.Tally = make(map[string]RuleConfig)
+		}
+		rc.Tally[name] = cfg
+	case "buildkit":
+		if rc.Buildkit == nil {
+			rc.Buildkit = make(map[string]RuleConfig)
+		}
+		rc.Buildkit[name] = cfg
+	case "hadolint":
+		if rc.Hadolint == nil {
+			rc.Hadolint = make(map[string]RuleConfig)
+		}
+		rc.Hadolint[name] = cfg
 	}
-	rc.PerRule[ruleCode] = cfg
 }
 
-// getNamespace extracts the namespace from a rule code.
-// "buildkit/StageNameCasing" -> "buildkit"
-// "max-lines" -> "" (no namespace)
-func getNamespace(ruleCode string) string {
-	if idx := strings.Index(ruleCode, "/"); idx > 0 {
-		return ruleCode[:idx]
+// namespaceMap returns the map for a given namespace.
+func (rc *RulesConfig) namespaceMap(ns string) map[string]RuleConfig {
+	switch ns {
+	case "tally":
+		return rc.Tally
+	case "buildkit":
+		return rc.Buildkit
+	case "hadolint":
+		return rc.Hadolint
+	default:
+		return nil
 	}
-	return ""
 }
 
 // boolPtr returns a pointer to a bool value.

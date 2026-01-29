@@ -100,8 +100,8 @@ func Default() *Config {
 	// Set up default rule options
 	maxLinesDefaults := DefaultMaxLinesOptions()
 	rules := RulesConfig{
-		PerRule: map[string]RuleConfig{
-			"tally/max-lines": {
+		Tally: map[string]RuleConfig{
+			"max-lines": {
 				Enabled: boolPtr(true),
 				Options: map[string]any{
 					"max":              maxLinesDefaults.Max,

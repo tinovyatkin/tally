@@ -5,14 +5,12 @@ import (
 	"context"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 
 	"github.com/tinovyatkin/tally/internal/config"
-	"github.com/tinovyatkin/tally/internal/rules"
 )
 
 // LintWarning captures parameters from BuildKit's linter.LintWarnFunc callback.
@@ -126,29 +124,21 @@ func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter
 		Warn: warnFunc,
 	}
 
-	if cfg == nil || cfg.Rules.PerRule == nil {
+	if cfg == nil || cfg.Rules.Buildkit == nil {
 		return lintCfg
 	}
 
-	// Check each configured rule to see if it's a BuildKit rule
-	for ruleCode, ruleCfg := range cfg.Rules.PerRule {
-		// Only process buildkit/ namespaced rules
-		if !strings.HasPrefix(ruleCode, rules.BuildKitRulePrefix) {
-			continue
-		}
-
-		// Extract BuildKit rule name (e.g., "buildkit/StageNameCasing" -> "StageNameCasing")
-		buildkitRuleName := strings.TrimPrefix(ruleCode, rules.BuildKitRulePrefix)
-
+	// Check each configured BuildKit rule
+	for ruleName, ruleCfg := range cfg.Rules.Buildkit {
 		// If explicitly disabled, add to SkipRules
 		if ruleCfg.Enabled != nil && !*ruleCfg.Enabled {
-			lintCfg.SkipRules = append(lintCfg.SkipRules, buildkitRuleName)
+			lintCfg.SkipRules = append(lintCfg.SkipRules, ruleName)
 		}
 
 		// If explicitly enabled, could be an experimental rule - add to ExperimentalRules
 		// (BuildKit ignores this for non-experimental rules, so it's safe)
 		if ruleCfg.Enabled != nil && *ruleCfg.Enabled {
-			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, buildkitRuleName)
+			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, ruleName)
 		}
 	}
 

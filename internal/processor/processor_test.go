@@ -151,15 +151,15 @@ func TestSeverityOverride(t *testing.T) {
 func TestPathExclusionFilter(t *testing.T) {
 	violations := []rules.Violation{
 		rules.NewViolation(
-			rules.NewLineLocation("src/main.go", 1), "rule1", "msg", rules.SeverityWarning),
+			rules.NewLineLocation("src/main.go", 1), "tally/test-rule", "msg", rules.SeverityWarning),
 		rules.NewViolation(
-			rules.NewLineLocation("test/main_test.go", 1), "rule1", "msg", rules.SeverityWarning),
+			rules.NewLineLocation("test/main_test.go", 1), "tally/test-rule", "msg", rules.SeverityWarning),
 		rules.NewViolation(
-			rules.NewLineLocation("vendor/lib.go", 1), "rule1", "msg", rules.SeverityWarning),
+			rules.NewLineLocation("vendor/lib.go", 1), "tally/test-rule", "msg", rules.SeverityWarning),
 	}
 
 	cfg := config.Default()
-	cfg.Rules.Set("rule1", config.RuleConfig{
+	cfg.Rules.Set("tally/test-rule", config.RuleConfig{
 		Exclude: config.ExcludeConfig{
 			Paths: []string{"test/**", "vendor/**"},
 		},
