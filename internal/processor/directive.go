@@ -29,9 +29,18 @@ type InlineDirectiveFilter struct {
 }
 
 // NewInlineDirectiveFilter creates a new inline directive filter processor.
+// Uses the default registry. For testing, use NewInlineDirectiveFilterWithRegistry.
 func NewInlineDirectiveFilter() *InlineDirectiveFilter {
+	return NewInlineDirectiveFilterWithRegistry(rules.DefaultRegistry())
+}
+
+// NewInlineDirectiveFilterWithRegistry creates an inline directive filter with a custom registry.
+func NewInlineDirectiveFilterWithRegistry(registry *rules.Registry) *InlineDirectiveFilter {
+	if registry == nil {
+		registry = rules.DefaultRegistry()
+	}
 	return &InlineDirectiveFilter{
-		registry: rules.DefaultRegistry(),
+		registry: registry,
 	}
 }
 
