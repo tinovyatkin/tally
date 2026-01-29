@@ -137,8 +137,9 @@ func isRegistryTrusted(registry string, trusted []string) bool {
 
 // normalizeRegistry normalizes registry names for comparison.
 // Converts Docker Hub aliases to canonical "docker.io".
+// Trims whitespace to handle accidental spaces in config files.
 func normalizeRegistry(registry string) string {
-	registry = strings.ToLower(registry)
+	registry = strings.ToLower(strings.TrimSpace(registry))
 	switch registry {
 	case "index.docker.io", "registry-1.docker.io", "registry.hub.docker.com", "hub.docker.com":
 		return "docker.io"
