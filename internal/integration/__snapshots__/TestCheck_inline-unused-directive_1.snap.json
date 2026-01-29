@@ -18,7 +18,8 @@
           "rule": "unused-ignore-directive",
           "message": "ignore directive does not suppress any violations",
           "detail": "Directive: # tally ignore=DL3006",
-          "severity": "warning"
+          "severity": "warning",
+          "sourceCode": "# tally ignore=DL3006"
         }
       ]
     }
