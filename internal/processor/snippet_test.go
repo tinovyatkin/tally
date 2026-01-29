@@ -234,7 +234,7 @@ func (m *mockSourceMap) Line(lineNum int) string {
 
 func (m *mockSourceMap) Snippet(startLine, endLine int) string {
 	lines := splitLines(m.source)
-	if startLine < 0 || endLine >= len(lines) || startLine > endLine {
+	if startLine < 0 || startLine >= len(lines) || endLine >= len(lines) || startLine > endLine {
 		return ""
 	}
 	var result []string
