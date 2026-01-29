@@ -16,6 +16,8 @@
 package processor
 
 import (
+	"strings"
+
 	"github.com/tinovyatkin/tally/internal/config"
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/sourcemap"
@@ -59,14 +61,24 @@ func NewContext(cfg *config.Config, fileSources map[string][]byte) *Context {
 
 // GetSourceMap returns or creates a SourceMap for the given file.
 // Returns nil if the file is not in FileSources.
+// Handles cross-platform path lookups by trying both forward and backslash variants.
 func (ctx *Context) GetSourceMap(file string) *sourcemap.SourceMap {
 	if sm, ok := ctx.sourceMaps[file]; ok {
 		return sm
 	}
+
+	// Try direct lookup first
 	source, ok := ctx.FileSources[file]
+	if !ok {
+		// On Windows, FileSources may have backslash paths while violations have forward slashes
+		// (due to PathNormalization processor). Try the backslash variant.
+		windowsPath := strings.ReplaceAll(file, "/", "\\")
+		source, ok = ctx.FileSources[windowsPath]
+	}
 	if !ok {
 		return nil
 	}
+
 	sm := sourcemap.New(source)
 	ctx.sourceMaps[file] = sm
 	return sm
