@@ -20,6 +20,9 @@ func NewEnableFilter() *EnableFilter {
 
 // NewEnableFilterWithRegistry creates an enable filter with a custom registry.
 func NewEnableFilterWithRegistry(registry *rules.Registry) *EnableFilter {
+	if registry == nil {
+		registry = rules.DefaultRegistry()
+	}
 	return &EnableFilter{
 		registry: registry,
 	}
