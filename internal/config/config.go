@@ -33,37 +33,32 @@ const EnvPrefix = "TALLY_"
 // Config represents the complete tally configuration.
 type Config struct {
 	// Rules contains configuration for individual linting rules.
-	Rules RulesConfig `koanf:"rules"`
+	Rules RulesConfig `json:"rules" jsonschema:"description=Rule configuration" koanf:"rules"`
 
 	// Output configures output format and destination.
-	Output OutputConfig `koanf:"output"`
+	Output OutputConfig `json:"output" jsonschema:"description=Output settings" koanf:"output"`
 
 	// InlineDirectives controls inline suppression directives.
-	InlineDirectives InlineDirectivesConfig `koanf:"inline-directives"`
+	InlineDirectives InlineDirectivesConfig `json:"inline-directives" koanf:"inline-directives"`
 
 	// ConfigFile is the path to the config file that was loaded (if any).
 	// This is metadata, not loaded from config.
-	ConfigFile string `koanf:"-"`
+	ConfigFile string `json:"-" koanf:"-"`
 }
 
 // OutputConfig configures output formatting and behavior.
 type OutputConfig struct {
-	// Format specifies the output format: "text", "json", "sarif", "github-actions".
-	// Default: "text"
-	Format string `koanf:"format"`
+	// Format specifies the output format.
+	Format string `json:"format,omitempty" koanf:"format"`
 
-	// Path specifies where to write output: "stdout", "stderr", or a file path.
-	// Default: "stdout"
-	Path string `koanf:"path"`
+	// Path specifies where to write output.
+	Path string `json:"path,omitempty" koanf:"path"`
 
 	// ShowSource enables source code snippets in text output.
-	// Default: true
-	ShowSource bool `koanf:"show-source"`
+	ShowSource bool `json:"show-source,omitempty" koanf:"show-source"`
 
 	// FailLevel sets the minimum severity level that causes a non-zero exit code.
-	// Valid values: "error", "warning", "info", "style", "none"
-	// Default: "style" (any violation causes exit code 1)
-	FailLevel string `koanf:"fail-level"`
+	FailLevel string `json:"fail-level,omitempty" koanf:"fail-level"`
 }
 
 // InlineDirectivesConfig controls inline suppression directives.
@@ -78,40 +73,21 @@ type OutputConfig struct {
 //	require-reason = false
 type InlineDirectivesConfig struct {
 	// Enabled controls whether inline directives are processed.
-	// Default: true
-	Enabled bool `koanf:"enabled"`
+	Enabled bool `json:"enabled,omitempty" jsonschema:"default=true,description=Process inline ignore directives" koanf:"enabled"`
 
 	// WarnUnused reports warnings for directives that don't suppress any violations.
-	// Default: false
-	WarnUnused bool `koanf:"warn-unused"`
+	WarnUnused bool `json:"warn-unused,omitempty" jsonschema:"default=false,description=Warn about unused directives" koanf:"warn-unused"`
 
 	// ValidateRules reports warnings for unknown rule codes in directives.
-	// Default: false (allows BuildKit/hadolint rule codes for migration compatibility)
-	ValidateRules bool `koanf:"validate-rules"`
+	ValidateRules bool `json:"validate-rules,omitempty" jsonschema:"default=false" koanf:"validate-rules"`
 
 	// RequireReason reports warnings for directives without a reason= explanation.
-	// Only applies to tally and hadolint directives (buildx doesn't support reason=).
-	// Default: false
-	RequireReason bool `koanf:"require-reason"`
+	RequireReason bool `json:"require-reason,omitempty" jsonschema:"default=false" koanf:"require-reason"`
 }
 
 // Default returns the default configuration.
+// Rule-specific defaults are owned by each rule via ConfigurableRule.DefaultConfig().
 func Default() *Config {
-	// Set up default rule options
-	maxLinesDefaults := DefaultMaxLinesOptions()
-	rules := RulesConfig{
-		Tally: map[string]RuleConfig{
-			"max-lines": {
-				Severity: "error", // Default severity for max-lines
-				Options: map[string]any{
-					"max":              maxLinesDefaults.Max,
-					"skip-blank-lines": maxLinesDefaults.SkipBlankLines,
-					"skip-comments":    maxLinesDefaults.SkipComments,
-				},
-			},
-		},
-	}
-
 	return &Config{
 		Output: OutputConfig{
 			Format:     "text",
@@ -119,7 +95,7 @@ func Default() *Config {
 			ShowSource: true,
 			FailLevel:  "style", // Any violation causes exit code 1
 		},
-		Rules: rules,
+		Rules: RulesConfig{}, // Empty - defaults come from rules
 		InlineDirectives: InlineDirectivesConfig{
 			Enabled:       true,  // Process inline directives by default
 			WarnUnused:    false, // Don't warn about unused directives by default

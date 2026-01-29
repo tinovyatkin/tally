@@ -10,15 +10,13 @@ import (
 	"github.com/distribution/reference"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/rules/configutil"
 )
 
 // Config is the configuration for the trusted-base-image rule.
 type Config struct {
 	// TrustedRegistries is the list of allowed registries.
-	// Images must come from one of these registries.
-	// Example: ["docker.io", "gcr.io", "my-registry.com"]
-	// If empty, the rule is disabled (all registries allowed).
-	TrustedRegistries []string
+	TrustedRegistries []string `json:"trusted-registries,omitempty" jsonschema:"description=Allowed registries. If empty rule is disabled."`
 }
 
 // DefaultConfig returns the default configuration.
@@ -142,30 +140,15 @@ func (r *Rule) ValidateConfig(config any) error {
 
 // resolveConfig extracts the Config from input, falling back to defaults.
 func (r *Rule) resolveConfig(config any) Config {
-	if config == nil {
-		return DefaultConfig()
-	}
-	if cfg, ok := config.(Config); ok {
-		return cfg
-	}
-	if cfg, ok := config.(*Config); ok && cfg != nil {
-		return *cfg
-	}
-	// Try map[string]any (from config system)
-	if opts, ok := config.(map[string]any); ok {
-		cfg := DefaultConfig()
-		if registries, ok := opts["trusted-registries"].([]any); ok {
-			for _, r := range registries {
-				if s, ok := r.(string); ok {
-					cfg.TrustedRegistries = append(cfg.TrustedRegistries, s)
-				}
-			}
+	switch v := config.(type) {
+	case Config:
+		return v
+	case *Config:
+		if v != nil {
+			return *v
 		}
-		// Also try string slice directly
-		if registries, ok := opts["trusted-registries"].([]string); ok {
-			cfg.TrustedRegistries = registries
-		}
-		return cfg
+	case map[string]any:
+		return configutil.Resolve(v, DefaultConfig())
 	}
 	return DefaultConfig()
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/rules/configutil"
 )
 
 // Config is the configuration for the max-lines rule.
@@ -17,16 +18,13 @@ import (
 // this provides a comfortable margin while flagging unusually long Dockerfiles.
 type Config struct {
 	// Max is the maximum number of lines allowed (0 = disabled).
-	// Default: 50 (P90 of 500 analyzed Dockerfiles, counting only code lines).
-	Max int
+	Max int `json:"max,omitempty" jsonschema:"description=Maximum number of lines allowed (0 = disabled),default=50,minimum=0"`
 
 	// SkipBlankLines excludes blank lines from the count.
-	// Default: true (count only meaningful lines).
-	SkipBlankLines bool
+	SkipBlankLines bool `json:"skip-blank-lines,omitempty" jsonschema:"description=Exclude blank lines from the count,default=true"`
 
 	// SkipComments excludes comment lines from the count.
-	// Default: true (count only instruction lines).
-	SkipComments bool
+	SkipComments bool `json:"skip-comments,omitempty" jsonschema:"description=Exclude comment lines from the count,default=true"`
 }
 
 // DefaultConfig returns the default configuration.
@@ -244,34 +242,15 @@ func (r *Rule) ValidateConfig(config any) error {
 
 // resolveConfig extracts the Config from input, falling back to defaults.
 func (r *Rule) resolveConfig(config any) Config {
-	if config == nil {
-		return DefaultConfig()
-	}
-	if cfg, ok := config.(Config); ok {
-		return cfg
-	}
-	// Try pointer
-	if cfg, ok := config.(*Config); ok && cfg != nil {
-		return *cfg
-	}
-	// Try map[string]any (from new config system)
-	if opts, ok := config.(map[string]any); ok {
-		cfg := DefaultConfig()
-		switch v := opts["max"].(type) {
-		case int:
-			cfg.Max = v
-		case int64:
-			cfg.Max = int(v)
-		case float64:
-			cfg.Max = int(v)
+	switch v := config.(type) {
+	case Config:
+		return v
+	case *Config:
+		if v != nil {
+			return *v
 		}
-		if skip, ok := opts["skip-blank-lines"].(bool); ok {
-			cfg.SkipBlankLines = skip
-		}
-		if skip, ok := opts["skip-comments"].(bool); ok {
-			cfg.SkipComments = skip
-		}
-		return cfg
+	case map[string]any:
+		return configutil.Resolve(v, DefaultConfig())
 	}
 	return DefaultConfig()
 }

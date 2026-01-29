@@ -13,41 +13,9 @@ func TestDefault(t *testing.T) {
 		t.Errorf("Default format = %q, want %q", cfg.Output.Format, "text")
 	}
 
-	// Default: 50 lines (P90 of 500 analyzed Dockerfiles)
-	maxLines := GetMaxLinesOptions(&cfg.Rules)
-	if maxLines.Max != 50 {
-		t.Errorf("Default MaxLines.Max = %d, want 50", maxLines.Max)
-	}
-
-	// Default: true (count only meaningful lines)
-	if !maxLines.SkipBlankLines {
-		t.Error("Default MaxLines.SkipBlankLines = false, want true")
-	}
-
-	// Default: true (count only instruction lines)
-	if !maxLines.SkipComments {
-		t.Error("Default MaxLines.SkipComments = false, want true")
-	}
-}
-
-func TestMaxLinesOptionsEnabled(t *testing.T) {
-	tests := []struct {
-		max  int
-		want bool
-	}{
-		{0, false},
-		{1, true},
-		{100, true},
-		{-1, false},
-	}
-
-	for _, tt := range tests {
-		opts := MaxLinesOptions{Max: tt.max}
-		// Max > 0 means enabled
-		got := opts.Max > 0
-		if got != tt.want {
-			t.Errorf("MaxLinesOptions{Max: %d} enabled = %v, want %v", tt.max, got, tt.want)
-		}
+	// Default config should have empty rules - defaults are owned by rules themselves
+	if cfg.Rules.Tally != nil {
+		t.Error("Default Rules.Tally should be nil (defaults come from rules)")
 	}
 }
 
@@ -192,17 +160,13 @@ skip-comments = true
 			t.Errorf("Format = %q, want %q", cfg.Output.Format, "json")
 		}
 
-		maxLines := GetMaxLinesOptions(&cfg.Rules)
-		if maxLines.Max != 500 {
-			t.Errorf("MaxLines.Max = %d, want 500", maxLines.Max)
+		// Verify rule options are loaded via GetOptions (generic config access)
+		opts := cfg.Rules.GetOptions("tally/max-lines")
+		if opts == nil {
+			t.Fatal("max-lines options should be loaded from config")
 		}
-
-		if !maxLines.SkipBlankLines {
-			t.Error("MaxLines.SkipBlankLines = false, want true")
-		}
-
-		if !maxLines.SkipComments {
-			t.Error("MaxLines.SkipComments = false, want true")
+		if maxVal, ok := opts["max"].(int64); !ok || maxVal != 500 {
+			t.Errorf("max-lines max = %v, want 500", opts["max"])
 		}
 
 		if cfg.ConfigFile != configPath {
