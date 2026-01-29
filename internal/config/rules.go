@@ -1,6 +1,7 @@
 package config
 
 import (
+	"maps"
 	"strings"
 )
 
@@ -170,12 +171,18 @@ func (rc *RulesConfig) GetExcludePaths(ruleCode string) []string {
 
 // GetOptions returns rule-specific options.
 // Returns nil if no options are configured.
+// Returns a shallow copy to prevent mutation of internal state.
 func (rc *RulesConfig) GetOptions(ruleCode string) map[string]any {
 	if rc == nil {
 		return nil
 	}
 	if cfg := rc.Get(ruleCode); cfg != nil {
-		return cfg.Options
+		if cfg.Options == nil {
+			return nil
+		}
+		out := make(map[string]any, len(cfg.Options))
+		maps.Copy(out, cfg.Options)
+		return out
 	}
 	return nil
 }
