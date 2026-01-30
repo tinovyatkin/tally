@@ -29,8 +29,8 @@ fetch_checksum() {
     local url="${BASE_URL}/${archive_name}"
     echo "Fetching checksum for ${archive_name}..." >&2
 
-    # Download and compute SHA256
-    curl -sL "$url" | shasum -a 256 | cut -d' ' -f1
+    # Download and compute SHA256 (-f fails on HTTP errors)
+    curl -sfL "$url" | shasum -a 256 | cut -d' ' -f1
 }
 
 # Use environment variables if set, otherwise fetch from release
