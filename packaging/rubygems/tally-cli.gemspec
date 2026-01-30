@@ -15,7 +15,9 @@ Gem::Specification.new do |spec|
   spec.files = %w(
     lib/tally-cli.rb
     bin/tally
+    LICENSE
+    NOTICE
   ) + `find libexec/ -executable -type f -print0`.split("\x0")
 
-  spec.licenses = ['MIT']
+  spec.licenses = ['Apache-2.0']
 end

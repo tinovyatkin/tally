@@ -3,8 +3,8 @@ name = "tally-cli"
 version = "0.1.0"
 description = "A fast, configurable linter for Dockerfiles and Containerfiles"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Konstantin Vyatkin", email = "tino@vtkn.io" }]
 requires-python = ">=3.9"
 classifiers = [
@@ -12,6 +12,7 @@ classifiers = [
   "Topic :: Software Development :: Quality Assurance",
   "Environment :: Console",
   "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
 ]
 
 [project.urls]
@@ -32,4 +33,11 @@ artifacts = ["tally_cli/bin/**/*"]
 path = "hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
-include = ["tally_cli/"]
+include = [
+  "tally_cli/",
+  "LICENSE",
+  "NOTICE",
+  "README.md",
+  "pyproject.toml",
+  "hatch_build.py",
+]

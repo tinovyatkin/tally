@@ -489,4 +489,4 @@ See [CLAUDE.md](CLAUDE.md) for development guidelines.
 
 ## License
 
-MIT
+Apache-2.0

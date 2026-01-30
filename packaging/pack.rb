@@ -61,9 +61,11 @@ module Pack
 
   def put_additional_files
     cd(__dir__)
-    puts "Putting README... "
+    puts "Putting README, LICENSE, and NOTICE... "
     Dir["npm/*"].each do |npm_dir|
       cp(File.join(ROOT, "README.md"), File.join(npm_dir, "README.md"), verbose: true)
+      cp(File.join(ROOT, "LICENSE"), File.join(npm_dir, "LICENSE"), verbose: true)
+      cp(File.join(ROOT, "NOTICE"), File.join(npm_dir, "NOTICE"), verbose: true)
     end
     puts "done"
   end

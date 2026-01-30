@@ -31,7 +31,8 @@ archives:
       - goos: windows
         formats: [zip]
     files:
-      - none*
+      - LICENSE
+      - NOTICE
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
