@@ -113,13 +113,17 @@ jobs:
           # Get version from tag
           VERSION="${GITHUB_REF_NAME#v}"
 
+          # Dynamically find darwin build directories (avoids hardcoding GoReleaser naming)
+          ARM64_DIR=$(find dist -maxdepth 1 -type d -name 'tally_darwin_arm64*' | head -1)
+          AMD64_DIR=$(find dist -maxdepth 1 -type d -name 'tally_darwin_amd64*' | head -1)
+
           # Re-create MacOS arm64 archive
-          cd dist/tally_darwin_arm64_v8.0
+          cd "$ARM64_DIR"
           tar -czvf "../tally_${VERSION}_MacOS_arm64.tar.gz" tally LICENSE NOTICE
           cd ..
 
           # Re-create MacOS x86_64 archive
-          cd tally_darwin_amd64_v1
+          cd "$(basename "$AMD64_DIR")"
           tar -czvf "../tally_${VERSION}_MacOS_x86_64.tar.gz" tally LICENSE NOTICE
           cd ../..
 
