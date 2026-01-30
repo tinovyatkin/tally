@@ -26,14 +26,16 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          make bin/gotestsum-v1.13.0
-          bin/gotestsum-v1.13.0 --format testname --junitfile junit.xml -- \
+          GOTESTSUM_BIN=$(make -s print-gotestsum-bin)
+          make "$GOTESTSUM_BIN"
+          "$GOTESTSUM_BIN" --format testname --junitfile junit.xml -- \
             -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
 
       - name: Run integration tests with coverage
         run: |
           # Integration tests use -cover build and write binary coverage data
-          bin/gotestsum-v1.13.0 --format testname --junitfile junit-integration.xml -- ./internal/integration/...
+          GOTESTSUM_BIN=$(make -s print-gotestsum-bin)
+          "$GOTESTSUM_BIN" --format testname --junitfile junit-integration.xml -- ./internal/integration/...
           # Convert binary coverage data to text format
           go tool covdata textfmt -i=coverage -o=coverage-integration.txt
 

@@ -1,4 +1,4 @@
-.PHONY: build test test-verbose lint lint-fix deadcode cpd clean release publish-prepare publish-npm publish-pypi publish-gem publish jsonschema
+.PHONY: build test test-verbose lint lint-fix deadcode cpd clean release publish-prepare publish-npm publish-pypi publish-gem publish jsonschema print-gotestsum-bin
 
 build:
 	CGO_ENABLED=0 go build -ldflags "-s -w" -o tally
@@ -74,6 +74,9 @@ bin/gotestsum-$(GOTESTSUM_VERSION):
 	GOBIN=$(CURDIR)/bin go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION)
 	@mv bin/gotestsum bin/gotestsum-$(GOTESTSUM_VERSION)
 	@touch bin/gotestsum-$(GOTESTSUM_VERSION)
+
+print-gotestsum-bin:
+	@echo bin/gotestsum-$(GOTESTSUM_VERSION)
 
 jsonschema:
 	go run gen/jsonschema.go > schema.json
