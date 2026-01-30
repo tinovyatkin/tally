@@ -21,21 +21,19 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install gotestsum
-        run: go install gotest.tools/gotestsum@latest
-
       - name: Build
         run: go build ./...
 
       - name: Run unit tests with coverage
         run: |
-          gotestsum --format testname --junitfile junit.xml -- \
+          make bin/gotestsum-v1.13.0
+          bin/gotestsum-v1.13.0 --format testname --junitfile junit.xml -- \
             -race -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
 
       - name: Run integration tests with coverage
         run: |
           # Integration tests use -cover build and write binary coverage data
-          gotestsum --format testname --junitfile junit-integration.xml -- ./internal/integration/...
+          bin/gotestsum-v1.13.0 --format testname --junitfile junit-integration.xml -- ./internal/integration/...
           # Convert binary coverage data to text format
           go tool covdata textfmt -i=coverage -o=coverage-integration.txt
 
