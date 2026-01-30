@@ -117,6 +117,10 @@ jobs:
           ARM64_DIR=$(find dist -maxdepth 1 -type d -name 'tally_darwin_arm64*' | head -1)
           AMD64_DIR=$(find dist -maxdepth 1 -type d -name 'tally_darwin_amd64*' | head -1)
 
+          # Copy LICENSE and NOTICE to build directories (GoReleaser only includes them in archives)
+          cp LICENSE NOTICE "$ARM64_DIR/"
+          cp LICENSE NOTICE "$AMD64_DIR/"
+
           # Re-create MacOS arm64 archive
           cd "$ARM64_DIR"
           tar -czvf "../tally_${VERSION}_MacOS_arm64.tar.gz" tally LICENSE NOTICE
