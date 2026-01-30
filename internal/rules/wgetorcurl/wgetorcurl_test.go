@@ -129,30 +129,3 @@ RUN curl https://example.com/file3
 	}
 }
 
-func TestContainsCommand(t *testing.T) {
-	tests := []struct {
-		cmd  string
-		name string
-		want bool
-	}{
-		{"wget https://example.com/file", "wget", true},
-		{"curl -o file https://example.com", "curl", true},
-		{"/usr/bin/wget file", "wget", true},
-		{"/usr/bin/curl -O file", "curl", true},
-		{"apt-get install wget", "wget", true},
-		{"apt-get install curl", "curl", true},
-		{"echo wget is a tool", "wget", true}, // This is a false positive but simple
-		{"wgetfile", "wget", false},
-		{"curlfile", "curl", false},
-		{"mycurl", "curl", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.cmd+"_"+tt.name, func(t *testing.T) {
-			got := containsCommand(tt.cmd, tt.name)
-			if got != tt.want {
-				t.Errorf("containsCommand(%q, %q) = %v, want %v", tt.cmd, tt.name, got, tt.want)
-			}
-		})
-	}
-}

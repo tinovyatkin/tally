@@ -9,6 +9,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/shell"
 )
 
 // Rule implements the DL4001 linting rule.
@@ -40,13 +41,22 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 				continue
 			}
 
-			cmdStr := strings.Join(run.CmdLine, " ")
+			// Get the shell command string, including heredocs
+			var cmdBuilder strings.Builder
+			cmdBuilder.WriteString(strings.Join(run.CmdLine, " "))
+			for _, f := range run.Files {
+				cmdBuilder.WriteByte('\n')
+				cmdBuilder.WriteString(f.Data)
+			}
+			cmdStr := cmdBuilder.String()
+
 			loc := rules.NewLocationFromRanges(input.File, run.Location())
 
-			if usesWget(cmdStr) {
+			// Use proper shell parsing to find command names
+			if shell.ContainsCommand(cmdStr, "wget") {
 				wgetLocs = append(wgetLocs, loc)
 			}
-			if usesCurl(cmdStr) {
+			if shell.ContainsCommand(cmdStr, "curl") {
 				curlLocs = append(curlLocs, loc)
 			}
 		}
@@ -74,32 +84,6 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	}
 
 	return violations
-}
-
-// usesWget checks if a command uses wget.
-func usesWget(cmd string) bool {
-	return containsCommand(cmd, "wget")
-}
-
-// usesCurl checks if a command uses curl.
-func usesCurl(cmd string) bool {
-	return containsCommand(cmd, "curl")
-}
-
-// containsCommand checks if a command string contains a specific command name.
-func containsCommand(cmd, name string) bool {
-	// Simple word boundary check
-	words := strings.FieldsSeq(cmd)
-	for word := range words {
-		// Strip leading path components
-		if idx := strings.LastIndex(word, "/"); idx >= 0 {
-			word = word[idx+1:]
-		}
-		if word == name {
-			return true
-		}
-	}
-	return false
 }
 
 // New creates a new DL4001 rule instance.
