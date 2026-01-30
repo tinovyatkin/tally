@@ -101,7 +101,7 @@ jobs:
             fi
 
             echo "Signing $binary"
-            codesign --force --options runtime --sign "Developer ID Application" "$binary"
+            codesign --force --options runtime --sign "$APPLE_TEAM_ID" "$binary"
 
             # Verify signature
             codesign --verify --verbose "$binary"
