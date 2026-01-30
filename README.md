@@ -10,7 +10,7 @@ tally integrates rules from multiple sources:
 |--------|-------|-------------|
 | **[BuildKit](https://docs.docker.com/reference/build-checks/)** | 15+ rules | Docker's official Dockerfile checks (automatically captured) |
 | **tally** | 3 rules | Custom rules including secret detection with [gitleaks](https://github.com/gitleaks/gitleaks) |
-| **[Hadolint](https://github.com/hadolint/hadolint)** | 1 rule | Shell best practices (expanding) |
+| **[Hadolint](https://github.com/hadolint/hadolint)** | 2 rules | Shell best practices (expanding) |
 
 **See [RULES.md](RULES.md) for the complete rules reference.**
 
@@ -239,10 +239,24 @@ path = "stdout"          # stdout, stderr, or file path
 show-source = true       # Show source code snippets
 fail-level = "style"     # Minimum severity for exit code 1
 
-[rules.max-lines]
+# Rule selection (Ruff-style)
+[rules]
+include = ["buildkit/*", "tally/*"]           # Enable rules by namespace or specific rule
+exclude = ["buildkit/MaintainerDeprecated"]   # Disable specific rules
+
+# Per-rule configuration (severity, options)
+[rules.tally.max-lines]
+severity = "error"
 max = 500
 skip-blank-lines = true
 skip-comments = true
+
+[rules.buildkit.StageNameCasing]
+severity = "info"         # Downgrade severity
+
+[rules.hadolint.DL3026]
+severity = "warning"
+trusted-registries = ["docker.io", "gcr.io"]
 ```
 
 ### Config File Discovery
@@ -321,11 +335,17 @@ Dockerfile:2
 
 ### JSON
 
-Machine-readable format with summary statistics:
+Machine-readable format with summary statistics and scan metadata:
 
 ```bash
 tally check --format json Dockerfile
 ```
+
+The JSON output includes:
+- `files`: Array of files with their violations
+- `summary`: Aggregate statistics (total, errors, warnings, etc.)
+- `files_scanned`: Total number of files scanned
+- `rules_enabled`: Number of active rules (with `DefaultSeverity != "off"`)
 
 ```json
 {
@@ -353,7 +373,9 @@ tally check --format json Dockerfile
     "info": 0,
     "style": 0,
     "files": 1
-  }
+  },
+  "files_scanned": 1,
+  "rules_enabled": 7
 }
 ```
 

@@ -19,10 +19,6 @@ func TestMetadata(t *testing.T) {
 	if meta.Category != "correctness" {
 		t.Errorf("expected category %q, got %q", "correctness", meta.Category)
 	}
-
-	if !meta.EnabledByDefault {
-		t.Error("expected rule to be enabled by default")
-	}
 }
 
 func TestCheck_RelativeWithoutAbsolute(t *testing.T) {

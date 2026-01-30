@@ -19,10 +19,6 @@ func TestMetadata(t *testing.T) {
 	if meta.Category != "security" {
 		t.Errorf("expected category %q, got %q", "security", meta.Category)
 	}
-
-	if !meta.EnabledByDefault {
-		t.Error("expected rule to be enabled by default")
-	}
 }
 
 func TestCheck_ARGWithSecret(t *testing.T) {

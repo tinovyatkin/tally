@@ -18,7 +18,8 @@
           "rule": "tally/max-lines",
           "message": "file has 3 lines, maximum allowed is 2",
           "severity": "error",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md"
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md",
+          "sourceCode": "CMD [\"sh\"]"
         }
       ]
     }
@@ -30,6 +31,8 @@
     "info": 0,
     "style": 0,
     "files": 1
-  }
+  },
+  "files_scanned": 1,
+  "rules_enabled": 29
 }
 

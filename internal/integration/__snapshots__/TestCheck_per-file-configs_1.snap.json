@@ -1,0 +1,38 @@
+{
+  "files": [
+    {
+      "file": "testdata/per-file-configs/strict/Dockerfile",
+      "violations": [
+        {
+          "location": {
+            "file": "testdata/per-file-configs/strict/Dockerfile",
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": -1,
+              "column": -1
+            }
+          },
+          "rule": "missing-directive-reason",
+          "message": "ignore directive is missing reason= explanation",
+          "detail": "Directive: # tally ignore=buildkit/StageNameCasing",
+          "severity": "warning",
+          "sourceCode": "# tally ignore=buildkit/StageNameCasing"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "errors": 0,
+    "warnings": 1,
+    "info": 0,
+    "style": 0,
+    "files": 1
+  },
+  "files_scanned": 2,
+  "rules_enabled": 29
+}
+

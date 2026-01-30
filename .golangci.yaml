@@ -61,6 +61,7 @@ linters:
         - whyNoLint
         - hugeParam
         - rangeValCopy
+        - unnamedResult  # conflicts with nonamedreturns linter
       enabled-tags:
         - diagnostic
         - experimental

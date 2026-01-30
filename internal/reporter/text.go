@@ -263,8 +263,6 @@ func (r *TextReporter) printSource(w io.Writer, loc rules.Location, source []byt
 
 // expandContextPadding adds 2-4 lines of context around the violation range.
 // Returns (newStart, newEnd) for the expanded range.
-//
-//nolint:gocritic // unnamed results preferred by nonamedreturns linter
 func (r *TextReporter) expandContextPadding(start, end, totalLines int) (int, int) {
 	pad := 2
 	if end == start {

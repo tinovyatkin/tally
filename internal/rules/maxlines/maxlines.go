@@ -7,6 +7,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/rules/configutil"
 )
 
 // Config is the configuration for the max-lines rule.
@@ -15,26 +16,28 @@ import (
 // This was determined by analyzing 500 public Dockerfiles on GitHub:
 // P90 = 53 lines. With skip-blank-lines and skip-comments enabled by default,
 // this provides a comfortable margin while flagging unusually long Dockerfiles.
+//
+// Pointer types are used for fields that need tri-state semantics (unset vs explicit-zero).
 type Config struct {
-	// Max is the maximum number of lines allowed (0 = disabled).
-	// Default: 50 (P90 of 500 analyzed Dockerfiles, counting only code lines).
-	Max int
+	// Max is the maximum number of lines allowed (0 = disabled, nil = use default).
+	Max *int `json:"max,omitempty" jsonschema:"description=Maximum number of lines allowed (0 = disabled),default=50,minimum=0"`
 
-	// SkipBlankLines excludes blank lines from the count.
-	// Default: true (count only meaningful lines).
-	SkipBlankLines bool
+	// SkipBlankLines excludes blank lines from the count (nil = use default).
+	SkipBlankLines *bool `json:"skip-blank-lines,omitempty" jsonschema:"description=Exclude blank lines from the count,default=true"`
 
-	// SkipComments excludes comment lines from the count.
-	// Default: true (count only instruction lines).
-	SkipComments bool
+	// SkipComments excludes comment lines from the count (nil = use default).
+	SkipComments *bool `json:"skip-comments,omitempty" jsonschema:"description=Exclude comment lines from the count,default=true"`
 }
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() Config {
+	maxLines := 50
+	skipBlankLines := true
+	skipComments := true
 	return Config{
-		Max:            50,   // P90 of 500 analyzed Dockerfiles
-		SkipBlankLines: true, // Count only meaningful lines
-		SkipComments:   true, // Count only instruction lines
+		Max:            &maxLines,       // P90 of 500 analyzed Dockerfiles
+		SkipBlankLines: &skipBlankLines, // Count only meaningful lines
+		SkipComments:   &skipComments,   // Count only instruction lines
 	}
 }
 
@@ -44,14 +47,50 @@ type Rule struct{}
 // Metadata returns the rule metadata.
 func (r *Rule) Metadata() rules.RuleMetadata {
 	return rules.RuleMetadata{
-		Code:             rules.TallyRulePrefix + "max-lines",
-		Name:             "Maximum Lines",
-		Description:      "Limits the maximum number of lines in a Dockerfile",
-		DocURL:           "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md",
-		DefaultSeverity:  rules.SeverityError,
-		Category:         "maintainability",
-		EnabledByDefault: true, // Enabled with sensible defaults
-		IsExperimental:   false,
+		Code:            rules.TallyRulePrefix + "max-lines",
+		Name:            "Maximum Lines",
+		Description:     "Limits the maximum number of lines in a Dockerfile",
+		DocURL:          "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md",
+		DefaultSeverity: rules.SeverityError,
+		Category:        "maintainability",
+		IsExperimental:  false,
+	}
+}
+
+// Schema returns the JSON Schema for this rule's configuration.
+// Follows ESLint's meta.schema pattern for rule options validation.
+// Supports either an integer shorthand (just max) or full object config.
+func (r *Rule) Schema() map[string]any {
+	return map[string]any{
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"oneOf": []any{
+			map[string]any{
+				"type":    "integer",
+				"minimum": 0,
+			},
+			map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"max": map[string]any{
+						"type":        "integer",
+						"minimum":     0,
+						"default":     50,
+						"description": "Maximum number of lines allowed (0 = disabled)",
+					},
+					"skip-blank-lines": map[string]any{
+						"type":        "boolean",
+						"default":     true,
+						"description": "Exclude blank lines from the count",
+					},
+					"skip-comments": map[string]any{
+						"type":        "boolean",
+						"default":     true,
+						"description": "Exclude comment lines from the count",
+					},
+				},
+				"additionalProperties": false,
+			},
+		},
 	}
 }
 
@@ -61,10 +100,11 @@ func (r *Rule) Metadata() rules.RuleMetadata {
 func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	cfg := r.resolveConfig(input.Config)
 
-	// Rule is disabled if Max is 0
-	if cfg.Max <= 0 {
+	// Rule is disabled if Max is nil or 0
+	if cfg.Max == nil || *cfg.Max <= 0 {
 		return nil
 	}
+	maxLines := *cfg.Max
 
 	// Get total lines from the AST root node's EndLine
 	// This gives us the last line of actual content
@@ -73,26 +113,30 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	count := totalLines
 
 	// Subtract comment lines if configured (using AST's PrevComment data)
-	if cfg.SkipComments {
+	// nil defaults to true (skip comments)
+	skipComments := cfg.SkipComments == nil || *cfg.SkipComments
+	if skipComments {
 		count -= countCommentLines(input.AST.AST)
 	}
 
 	// Handle blank lines
-	if cfg.SkipBlankLines {
+	// nil defaults to true (skip blank lines)
+	skipBlankLines := cfg.SkipBlankLines == nil || *cfg.SkipBlankLines
+	if skipBlankLines {
 		count -= countBlankLines(input.AST)
-	} else if count <= cfg.Max {
+	} else if count <= maxLines {
 		// Trailing blanks only matter if not already over limit
 		count += countTrailingBlanks(input.Source)
 	}
 
-	if count > cfg.Max {
+	if count > maxLines {
 		// Report from the first line exceeding the limit (like ESLint)
 		// With 1-based line numbers, line (Max+1) is the first line over
 		return []rules.Violation{
 			rules.NewViolation(
-				rules.NewLineLocation(input.File, cfg.Max+1), // 1-based: first line over max
+				rules.NewLineLocation(input.File, maxLines+1), // 1-based: first line over max
 				r.Metadata().Code,
-				fmt.Sprintf("file has %d lines, maximum allowed is %d", count, cfg.Max),
+				fmt.Sprintf("file has %d lines, maximum allowed is %d", count, maxLines),
 				r.Metadata().DefaultSeverity,
 			).WithDocURL(r.Metadata().DocURL),
 		}
@@ -219,40 +263,34 @@ func (r *Rule) DefaultConfig() any {
 	return DefaultConfig()
 }
 
-// ValidateConfig checks if the configuration is valid.
+// ValidateConfig validates the configuration against the rule's JSON Schema.
 func (r *Rule) ValidateConfig(config any) error {
-	if config == nil {
-		return nil
-	}
-	var cfg Config
-	switch v := config.(type) {
-	case Config:
-		cfg = v
-	case *Config:
-		if v == nil {
-			return nil
-		}
-		cfg = *v
-	default:
-		return fmt.Errorf("expected Config, got %T", config)
-	}
-	if cfg.Max < 0 {
-		return fmt.Errorf("max must be >= 0, got %d", cfg.Max)
-	}
-	return nil
+	return configutil.ValidateWithSchema(config, r.Schema())
 }
 
 // resolveConfig extracts the Config from input, falling back to defaults.
+// Supports integer shorthand (just max value) or full object config.
 func (r *Rule) resolveConfig(config any) Config {
-	if config == nil {
-		return DefaultConfig()
-	}
-	if cfg, ok := config.(Config); ok {
-		return cfg
-	}
-	// Try pointer
-	if cfg, ok := config.(*Config); ok && cfg != nil {
-		return *cfg
+	switch v := config.(type) {
+	case Config:
+		return v
+	case *Config:
+		if v != nil {
+			return *v
+		}
+	case int:
+		// Integer shorthand: just the max value with default booleans
+		defaults := DefaultConfig()
+		defaults.Max = &v
+		return defaults
+	case float64:
+		// JSON numbers come as float64
+		maxVal := int(v)
+		defaults := DefaultConfig()
+		defaults.Max = &maxVal
+		return defaults
+	case map[string]any:
+		return configutil.Resolve(v, DefaultConfig())
 	}
 	return DefaultConfig()
 }

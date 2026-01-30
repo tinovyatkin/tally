@@ -17,14 +17,13 @@ type Rule struct{}
 // Metadata returns the rule metadata.
 func (r *Rule) Metadata() rules.RuleMetadata {
 	return rules.RuleMetadata{
-		Code:             rules.BuildKitRulePrefix + "RedundantTargetPlatform",
-		Name:             "Redundant TARGETPLATFORM",
-		Description:      "Setting platform to $TARGETPLATFORM is redundant as this is the default behavior",
-		DocURL:           "https://docs.docker.com/go/dockerfile/rule/redundant-target-platform/",
-		DefaultSeverity:  rules.SeverityWarning,
-		Category:         "best-practices",
-		EnabledByDefault: true,
-		IsExperimental:   false,
+		Code:            rules.BuildKitRulePrefix + "RedundantTargetPlatform",
+		Name:            "Redundant TARGETPLATFORM",
+		Description:     "Setting platform to $TARGETPLATFORM is redundant as this is the default behavior",
+		DocURL:          "https://docs.docker.com/go/dockerfile/rule/redundant-target-platform/",
+		DefaultSeverity: rules.SeverityWarning,
+		Category:        "best-practices",
+		IsExperimental:  false,
 	}
 }
 

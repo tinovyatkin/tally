@@ -133,9 +133,6 @@ type RuleMetadata struct {
 	// Category groups related rules (e.g., "security", "performance", "style").
 	Category string
 
-	// EnabledByDefault indicates if the rule runs without explicit opt-in.
-	EnabledByDefault bool
-
 	// IsExperimental marks rules that may change or be removed.
 	IsExperimental bool
 }
@@ -155,7 +152,26 @@ type Rule interface {
 type ConfigurableRule interface {
 	Rule
 
+	// Schema returns the JSON Schema for this rule's configuration options.
+	// This follows ESLint's meta.schema pattern where rules define their own schema.
+	// The schema is used for:
+	//   - Config validation
+	//   - Documentation generation
+	//   - IDE autocompletion
+	//
+	// Example return value:
+	//
+	//	map[string]any{
+	//	    "type": "object",
+	//	    "properties": map[string]any{
+	//	        "max": map[string]any{"type": "integer", "minimum": 0, "default": 50},
+	//	    },
+	//	    "additionalProperties": false,
+	//	}
+	Schema() map[string]any
+
 	// DefaultConfig returns the default configuration for this rule.
+	// Used when no user config is provided.
 	DefaultConfig() any
 
 	// ValidateConfig checks if a configuration is valid for this rule.

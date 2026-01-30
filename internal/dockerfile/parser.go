@@ -5,10 +5,14 @@ import (
 	"context"
 	"io"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+
+	"github.com/tinovyatkin/tally/internal/config"
 )
 
 // LintWarning captures parameters from BuildKit's linter.LintWarnFunc callback.
@@ -54,19 +58,21 @@ func openDockerfile(path string) (io.Reader, func() error, error) {
 	return f, f.Close, nil
 }
 
-// ParseFile parses a Dockerfile and returns the parse result
-func ParseFile(_ context.Context, path string) (*ParseResult, error) {
+// ParseFile parses a Dockerfile and returns the parse result.
+// If cfg is provided, it's used to configure BuildKit's linter (skip disabled rules, etc.).
+func ParseFile(_ context.Context, path string, cfg *config.Config) (*ParseResult, error) {
 	r, closer, err := openDockerfile(path)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = closer() }()
 
-	return Parse(r)
+	return Parse(r, cfg)
 }
 
-// Parse parses a Dockerfile from a reader
-func Parse(r io.Reader) (*ParseResult, error) {
+// Parse parses a Dockerfile from a reader.
+// If cfg is provided, it's used to configure BuildKit's linter (skip disabled rules, etc.).
+func Parse(r io.Reader, cfg *config.Config) (*ParseResult, error) {
 	content, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -90,10 +96,11 @@ func Parse(r io.Reader) (*ParseResult, error) {
 		})
 	}
 
+	// Build BuildKit linter config from our config
+	lintCfg := buildLinterConfig(cfg, warnFunc)
+
 	// Create BuildKit linter to capture warnings during instruction parsing
-	lint := linter.New(&linter.Config{
-		Warn: warnFunc,
-	})
+	lint := linter.New(lintCfg)
 
 	// Parse into typed instructions (stages and meta args)
 	stages, metaArgs, err := instructions.Parse(ast.AST, lint)
@@ -108,6 +115,73 @@ func Parse(r io.Reader) (*ParseResult, error) {
 		Source:   content,
 		Warnings: warnings,
 	}, nil
+}
+
+// buildLinterConfig creates a BuildKit linter.Config from our config.
+// This optimizes BuildKit's linter by:
+//   - Setting SkipRules for explicitly excluded BuildKit rules
+//   - Setting ExperimentalRules for explicitly included experimental rules
+func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter.Config {
+	lintCfg := &linter.Config{
+		Warn: warnFunc,
+	}
+
+	if cfg == nil {
+		return lintCfg
+	}
+
+	// Check Exclude patterns for buildkit rules
+	for _, pattern := range cfg.Rules.Exclude {
+		// Handle "buildkit/*" - skip all buildkit rules
+		if pattern == "buildkit/*" {
+			// Can't skip all at once in BuildKit, but this is rare
+			// Individual rules will be filtered by our processor
+			continue
+		}
+		// Handle specific buildkit rule: "buildkit/StageNameCasing"
+		if ns, name := parseRuleCode(pattern); ns == "buildkit" && name != "" {
+			lintCfg.SkipRules = append(lintCfg.SkipRules, name)
+		}
+	}
+
+	// Check Include patterns for experimental rules
+	for _, pattern := range cfg.Rules.Include {
+		// Handle "buildkit/*" - enable all experimental rules
+		if pattern == "buildkit/*" {
+			// Add known experimental rules
+			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, experimentalBuildKitRules...)
+			continue
+		}
+		// Handle specific buildkit rule: "buildkit/InvalidDefinitionDescription"
+		if ns, name := parseRuleCode(pattern); ns == "buildkit" && isExperimentalBuildKitRule(name) {
+			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, name)
+		}
+	}
+
+	return lintCfg
+}
+
+// experimentalBuildKitRules is the list of known experimental BuildKit linter rules.
+// These rules are disabled by default and must be explicitly enabled.
+//
+// NOTE: This list must be kept in sync with BuildKit's experimental rules.
+// When BuildKit introduces new experimental rules, add them here.
+// Check BuildKit release notes or linter/linter.go for updates.
+var experimentalBuildKitRules = []string{
+	"InvalidDefinitionDescription",
+}
+
+// isExperimentalBuildKitRule checks if a rule name is a known experimental BuildKit rule.
+func isExperimentalBuildKitRule(name string) bool {
+	return slices.Contains(experimentalBuildKitRules, name)
+}
+
+// parseRuleCode parses a rule code into namespace and name.
+func parseRuleCode(ruleCode string) (string, string) {
+	if idx := strings.Index(ruleCode, "/"); idx > 0 {
+		return ruleCode[:idx], ruleCode[idx+1:]
+	}
+	return "", ruleCode
 }
 
 // ExtractHeredocFiles extracts virtual file paths from heredoc COPY/ADD commands.

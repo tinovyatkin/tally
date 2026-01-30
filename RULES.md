@@ -16,7 +16,7 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 |-----------|-------------|---------------------|-------|
 | tally | 3 | - | 3 |
 | buildkit | 4 + 15 captured | - | 19 |
-| hadolint | 1 | ~10 | 70+ |
+| hadolint | 2 | ~10 | 70+ |
 
 ---
 
@@ -105,6 +105,7 @@ See [Docker Build Checks](https://docs.docker.com/reference/build-checks/) for d
 ## Hadolint Rules
 
 [Hadolint](https://github.com/hadolint/hadolint) rules for Dockerfile and shell best practices.
+See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed rule documentation.
 
 **Legend:**
 
@@ -141,7 +142,7 @@ See [Docker Build Checks](https://docs.docker.com/reference/build-checks/) for d
 | DL3023 | COPY --from cannot reference own FROM alias | Error | ⏳ |
 | DL3024 | FROM stage names must be unique | Error | ✅ `hadolint/DL3024` |
 | DL3025 | Use JSON notation for CMD/ENTRYPOINT | Warning | 🔄 `buildkit/JSONArgsRecommended` |
-| DL3026 | Use only allowed registries | Error | ⏳ |
+| DL3026 | Use only allowed registries | Off (enable via config) | ✅ `hadolint/DL3026` |
 | DL3027 | Avoid apt; use apt-get or apt-cache | Warning | ⏳ |
 | DL3028 | Pin versions in gem install | Warning | ⏳ |
 | DL3029 | Do not use --platform flag with FROM | Warning | 🔄 `buildkit/FromPlatformFlagConstDisallowed` |
@@ -219,21 +220,29 @@ See [README.md](README.md#ignoring-violations) for full directive documentation.
 
 ## Configuration
 
-Enable/disable rules in `.tally.toml`:
+Configure rules in `.tally.toml`:
 
 ```toml
 [rules]
-# Disable specific rules
-disable = ["tally/max-lines"]
+# Enable/disable rules by pattern
+include = ["buildkit/*"]                     # Enable all buildkit rules
+exclude = ["buildkit/MaintainerDeprecated"]  # Disable specific rules
 
-# Enable experimental rules
-experimental = true
-
-[rules.max-lines]
+# Example 1: Configure rule options and override severity
+[rules.tally.max-lines]
+severity = "warning"          # Options: "off", "error", "warning", "info", "style"
 max = 500
 skip-blank-lines = true
 skip-comments = true
+
+# Example 2: Enable "off by default" rules by providing config
+[rules.hadolint.DL3026]
+trusted-registries = ["docker.io", "ghcr.io"]
+# Providing trusted-registries auto-enables with severity="warning"
+# To use a different severity, set it explicitly: severity = "error"
 ```
+
+**Severity-based enabling:** Rules with `DefaultSeverity: "off"` (like DL3026) are automatically enabled with `severity: "warning"` when you provide configuration options for them, without needing to explicitly set `enabled = true` or `severity = "warning"`. To use a different severity, set the `severity` field explicitly in the rule's configuration block.
 
 ---
 

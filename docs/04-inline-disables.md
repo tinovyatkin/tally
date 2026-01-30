@@ -750,8 +750,8 @@ func shouldRunRule(rule Rule, config *Config, inlineDisabled map[string]bool) bo
         return false
     }
 
-    // 4. Check if rule is enabled by default
-    return rule.EnabledByDefault
+    // 4. Check if rule is enabled by default (DefaultSeverity != off)
+    return rule.DefaultSeverity != SeverityOff
 }
 ```
 

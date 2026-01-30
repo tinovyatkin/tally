@@ -33,42 +33,32 @@ const EnvPrefix = "TALLY_"
 // Config represents the complete tally configuration.
 type Config struct {
 	// Rules contains configuration for individual linting rules.
-	Rules RulesConfig `koanf:"rules"`
+	Rules RulesConfig `json:"rules" jsonschema:"description=Rule configuration" koanf:"rules"`
 
 	// Output configures output format and destination.
-	Output OutputConfig `koanf:"output"`
+	Output OutputConfig `json:"output" jsonschema:"description=Output settings" koanf:"output"`
 
 	// InlineDirectives controls inline suppression directives.
-	InlineDirectives InlineDirectivesConfig `koanf:"inline-directives"`
+	InlineDirectives InlineDirectivesConfig `json:"inline-directives" koanf:"inline-directives"`
 
 	// ConfigFile is the path to the config file that was loaded (if any).
 	// This is metadata, not loaded from config.
-	ConfigFile string `koanf:"-"`
+	ConfigFile string `json:"-" koanf:"-"`
 }
 
 // OutputConfig configures output formatting and behavior.
 type OutputConfig struct {
-	// Format specifies the output format: "text", "json", "sarif", "github-actions".
-	// Default: "text"
-	Format string `koanf:"format"`
+	// Format specifies the output format.
+	Format string `json:"format,omitempty" koanf:"format"`
 
-	// Path specifies where to write output: "stdout", "stderr", or a file path.
-	// Default: "stdout"
-	Path string `koanf:"path"`
+	// Path specifies where to write output.
+	Path string `json:"path,omitempty" koanf:"path"`
 
 	// ShowSource enables source code snippets in text output.
-	// Default: true
-	ShowSource bool `koanf:"show-source"`
+	ShowSource bool `json:"show-source,omitempty" koanf:"show-source"`
 
 	// FailLevel sets the minimum severity level that causes a non-zero exit code.
-	// Valid values: "error", "warning", "info", "style", "none"
-	// Default: "style" (any violation causes exit code 1)
-	FailLevel string `koanf:"fail-level"`
-}
-
-// RulesConfig contains configuration for all linting rules.
-type RulesConfig struct {
-	MaxLines MaxLinesRule `koanf:"max-lines"`
+	FailLevel string `json:"fail-level,omitempty" koanf:"fail-level"`
 }
 
 // InlineDirectivesConfig controls inline suppression directives.
@@ -83,57 +73,20 @@ type RulesConfig struct {
 //	require-reason = false
 type InlineDirectivesConfig struct {
 	// Enabled controls whether inline directives are processed.
-	// Default: true
-	Enabled bool `koanf:"enabled"`
+	Enabled bool `json:"enabled,omitempty" jsonschema:"default=true,description=Process inline ignore directives" koanf:"enabled"`
 
 	// WarnUnused reports warnings for directives that don't suppress any violations.
-	// Default: false
-	WarnUnused bool `koanf:"warn-unused"`
+	WarnUnused bool `json:"warn-unused,omitempty" jsonschema:"default=false,description=Warn about unused directives" koanf:"warn-unused"`
 
 	// ValidateRules reports warnings for unknown rule codes in directives.
-	// Default: false (allows BuildKit/hadolint rule codes for migration compatibility)
-	ValidateRules bool `koanf:"validate-rules"`
+	ValidateRules bool `json:"validate-rules,omitempty" jsonschema:"default=false" koanf:"validate-rules"`
 
 	// RequireReason reports warnings for directives without a reason= explanation.
-	// Only applies to tally and hadolint directives (buildx doesn't support reason=).
-	// Default: false
-	RequireReason bool `koanf:"require-reason"`
-}
-
-// MaxLinesRule configures the max-lines rule.
-// This rule checks if a Dockerfile exceeds a maximum line count.
-//
-// Default: 50 lines (excluding blanks and comments).
-// This was determined by analyzing 500 public Dockerfiles on GitHub:
-// P90 = 53 lines. With skip-blank-lines and skip-comments enabled by default,
-// this provides a comfortable margin while flagging unusually long Dockerfiles.
-//
-// Example TOML configuration:
-//
-//	[rules.max-lines]
-//	max = 50
-//	skip-blank-lines = true
-//	skip-comments = true
-type MaxLinesRule struct {
-	// Max is the maximum number of lines allowed. 0 means disabled.
-	// Default: 50 (P90 of 500 analyzed Dockerfiles, counting only code lines).
-	Max int `koanf:"max"`
-
-	// SkipBlankLines excludes blank lines from the count when true.
-	// Default: true (count only meaningful lines).
-	SkipBlankLines bool `koanf:"skip-blank-lines"`
-
-	// SkipComments excludes comment lines from the count when true.
-	// Default: true (count only instruction lines).
-	SkipComments bool `koanf:"skip-comments"`
-}
-
-// Enabled returns true if the max-lines rule is enabled.
-func (r MaxLinesRule) Enabled() bool {
-	return r.Max > 0
+	RequireReason bool `json:"require-reason,omitempty" jsonschema:"default=false" koanf:"require-reason"`
 }
 
 // Default returns the default configuration.
+// Rule-specific defaults are owned by each rule via ConfigurableRule.DefaultConfig().
 func Default() *Config {
 	return &Config{
 		Output: OutputConfig{
@@ -142,13 +95,7 @@ func Default() *Config {
 			ShowSource: true,
 			FailLevel:  "style", // Any violation causes exit code 1
 		},
-		Rules: RulesConfig{
-			MaxLines: MaxLinesRule{
-				Max:            50,   // P90 of 500 analyzed Dockerfiles
-				SkipBlankLines: true, // Count only meaningful lines
-				SkipComments:   true, // Count only instruction lines
-			},
-		},
+		Rules: RulesConfig{}, // Empty - defaults come from rules
 		InlineDirectives: InlineDirectivesConfig{
 			Enabled:       true,  // Process inline directives by default
 			WarnUnused:    false, // Don't warn about unused directives by default

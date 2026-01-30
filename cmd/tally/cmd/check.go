@@ -9,15 +9,14 @@ import (
 
 	"github.com/tinovyatkin/tally/internal/config"
 	"github.com/tinovyatkin/tally/internal/context"
-	"github.com/tinovyatkin/tally/internal/directive"
 	"github.com/tinovyatkin/tally/internal/discovery"
 	"github.com/tinovyatkin/tally/internal/dockerfile"
+	"github.com/tinovyatkin/tally/internal/processor"
 	"github.com/tinovyatkin/tally/internal/reporter"
 	"github.com/tinovyatkin/tally/internal/rules"
 	_ "github.com/tinovyatkin/tally/internal/rules/all" // Register all rules
-	"github.com/tinovyatkin/tally/internal/rules/maxlines"
+	"github.com/tinovyatkin/tally/internal/rules/buildkit"
 	"github.com/tinovyatkin/tally/internal/semantic"
-	"github.com/tinovyatkin/tally/internal/sourcemap"
 	"github.com/tinovyatkin/tally/internal/version"
 )
 
@@ -141,7 +140,8 @@ func checkCommand() *cli.Command {
 
 			var allViolations []rules.Violation
 			fileSources := make(map[string][]byte)
-			var firstCfg *config.Config // Store first file's config for output settings
+			fileConfigs := make(map[string]*config.Config) // Per-file configs
+			var firstCfg *config.Config                    // Store first file's config for output settings
 
 			for _, df := range discovered {
 				file := df.Path
@@ -153,13 +153,16 @@ func checkCommand() *cli.Command {
 					os.Exit(ExitConfigError)
 				}
 
+				// Store per-file config for processor chain
+				fileConfigs[file] = cfg
+
 				// Store first config for output settings
 				if firstCfg == nil {
 					firstCfg = cfg
 				}
 
-				// Parse the Dockerfile
-				parseResult, err := dockerfile.ParseFile(ctx, file)
+				// Parse the Dockerfile (pass config to optimize BuildKit's linter)
+				parseResult, err := dockerfile.ParseFile(ctx, file, cfg)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error: failed to parse %s: %v\n", file, err)
 					os.Exit(ExitConfigError)
@@ -224,10 +227,38 @@ func checkCommand() *cli.Command {
 					))
 				}
 
-				// Apply inline directives if enabled
-				violations = processInlineDirectives(file, parseResult.Source, violations, cfg)
-
 				allViolations = append(allViolations, violations...)
+			}
+
+			// Build processor chain for violation processing
+			// Order matters: severity first, then filter, then transform, then output preparation
+			inlineFilter := processor.NewInlineDirectiveFilter()
+			chain := processor.NewChain(
+				processor.NewPathNormalization(),   // Normalize paths for cross-platform consistency
+				processor.NewSeverityOverride(),    // Apply severity overrides (must run before EnableFilter)
+				processor.NewEnableFilter(),        // Filter rules with severity="off"
+				processor.NewPathExclusionFilter(), // Apply per-rule path exclusions
+				inlineFilter,                       // Apply inline ignore directives
+				processor.NewDeduplication(),       // Remove duplicate violations
+				processor.NewSorting(),             // Stable output ordering
+				processor.NewSnippetAttachment(),   // Attach source code snippets
+			)
+
+			// Process all violations through the chain
+			// Each file gets its own config for rule enable/disable, severity, etc.
+			procCtx := processor.NewContext(fileConfigs, firstCfg, fileSources)
+			allViolations = chain.Process(allViolations, procCtx)
+
+			// Add any additional violations from the inline directive filter
+			// (parse errors, unused directives, missing reasons)
+			additionalViolations := inlineFilter.AdditionalViolations()
+			if len(additionalViolations) > 0 {
+				// Apply PathNormalization for consistent path formats with main violations
+				additionalViolations = processor.NewPathNormalization().Process(additionalViolations, procCtx)
+				additionalViolations = processor.NewSnippetAttachment().Process(additionalViolations, procCtx)
+				allViolations = append(allViolations, additionalViolations...)
+				// Re-sort after adding directive warnings
+				allViolations = reporter.SortViolations(allViolations)
 			}
 
 			// Get output configuration
@@ -275,8 +306,16 @@ func checkCommand() *cli.Command {
 				return cli.Exit("", ExitConfigError)
 			}
 
+			// Calculate metadata for report
+			// Count rules that are effectively enabled based on config
+			rulesEnabled := countEffectivelyEnabledRules(firstCfg)
+			metadata := reporter.ReportMetadata{
+				FilesScanned: len(discovered),
+				RulesEnabled: rulesEnabled,
+			}
+
 			// Report violations
-			if err := rep.Report(allViolations, fileSources); err != nil {
+			if err := rep.Report(allViolations, fileSources, metadata); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: failed to write output: %v\n", err)
 				return cli.Exit("", ExitConfigError)
 			}
@@ -312,18 +351,33 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 		}
 	}
 
-	// Apply CLI flag overrides (highest priority)
+	// Apply CLI flag overrides for max-lines rule
 	// Only override if the flag was explicitly set
-	if cmd.IsSet("max-lines") {
-		cfg.Rules.MaxLines.Max = cmd.Int("max-lines")
-	}
+	if cmd.IsSet("max-lines") || cmd.IsSet("skip-blank-lines") || cmd.IsSet("skip-comments") {
+		// Get current options or defaults
+		opts := cfg.Rules.GetOptions("tally/max-lines")
+		if opts == nil {
+			opts = make(map[string]any)
+		}
 
-	if cmd.IsSet("skip-blank-lines") {
-		cfg.Rules.MaxLines.SkipBlankLines = cmd.Bool("skip-blank-lines")
-	}
+		if cmd.IsSet("max-lines") {
+			opts["max"] = cmd.Int("max-lines")
+		}
+		if cmd.IsSet("skip-blank-lines") {
+			opts["skip-blank-lines"] = cmd.Bool("skip-blank-lines")
+		}
+		if cmd.IsSet("skip-comments") {
+			opts["skip-comments"] = cmd.Bool("skip-comments")
+		}
 
-	if cmd.IsSet("skip-comments") {
-		cfg.Rules.MaxLines.SkipComments = cmd.Bool("skip-comments")
+		// Get existing config or create new
+		ruleCfg := cfg.Rules.Get("tally/max-lines")
+		if ruleCfg != nil {
+			ruleCfg.Options = opts
+			cfg.Rules.Set("tally/max-lines", *ruleCfg)
+		} else {
+			cfg.Rules.Set("tally/max-lines", config.RuleConfig{Options: opts})
+		}
 	}
 
 	// Output settings are handled in getOutputConfig to avoid duplication
@@ -342,71 +396,6 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 	}
 
 	return cfg, nil
-}
-
-// processInlineDirectives handles parsing and applying inline ignore directives.
-// It filters violations based on directives and reports directive-related warnings.
-func processInlineDirectives(
-	file string,
-	source []byte,
-	violations []rules.Violation,
-	cfg *config.Config,
-) []rules.Violation {
-	if !cfg.InlineDirectives.Enabled {
-		return violations
-	}
-
-	sm := sourcemap.New(source)
-	var validator directive.RuleValidator
-	if cfg.InlineDirectives.ValidateRules {
-		validator = rules.DefaultRegistry().Has
-	}
-	directiveResult := directive.Parse(sm, validator)
-
-	// Report parse errors as warnings
-	for _, parseErr := range directiveResult.Errors {
-		violations = append(violations, rules.NewViolation(
-			rules.NewLineLocation(file, parseErr.Line+1),
-			"invalid-ignore-directive",
-			parseErr.Message,
-			rules.SeverityWarning,
-		).WithDetail("Directive: "+parseErr.RawText))
-	}
-
-	// Filter violations based on inline directives
-	if len(directiveResult.Directives) > 0 {
-		filterResult := directive.Filter(violations, directiveResult.Directives)
-		violations = filterResult.Violations
-
-		// Report unused directives if configured
-		if cfg.InlineDirectives.WarnUnused {
-			for _, unused := range filterResult.UnusedDirectives {
-				violations = append(violations, rules.NewViolation(
-					rules.NewLineLocation(file, unused.Line+1),
-					"unused-ignore-directive",
-					"ignore directive does not suppress any violations",
-					rules.SeverityWarning,
-				).WithDetail("Directive: "+unused.RawText))
-			}
-		}
-	}
-
-	// Report directives without reason if configured
-	// Only applies to tally and hadolint sources (buildx doesn't support reason=)
-	if cfg.InlineDirectives.RequireReason {
-		for _, d := range directiveResult.Directives {
-			if d.Source != directive.SourceBuildx && d.Reason == "" {
-				violations = append(violations, rules.NewViolation(
-					rules.NewLineLocation(file, d.Line+1),
-					"missing-directive-reason",
-					"ignore directive is missing reason= explanation",
-					rules.SeverityWarning,
-				).WithDetail("Directive: "+d.RawText))
-			}
-		}
-	}
-
-	return violations
 }
 
 // outputConfig holds output configuration values.
@@ -510,17 +499,62 @@ func parseFailLevel(level string) (rules.Severity, error) {
 // getRuleConfig returns the appropriate config for a rule based on its code.
 // This allows each rule to receive its own typed config from the global config.
 func getRuleConfig(ruleCode string, cfg *config.Config) any {
-	switch ruleCode {
-	case rules.TallyRulePrefix + "max-lines":
-		return maxlines.Config{
-			Max:            cfg.Rules.MaxLines.Max,
-			SkipBlankLines: cfg.Rules.MaxLines.SkipBlankLines,
-			SkipComments:   cfg.Rules.MaxLines.SkipComments,
+	// Return the rule's options map from config
+	// The rule's resolveConfig method handles converting map to typed config
+	return cfg.Rules.GetOptions(ruleCode)
+}
+
+// countEffectivelyEnabledRules returns the number of rules that are actually enabled
+// after applying config overrides (include/exclude patterns and severity overrides).
+// Counts both registered rules and BuildKit parser rules.
+func countEffectivelyEnabledRules(cfg *config.Config) int {
+	count := 0
+
+	// Count registered rules (tally/*, hadolint/*, and implemented buildkit/* rules)
+	registry := rules.DefaultRegistry()
+	for _, rule := range registry.All() {
+		if isRuleEnabled(rule.Metadata().Code, rule.Metadata().DefaultSeverity, cfg) {
+			count++
 		}
-	default:
-		// Unknown rules get nil config (use their defaults)
-		return nil
 	}
+
+	// Count BuildKit parser rules (captured warnings like StageNameCasing, etc.)
+	// These are always enabled unless explicitly disabled via config
+	for _, info := range buildkit.All() {
+		ruleCode := rules.BuildKitRulePrefix + info.Name
+		if isRuleEnabled(ruleCode, info.DefaultSeverity, cfg) {
+			count++
+		}
+	}
+
+	return count
+}
+
+// isRuleEnabled checks if a rule is effectively enabled based on config.
+func isRuleEnabled(ruleCode string, defaultSeverity rules.Severity, cfg *config.Config) bool {
+	if cfg == nil {
+		return defaultSeverity != rules.SeverityOff
+	}
+
+	// Check if explicitly disabled by exclude pattern
+	enabled := cfg.Rules.IsEnabled(ruleCode)
+	if enabled != nil {
+		return *enabled
+	}
+
+	// Check if severity is overridden to "off"
+	if sev := cfg.Rules.GetSeverity(ruleCode); sev == "off" {
+		return false
+	}
+
+	// Check if "off" rule is auto-enabled by having config options
+	if defaultSeverity == rules.SeverityOff {
+		ruleConfig := cfg.Rules.Get(ruleCode)
+		return ruleConfig != nil && len(ruleConfig.Options) > 0
+	}
+
+	// Use default severity
+	return defaultSeverity != rules.SeverityOff
 }
 
 // extractHeredocFiles extracts virtual file paths from heredoc COPY/ADD commands.

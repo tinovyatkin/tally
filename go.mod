@@ -6,8 +6,10 @@ require (
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/distribution/reference v0.6.0
 	github.com/gkampitakis/go-snaps v0.5.19
 	github.com/knadh/koanf/parsers/toml/v2 v2.1.0
+	github.com/knadh/koanf/providers/confmap v1.0.0
 	github.com/knadh/koanf/providers/env v1.0.0
 	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/providers/structs v0.1.0
@@ -16,6 +18,7 @@ require (
 	github.com/moby/patternmatcher v0.6.0
 	github.com/muesli/termenv v0.16.0
 	github.com/owenrumney/go-sarif/v2 v2.3.3
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/urfave/cli/v3 v3.6.2
 	github.com/zricethezav/gitleaks/v8 v8.30.0
 )

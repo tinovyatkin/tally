@@ -20,14 +20,13 @@ type Rule struct{}
 // Metadata returns the rule metadata.
 func (r *Rule) Metadata() rules.RuleMetadata {
 	return rules.RuleMetadata{
-		Code:             rules.BuildKitRulePrefix + "SecretsUsedInArgOrEnv",
-		Name:             "Secrets in ARG or ENV",
-		Description:      "Sensitive data should not be used in build-time variables",
-		DocURL:           "https://docs.docker.com/go/dockerfile/rule/secrets-used-in-arg-or-env/",
-		DefaultSeverity:  rules.SeverityWarning,
-		Category:         "security",
-		EnabledByDefault: true,
-		IsExperimental:   false,
+		Code:            rules.BuildKitRulePrefix + "SecretsUsedInArgOrEnv",
+		Name:            "Secrets in ARG or ENV",
+		Description:     "Sensitive data should not be used in build-time variables",
+		DocURL:          "https://docs.docker.com/go/dockerfile/rule/secrets-used-in-arg-or-env/",
+		DefaultSeverity: rules.SeverityWarning,
+		Category:        "security",
+		IsExperimental:  false,
 	}
 }
 
