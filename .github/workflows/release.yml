@@ -77,10 +77,10 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # Find and sign all darwin binaries
-          find dist -type f -name '*darwin*' | while read -r binary; do
-            # Skip checksums and other non-binary files
-            if [[ "$binary" == *.txt ]] || [[ "$binary" == *.json ]]; then
+          # Find and sign executable Mach-O binaries under darwin build dirs
+          find dist -type f -perm -111 -path '*_darwin_*/*' -print0 | while IFS= read -r -d '' binary; do
+            # Verify it's a Mach-O binary
+            if ! file "$binary" | grep -q 'Mach-O'; then
               continue
             fi
 
