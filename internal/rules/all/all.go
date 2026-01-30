@@ -8,6 +8,7 @@ import (
 	// Import all rule packages to trigger their init() registration
 	_ "github.com/tinovyatkin/tally/internal/rules/avoidlatesttag"
 	_ "github.com/tinovyatkin/tally/internal/rules/copyignoredfile"
+	_ "github.com/tinovyatkin/tally/internal/rules/lastusershouldnotberoot"
 	_ "github.com/tinovyatkin/tally/internal/rules/maxlines"
 	_ "github.com/tinovyatkin/tally/internal/rules/nounreachablestages"
 	_ "github.com/tinovyatkin/tally/internal/rules/pinimageversions"
