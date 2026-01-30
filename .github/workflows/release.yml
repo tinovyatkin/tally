@@ -108,6 +108,49 @@ jobs:
             rm "${binary}.zip"
           done
 
+      - name: Re-create darwin archives with signed binaries
+        run: |
+          # Get version from tag
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # Dynamically find darwin build directories (avoids hardcoding GoReleaser naming)
+          ARM64_DIR=$(find dist -maxdepth 1 -type d -name 'tally_darwin_arm64*' | head -1)
+          AMD64_DIR=$(find dist -maxdepth 1 -type d -name 'tally_darwin_amd64*' | head -1)
+
+          # Re-create MacOS arm64 archive
+          cd "$ARM64_DIR"
+          tar -czvf "../tally_${VERSION}_MacOS_arm64.tar.gz" tally LICENSE NOTICE
+          cd ..
+
+          # Re-create MacOS x86_64 archive
+          cd "$(basename "$AMD64_DIR")"
+          tar -czvf "../tally_${VERSION}_MacOS_x86_64.tar.gz" tally LICENSE NOTICE
+          cd ../..
+
+          # Generate new checksums for darwin archives
+          cd dist
+          shasum -a 256 "tally_${VERSION}_MacOS_arm64.tar.gz" "tally_${VERSION}_MacOS_x86_64.tar.gz" > darwin_checksums.txt
+          cat darwin_checksums.txt
+
+      - name: Upload signed archives to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # Replace unsigned darwin archives with signed ones
+          gh release upload "$GITHUB_REF_NAME" \
+            "dist/tally_${VERSION}_MacOS_arm64.tar.gz" \
+            "dist/tally_${VERSION}_MacOS_x86_64.tar.gz" \
+            --clobber
+
+          # Download current checksums, update darwin entries, re-upload
+          gh release download "$GITHUB_REF_NAME" -p "tally_checksums.txt" -D /tmp
+          # Remove old darwin checksums and append new ones
+          grep -v "MacOS" /tmp/tally_checksums.txt > /tmp/tally_checksums_updated.txt || true
+          cat dist/darwin_checksums.txt >> /tmp/tally_checksums_updated.txt
+          gh release upload "$GITHUB_REF_NAME" /tmp/tally_checksums_updated.txt --clobber
+
       - name: Re-package signed artifacts
         run: tar -cvf dist-signed.tar dist/
 
@@ -116,6 +159,72 @@ jobs:
         with:
           name: dist-signed
           path: dist-signed.tar
+
+  publish-homebrew:
+    needs: sign-macos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Generate Homebrew formula
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # Wait for release assets to be available (retry up to 10 times)
+          for i in {1..10}; do
+            if gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name' | grep -q "MacOS_arm64.tar.gz"; then
+              echo "Release assets are available"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "Error: Release assets not available after 10 attempts"
+              exit 1
+            fi
+            echo "Waiting for release assets... (attempt $i)"
+            sleep 5
+          done
+
+          # Generate the formula (script will fetch checksums from release)
+          chmod +x packaging/homebrew/generate-formula.sh
+          packaging/homebrew/generate-formula.sh "$VERSION" tally.rb
+
+          # Show generated formula
+          cat tally.rb
+
+      - name: Setup SSH for tap repository
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}" > ~/.ssh/homebrew_tap_key
+          chmod 600 ~/.ssh/homebrew_tap_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config << EOF
+          Host github.com-tap
+            HostName github.com
+            User git
+            IdentityFile ~/.ssh/homebrew_tap_key
+            IdentitiesOnly yes
+          EOF
+
+      - name: Push to Homebrew tap
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # Configure git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone the tap repository using SSH
+          git clone git@github.com-tap:tinovyatkin/homebrew-tap.git tap
+
+          # Copy formula and commit
+          cp tally.rb tap/Formula/tally.rb
+          cd tap
+          git add Formula/tally.rb
+          git commit -m "tally ${VERSION}" || echo "No changes to commit"
+          git push
 
   publish-npm:
     needs: sign-macos
@@ -135,7 +244,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.13.0
+          node-version: 24
 
       - name: Update npm
         run: npm install -g npm@latest

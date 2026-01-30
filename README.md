@@ -16,6 +16,12 @@ tally integrates rules from multiple sources:
 
 ## Installation
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew install tinovyatkin/tap/tally
+```
+
 ### NPM
 
 ```bash
