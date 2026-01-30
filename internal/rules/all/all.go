@@ -18,5 +18,6 @@ import (
 	_ "github.com/tinovyatkin/tally/internal/rules/secretsincode"
 	_ "github.com/tinovyatkin/tally/internal/rules/trustedbaseimage"
 	_ "github.com/tinovyatkin/tally/internal/rules/usecopynotadd"
+	_ "github.com/tinovyatkin/tally/internal/rules/wgetorcurl"
 	_ "github.com/tinovyatkin/tally/internal/rules/workdirrelativepath"
 )
