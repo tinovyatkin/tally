@@ -1,0 +1,78 @@
+package customlint
+
+import (
+	"go/ast"
+	"strings"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
+)
+
+var ruleStructAnalyzer = &analysis.Analyzer{
+	Name: "rulestruct",
+	Doc:  "checks that rule structs in internal/rules follow naming conventions",
+	Run:  runRuleStruct,
+	Requires: []*analysis.Analyzer{
+		inspect.Analyzer,
+	},
+}
+
+func runRuleStruct(pass *analysis.Pass) (any, error) {
+	// Only check files in internal/rules/
+	if !strings.Contains(pass.Pkg.Path(), "internal/rules") {
+		return nil, nil
+	}
+
+	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.GenDecl)(nil),
+	}
+
+	inspect.Preorder(nodeFilter, func(n ast.Node) {
+		genDecl, ok := n.(*ast.GenDecl)
+		if !ok {
+			return
+		}
+
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+
+			// Check if it's a struct
+			structType, ok := typeSpec.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+
+			// Only check exported structs that look like rules (end with "Rule")
+			name := typeSpec.Name.Name
+			if !ast.IsExported(name) || !strings.HasSuffix(name, "Rule") {
+				continue
+			}
+
+			// Check if struct has fields
+			if len(structType.Fields.List) == 0 {
+				pass.Reportf(
+					typeSpec.Pos(),
+					"rule struct %s should have configuration fields or use an empty struct marker",
+					name,
+				)
+			}
+
+			// Check if there's documentation
+			if genDecl.Doc == nil || len(genDecl.Doc.List) == 0 {
+				pass.Reportf(
+					typeSpec.Pos(),
+					"exported rule struct %s should have a documentation comment",
+					name,
+				)
+			}
+		}
+	})
+
+	return nil, nil
+}

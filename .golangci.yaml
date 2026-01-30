@@ -6,6 +6,15 @@ run:
 
 linters:
   default: all
+  disable-all: false
+  presets: []
+  custom:
+    customlint:
+      type: module
+      description: tally-specific linting rules
+      original-url: github.com/tinovyatkin/tally/_tools/customlint
+      path: ./_tools/customlint
+      settings: {}
   disable:
     - cyclop          # complexity metrics - covered by gocyclo
     - dupword         # duplicate words - too noisy
