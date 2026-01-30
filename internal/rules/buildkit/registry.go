@@ -147,6 +147,15 @@ func Get(ruleName string) *RuleInfo {
 	return nil
 }
 
+// All returns all BuildKit rules metadata.
+func All() []RuleInfo {
+	result := make([]RuleInfo, 0, len(Registry))
+	for _, info := range Registry {
+		result = append(result, info)
+	}
+	return result
+}
+
 // GetMetadata converts a BuildKit rule name to a rules.RuleMetadata.
 // The returned Code is prefixed with "buildkit/" namespace.
 func GetMetadata(ruleName string) *rules.RuleMetadata {

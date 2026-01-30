@@ -15,6 +15,7 @@ import (
 	"github.com/tinovyatkin/tally/internal/reporter"
 	"github.com/tinovyatkin/tally/internal/rules"
 	_ "github.com/tinovyatkin/tally/internal/rules/all" // Register all rules
+	"github.com/tinovyatkin/tally/internal/rules/buildkit"
 	"github.com/tinovyatkin/tally/internal/semantic"
 	"github.com/tinovyatkin/tally/internal/version"
 )
@@ -505,49 +506,55 @@ func getRuleConfig(ruleCode string, cfg *config.Config) any {
 
 // countEffectivelyEnabledRules returns the number of rules that are actually enabled
 // after applying config overrides (include/exclude patterns and severity overrides).
+// Counts both registered rules and BuildKit parser rules.
 func countEffectivelyEnabledRules(cfg *config.Config) int {
-	registry := rules.DefaultRegistry()
-	allRules := registry.All()
 	count := 0
 
-	for _, rule := range allRules {
-		meta := rule.Metadata()
-		ruleCode := meta.Code
-
-		// Check if explicitly disabled by exclude pattern
-		if cfg != nil {
-			enabled := cfg.Rules.IsEnabled(ruleCode)
-			if enabled != nil && !*enabled {
-				continue // Explicitly disabled
-			}
-			if enabled != nil && *enabled {
-				count++ // Explicitly enabled
-				continue
-			}
-
-			// Check if severity is overridden to "off"
-			if sev := cfg.Rules.GetSeverity(ruleCode); sev == "off" {
-				continue // Disabled via severity
-			}
-
-			// Check if "off" rule is auto-enabled by having config options
-			if meta.DefaultSeverity == rules.SeverityOff {
-				ruleConfig := cfg.Rules.Get(ruleCode)
-				if ruleConfig != nil && len(ruleConfig.Options) > 0 {
-					count++ // Auto-enabled
-					continue
-				}
-				continue // Still off (no config to enable it)
-			}
+	// Count registered rules (tally/*, hadolint/*, and implemented buildkit/* rules)
+	registry := rules.DefaultRegistry()
+	for _, rule := range registry.All() {
+		if isRuleEnabled(rule.Metadata().Code, rule.Metadata().DefaultSeverity, cfg) {
+			count++
 		}
+	}
 
-		// Use default severity
-		if meta.DefaultSeverity != rules.SeverityOff {
+	// Count BuildKit parser rules (captured warnings like StageNameCasing, etc.)
+	// These are always enabled unless explicitly disabled via config
+	for _, info := range buildkit.All() {
+		ruleCode := rules.BuildKitRulePrefix + info.Name
+		if isRuleEnabled(ruleCode, info.DefaultSeverity, cfg) {
 			count++
 		}
 	}
 
 	return count
+}
+
+// isRuleEnabled checks if a rule is effectively enabled based on config.
+func isRuleEnabled(ruleCode string, defaultSeverity rules.Severity, cfg *config.Config) bool {
+	if cfg == nil {
+		return defaultSeverity != rules.SeverityOff
+	}
+
+	// Check if explicitly disabled by exclude pattern
+	enabled := cfg.Rules.IsEnabled(ruleCode)
+	if enabled != nil {
+		return *enabled
+	}
+
+	// Check if severity is overridden to "off"
+	if sev := cfg.Rules.GetSeverity(ruleCode); sev == "off" {
+		return false
+	}
+
+	// Check if "off" rule is auto-enabled by having config options
+	if defaultSeverity == rules.SeverityOff {
+		ruleConfig := cfg.Rules.Get(ruleCode)
+		return ruleConfig != nil && len(ruleConfig.Options) > 0
+	}
+
+	// Use default severity
+	return defaultSeverity != rules.SeverityOff
 }
 
 // extractHeredocFiles extracts virtual file paths from heredoc COPY/ADD commands.
