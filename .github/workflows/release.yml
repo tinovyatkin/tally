@@ -173,8 +173,19 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
 
-          # Wait briefly for release assets to be fully available
-          sleep 5
+          # Wait for release assets to be available (retry up to 10 times)
+          for i in {1..10}; do
+            if gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name' | grep -q "MacOS_arm64.tar.gz"; then
+              echo "Release assets are available"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "Error: Release assets not available after 10 attempts"
+              exit 1
+            fi
+            echo "Waiting for release assets... (attempt $i)"
+            sleep 5
+          done
 
           # Generate the formula (script will fetch checksums from release)
           chmod +x packaging/homebrew/generate-formula.sh
