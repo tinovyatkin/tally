@@ -164,14 +164,13 @@ func GetMetadata(ruleName string) *rules.RuleMetadata {
 		return nil
 	}
 	return &rules.RuleMetadata{
-		Code:             rules.BuildKitRulePrefix + ruleName,
-		Name:             ruleName,
-		Description:      info.Description,
-		DocURL:           info.DocURL,
-		DefaultSeverity:  info.DefaultSeverity,
-		Category:         info.Category,
-		EnabledByDefault: true,
-		IsExperimental:   info.Experimental,
+		Code:            rules.BuildKitRulePrefix + ruleName,
+		Name:            ruleName,
+		Description:     info.Description,
+		DocURL:          info.DocURL,
+		DefaultSeverity: info.DefaultSeverity,
+		Category:        info.Category,
+		IsExperimental:  info.Experimental,
 	}
 }
 

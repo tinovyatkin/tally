@@ -7,7 +7,6 @@ import (
 // mockRule is a simple rule for testing.
 type mockRule struct {
 	code     string
-	enabled  bool
 	category string
 	severity Severity
 	expmt    bool
@@ -15,13 +14,12 @@ type mockRule struct {
 
 func (r *mockRule) Metadata() RuleMetadata {
 	return RuleMetadata{
-		Code:             r.code,
-		Name:             "Mock Rule " + r.code,
-		Description:      "A mock rule for testing",
-		DefaultSeverity:  r.severity,
-		Category:         r.category,
-		EnabledByDefault: r.enabled,
-		IsExperimental:   r.expmt,
+		Code:            r.code,
+		Name:            "Mock Rule " + r.code,
+		Description:     "A mock rule for testing",
+		DefaultSeverity: r.severity,
+		Category:        r.category,
+		IsExperimental:  r.expmt,
 	}
 }
 
@@ -104,24 +102,6 @@ func TestRegistry_Codes(t *testing.T) {
 	}
 	if codes[0] != "a-rule" || codes[1] != "z-rule" {
 		t.Errorf("Codes() = %v, want [a-rule, z-rule]", codes)
-	}
-}
-
-func TestRegistry_EnabledByDefault(t *testing.T) {
-	reg := NewRegistry()
-	reg.Register(&mockRule{code: "enabled-1", enabled: true})
-	reg.Register(&mockRule{code: "disabled-1", enabled: false})
-	reg.Register(&mockRule{code: "enabled-2", enabled: true})
-
-	enabled := reg.EnabledByDefault()
-	if len(enabled) != 2 {
-		t.Fatalf("EnabledByDefault() returned %d, want 2", len(enabled))
-	}
-
-	for _, r := range enabled {
-		if !r.Metadata().EnabledByDefault {
-			t.Errorf("rule %q should be enabled by default", r.Metadata().Code)
-		}
 	}
 }
 

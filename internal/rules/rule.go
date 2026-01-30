@@ -133,9 +133,6 @@ type RuleMetadata struct {
 	// Category groups related rules (e.g., "security", "performance", "style").
 	Category string
 
-	// EnabledByDefault indicates if the rule runs without explicit opt-in.
-	EnabledByDefault bool
-
 	// IsExperimental marks rules that may change or be removed.
 	IsExperimental bool
 }

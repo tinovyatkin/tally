@@ -76,23 +76,6 @@ func (r *Registry) Codes() []string {
 	return codes
 }
 
-// EnabledByDefault returns rules that are enabled by default.
-func (r *Registry) EnabledByDefault() []Rule {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make([]Rule, 0)
-	for _, rule := range r.rules {
-		if rule.Metadata().EnabledByDefault {
-			result = append(result, rule)
-		}
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Metadata().Code < result[j].Metadata().Code
-	})
-	return result
-}
-
 // ByCategory returns rules filtered by category.
 func (r *Registry) ByCategory(category string) []Rule {
 	r.mu.RLock()

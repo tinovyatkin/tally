@@ -47,10 +47,6 @@ func TestGetMetadata(t *testing.T) {
 	if meta.Category != "style" {
 		t.Errorf("Category = %q, want %q", meta.Category, "style")
 	}
-
-	if !meta.EnabledByDefault {
-		t.Error("EnabledByDefault should be true")
-	}
 }
 
 func TestByCategory(t *testing.T) {

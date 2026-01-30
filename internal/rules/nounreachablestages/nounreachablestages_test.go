@@ -37,9 +37,6 @@ func TestMetadata(t *testing.T) {
 	if meta.DefaultSeverity != rules.SeverityWarning {
 		t.Errorf("expected warning severity, got %v", meta.DefaultSeverity)
 	}
-	if !meta.EnabledByDefault {
-		t.Error("expected rule to be enabled by default")
-	}
 }
 
 func TestSingleStage_NoViolation(t *testing.T) {

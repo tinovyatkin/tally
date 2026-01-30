@@ -17,14 +17,13 @@ type Rule struct{}
 // Metadata returns the rule metadata.
 func (r *Rule) Metadata() rules.RuleMetadata {
 	return rules.RuleMetadata{
-		Code:             rules.TallyRulePrefix + "no-unreachable-stages",
-		Name:             "No Unreachable Stages",
-		Description:      "Disallows build stages that don't contribute to the final image",
-		DocURL:           "https://github.com/tinovyatkin/tally/blob/main/docs/rules/no-unreachable-stages.md",
-		DefaultSeverity:  rules.SeverityWarning,
-		Category:         "best-practices",
-		EnabledByDefault: true,
-		IsExperimental:   false,
+		Code:            rules.TallyRulePrefix + "no-unreachable-stages",
+		Name:            "No Unreachable Stages",
+		Description:     "Disallows build stages that don't contribute to the final image",
+		DocURL:          "https://github.com/tinovyatkin/tally/blob/main/docs/rules/no-unreachable-stages.md",
+		DefaultSeverity: rules.SeverityWarning,
+		Category:        "best-practices",
+		IsExperimental:  false,
 	}
 }
 

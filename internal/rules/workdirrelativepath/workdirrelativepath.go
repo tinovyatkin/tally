@@ -20,14 +20,13 @@ type Rule struct{}
 // Metadata returns the rule metadata.
 func (r *Rule) Metadata() rules.RuleMetadata {
 	return rules.RuleMetadata{
-		Code:             rules.BuildKitRulePrefix + "WorkdirRelativePath",
-		Name:             "Relative WORKDIR Path",
-		Description:      "Relative WORKDIR path used without a base absolute path",
-		DocURL:           "https://docs.docker.com/go/dockerfile/rule/workdir-relative-path/",
-		DefaultSeverity:  rules.SeverityWarning,
-		Category:         "correctness",
-		EnabledByDefault: true,
-		IsExperimental:   false,
+		Code:            rules.BuildKitRulePrefix + "WorkdirRelativePath",
+		Name:            "Relative WORKDIR Path",
+		Description:     "Relative WORKDIR path used without a base absolute path",
+		DocURL:          "https://docs.docker.com/go/dockerfile/rule/workdir-relative-path/",
+		DefaultSeverity: rules.SeverityWarning,
+		Category:        "correctness",
+		IsExperimental:  false,
 	}
 }
 

@@ -138,7 +138,7 @@ These are explicitly front-loaded to avoid cross-blocking later.
    - `SourceCode` (optional) and `SuggestedFix` (optional structured edit hint; supports "auto-fix suggestion" without auto-applying)
 
 4. Add **progressive adoption hooks** to `Rule` metadata:
-   - `EnabledByDefault`
+   - `DefaultSeverity` (including `SeverityOff` for disabled-by-default rules)
    - `IsExperimental`
 
 5. Make the rule execution signature **context-ready**:

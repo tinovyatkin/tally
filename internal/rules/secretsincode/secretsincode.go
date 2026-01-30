@@ -24,14 +24,13 @@ type Rule struct {
 // Metadata returns the rule metadata.
 func (r *Rule) Metadata() rules.RuleMetadata {
 	return rules.RuleMetadata{
-		Code:             rules.TallyRulePrefix + "secrets-in-code",
-		Name:             "Secrets in Dockerfile Content",
-		Description:      "Detects hardcoded secrets, API keys, and credentials in Dockerfile content",
-		DocURL:           "https://github.com/tinovyatkin/tally#secrets-in-code",
-		DefaultSeverity:  rules.SeverityError, // Secrets are serious
-		Category:         "security",
-		EnabledByDefault: true,
-		IsExperimental:   true, // New rule, mark as experimental initially
+		Code:            rules.TallyRulePrefix + "secrets-in-code",
+		Name:            "Secrets in Dockerfile Content",
+		Description:     "Detects hardcoded secrets, API keys, and credentials in Dockerfile content",
+		DocURL:          "https://github.com/tinovyatkin/tally#secrets-in-code",
+		DefaultSeverity: rules.SeverityError, // Secrets are serious
+		Category:        "security",
+		IsExperimental:  true, // New rule, mark as experimental initially
 	}
 }
 

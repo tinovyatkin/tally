@@ -19,10 +19,6 @@ func TestMetadata(t *testing.T) {
 	if meta.Category != "best-practices" {
 		t.Errorf("expected category %q, got %q", "best-practices", meta.Category)
 	}
-
-	if !meta.EnabledByDefault {
-		t.Error("expected rule to be enabled by default")
-	}
 }
 
 func TestCheck_RedundantTargetPlatform(t *testing.T) {

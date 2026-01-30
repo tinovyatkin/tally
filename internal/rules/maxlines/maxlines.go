@@ -47,14 +47,13 @@ type Rule struct{}
 // Metadata returns the rule metadata.
 func (r *Rule) Metadata() rules.RuleMetadata {
 	return rules.RuleMetadata{
-		Code:             rules.TallyRulePrefix + "max-lines",
-		Name:             "Maximum Lines",
-		Description:      "Limits the maximum number of lines in a Dockerfile",
-		DocURL:           "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md",
-		DefaultSeverity:  rules.SeverityError,
-		Category:         "maintainability",
-		EnabledByDefault: true, // Enabled with sensible defaults
-		IsExperimental:   false,
+		Code:            rules.TallyRulePrefix + "max-lines",
+		Name:            "Maximum Lines",
+		Description:     "Limits the maximum number of lines in a Dockerfile",
+		DocURL:          "https://github.com/tinovyatkin/tally/blob/main/docs/rules/max-lines.md",
+		DefaultSeverity: rules.SeverityError,
+		Category:        "maintainability",
+		IsExperimental:  false,
 	}
 }
 

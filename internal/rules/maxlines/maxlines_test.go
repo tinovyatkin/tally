@@ -21,9 +21,6 @@ func TestRule_Metadata(t *testing.T) {
 		t.Errorf("Code = %q, want %q", meta.Code, "tally/max-lines")
 	}
 	// Enabled by default with sensible defaults (50 lines, skip blanks/comments)
-	if !meta.EnabledByDefault {
-		t.Error("EnabledByDefault should be true")
-	}
 }
 
 func TestRule_Check(t *testing.T) {
