@@ -9,7 +9,7 @@ This document tracks the DX improvements adopted from [microsoft/typescript-go](
 | gotestsum | ✅ Complete | High | Cleaner test output, replaces go-junit-report |
 | CodeQL | ✅ Complete | High | Security + quality scanning, weekly schedule |
 | forbidigo | ✅ Complete | High | Enforces buildkit type usage |
-| Custom Linter | ✅ Complete | Medium | tally-specific rules, extensible framework |
+| Custom Linter | ⚠️ Blocked | Medium | Code complete, blocked by upstream golangci-lint issue |
 | macOS Signing | 📋 Documented | Medium | Requires Apple Developer account + manual setup |
 
 ## ✅ Completed Implementations
