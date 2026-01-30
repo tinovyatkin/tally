@@ -42,13 +42,24 @@ This certificate is specifically for distribution **outside** the Mac App Store.
 The certificate needs to be converted to a format that GitHub Actions can use.
 
 1. Open **Keychain Access**
-2. Find **"Developer ID Application: Your Name"** in the "My Certificates" category
-3. **Right-click** → **Export "Developer ID Application..."**
-4. **File format**: Personal Information Exchange (.p12)
-5. Choose a **strong password** (you'll need this for GitHub secrets)
-6. Save the file as `certificate.p12`
+2. Make sure you're in the **"login"** keychain (top left)
+3. Find **"Developer ID Application: Your Name"** in the "My Certificates" category
+4. **Important**: Click the arrow (▸) to expand the certificate
+5. You should see a **private key** with a key icon 🔑 underneath
+6. **Select the private key** (not the certificate itself)
+7. **Right-click** → **Export**
+8. **File format**: Personal Information Exchange (.p12) - should now be available!
+9. Choose a **strong password** (you'll need this for GitHub secrets)
+10. Save the file as `certificate.p12`
 
-7. Convert the certificate to base64:
+**Troubleshooting**: If .p12 is grayed out:
+
+- The private key is missing or not selected
+- Make sure you expanded the certificate to see the private key
+- Or select the certificate entry that shows both cert + key icons
+- If no private key exists, you need to recreate the CSR (see step 2)
+
+11. Convert the certificate to base64:
 
    ```bash
    base64 -i certificate.p12 | pbcopy
