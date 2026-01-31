@@ -34,6 +34,7 @@ func (r *Rule) Metadata() rules.RuleMetadata {
 // Skips analysis for stages using non-POSIX shells (e.g., PowerShell).
 func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 	var violations []rules.Violation
+	meta := r.Metadata()
 
 	// Get semantic model for shell variant info
 	sem, ok := input.Semantic.(*semantic.Model)
@@ -66,10 +67,10 @@ func (r *Rule) Check(input rules.LintInput) []rules.Violation {
 				loc := rules.NewLocationFromRanges(input.File, run.Location())
 				violations = append(violations, rules.NewViolation(
 					loc,
-					r.Metadata().Code,
+					meta.Code,
 					"do not use sudo in RUN commands; it has unpredictable TTY and signal handling",
-					r.Metadata().DefaultSeverity,
-				).WithDocURL(r.Metadata().DocURL).WithDetail(
+					meta.DefaultSeverity,
+				).WithDocURL(meta.DocURL).WithDetail(
 					"sudo is designed for interactive use and doesn't work reliably in containers. "+
 						"Instead, use the USER instruction to switch users, or run specific commands "+
 						"as a different user with 'su -c' if necessary.",
