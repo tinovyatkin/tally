@@ -119,6 +119,22 @@ func TestExtractPackageInstalls(t *testing.T) {
 				{Manager: PackageManagerZypper, Packages: []string{"curl"}},
 			},
 		},
+		{
+			name:    "emerge packages",
+			script:  "emerge dev-util/git app-misc/screen",
+			variant: VariantBash,
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerEmerge, Packages: []string{"dev-util/git", "app-misc/screen"}},
+			},
+		},
+		{
+			name:    "apt-get with full path",
+			script:  "/usr/bin/apt-get install curl",
+			variant: VariantBash,
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerApt, Packages: []string{"curl"}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -326,39 +342,3 @@ func TestExtractSimplePackages(t *testing.T) {
 	}
 }
 
-func TestExtractPackageInstalls_Emerge(t *testing.T) {
-	// Test emerge (direct install manager)
-	script := "emerge dev-util/git app-misc/screen"
-	got := ExtractPackageInstalls(script, VariantBash)
-
-	if len(got) != 1 {
-		t.Fatalf("ExtractPackageInstalls() returned %d installs, want 1", len(got))
-	}
-
-	if got[0].Manager != PackageManagerEmerge {
-		t.Errorf("Manager = %q, want %q", got[0].Manager, PackageManagerEmerge)
-	}
-
-	wantPackages := []string{"dev-util/git", "app-misc/screen"}
-	if !slices.Equal(got[0].Packages, wantPackages) {
-		t.Errorf("Packages = %v, want %v", got[0].Packages, wantPackages)
-	}
-}
-
-func TestExtractPackageInstalls_WithFullPath(t *testing.T) {
-	// Test with full path to package manager
-	script := "/usr/bin/apt-get install curl"
-	got := ExtractPackageInstalls(script, VariantBash)
-
-	if len(got) != 1 {
-		t.Fatalf("ExtractPackageInstalls() returned %d installs, want 1", len(got))
-	}
-
-	if got[0].Manager != PackageManagerApt {
-		t.Errorf("Manager = %q, want %q", got[0].Manager, PackageManagerApt)
-	}
-
-	if !slices.Equal(got[0].Packages, []string{"curl"}) {
-		t.Errorf("Packages = %v, want [curl]", got[0].Packages)
-	}
-}
