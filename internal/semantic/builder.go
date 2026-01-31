@@ -213,6 +213,10 @@ func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInf
 				Line:    shellLine,
 			}
 
+		case *instructions.RunCommand:
+			// Extract package installations from RUN commands
+			b.extractPackageInstalls(c, info)
+
 		case *instructions.CopyCommand:
 			if c.From != "" {
 				copyRef := b.processCopyFrom(c, info.Index, graph)
@@ -333,4 +337,34 @@ func (b *Builder) parseOnbuildCopy(expr string) *instructions.CopyCommand {
 // Stage names are case-insensitive in Docker.
 func normalizeStageRef(name string) string {
 	return strings.ToLower(name)
+}
+
+// extractPackageInstalls extracts package installations from a RUN command.
+func (b *Builder) extractPackageInstalls(run *instructions.RunCommand, info *StageInfo) {
+	// Build the full command string including heredocs
+	var cmdBuilder strings.Builder
+	cmdBuilder.WriteString(strings.Join(run.CmdLine, " "))
+	for _, f := range run.Files {
+		cmdBuilder.WriteByte('\n')
+		cmdBuilder.WriteString(f.Data)
+	}
+	cmdStr := cmdBuilder.String()
+
+	// Extract package installations using the shell parser
+	installs := shell.ExtractPackageInstalls(cmdStr, info.ShellSetting.Variant)
+
+	// Get the line number for this RUN command
+	line := 0
+	if len(run.Location()) > 0 {
+		line = run.Location()[0].Start.Line
+	}
+
+	// Convert shell.PackageInstallInfo to semantic.PackageInstall
+	for _, install := range installs {
+		info.InstalledPackages = append(info.InstalledPackages, PackageInstall{
+			Manager:  PackageManager(install.Manager),
+			Packages: install.Packages,
+			Line:     line,
+		})
+	}
 }

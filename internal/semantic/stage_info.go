@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"slices"
+
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 
@@ -9,6 +11,38 @@ import (
 
 // DefaultShell is the default shell used by Docker for RUN instructions.
 var DefaultShell = []string{"/bin/sh", "-c"}
+
+// PackageManager identifies a system package manager.
+type PackageManager string
+
+const (
+	// PackageManagerApt is Debian/Ubuntu apt-get or apt.
+	PackageManagerApt PackageManager = "apt"
+	// PackageManagerApk is Alpine apk.
+	PackageManagerApk PackageManager = "apk"
+	// PackageManagerYum is RHEL/CentOS yum.
+	PackageManagerYum PackageManager = "yum"
+	// PackageManagerDnf is Fedora/RHEL dnf.
+	PackageManagerDnf PackageManager = "dnf"
+	// PackageManagerZypper is openSUSE zypper.
+	PackageManagerZypper PackageManager = "zypper"
+	// PackageManagerPacman is Arch Linux pacman.
+	PackageManagerPacman PackageManager = "pacman"
+	// PackageManagerEmerge is Gentoo emerge.
+	PackageManagerEmerge PackageManager = "emerge"
+)
+
+// PackageInstall represents a package installation in a RUN command.
+type PackageInstall struct {
+	// Manager is the package manager used.
+	Manager PackageManager
+
+	// Packages is the list of packages being installed.
+	Packages []string
+
+	// Line is the 1-based line number of the RUN instruction.
+	Line int
+}
 
 // ShellSource indicates where the shell setting came from.
 type ShellSource int
@@ -69,8 +103,35 @@ type StageInfo struct {
 	// These are triggered when the image is used as a base for another build.
 	OnbuildCopyFromRefs []CopyFromRef
 
+	// InstalledPackages contains packages installed via system package managers.
+	// Tracked from RUN commands that use apt-get, apk, yum, dnf, etc.
+	InstalledPackages []PackageInstall
+
 	// IsLastStage is true if this is the final stage in the Dockerfile.
 	IsLastStage bool
+}
+
+// HasPackage checks if a package was installed in this stage.
+func (s *StageInfo) HasPackage(pkg string) bool {
+	for _, install := range s.InstalledPackages {
+		if slices.Contains(install.Packages, pkg) {
+			return true
+		}
+	}
+	return false
+}
+
+// PackageManagers returns the set of package managers used in this stage.
+func (s *StageInfo) PackageManagers() []PackageManager {
+	seen := make(map[PackageManager]bool)
+	var managers []PackageManager
+	for _, install := range s.InstalledPackages {
+		if !seen[install.Manager] {
+			seen[install.Manager] = true
+			managers = append(managers, install.Manager)
+		}
+	}
+	return managers
 }
 
 // BaseImageRef contains information about a stage's base image.

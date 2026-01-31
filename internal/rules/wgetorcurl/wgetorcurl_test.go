@@ -1,6 +1,7 @@
 package wgetorcurl
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/tinovyatkin/tally/internal/rules"
@@ -123,6 +124,88 @@ RUN curl https://example.com/file3
 			if tt.wantCode != "" && len(violations) > 0 {
 				if violations[0].RuleCode != tt.wantCode {
 					t.Errorf("RuleCode = %q, want %q", violations[0].RuleCode, tt.wantCode)
+				}
+			}
+		})
+	}
+}
+
+func TestRule_Check_SmartMessages(t *testing.T) {
+	tests := []struct {
+		name            string
+		dockerfile      string
+		wantCount       int
+		wantMsgContains string
+	}{
+		{
+			name: "curl installed, wget used - recommend curl",
+			dockerfile: `FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y curl
+RUN curl https://example.com/file1
+RUN wget https://example.com/file2
+`,
+			wantCount:       1,
+			wantMsgContains: "curl is installed",
+		},
+		{
+			name: "wget installed, curl used - recommend wget",
+			dockerfile: `FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y wget
+RUN wget https://example.com/file1
+RUN curl https://example.com/file2
+`,
+			wantCount:       1,
+			wantMsgContains: "wget is installed",
+		},
+		{
+			name: "both installed - mention both",
+			dockerfile: `FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y curl wget
+RUN curl https://example.com/file1
+RUN wget https://example.com/file2
+`,
+			wantCount:       1,
+			wantMsgContains: "both wget and curl are installed",
+		},
+		{
+			name: "neither installed - generic message",
+			dockerfile: `FROM ubuntu:22.04
+RUN curl https://example.com/file1
+RUN wget https://example.com/file2
+`,
+			wantCount:       1,
+			wantMsgContains: "both wget and curl are used",
+		},
+		{
+			name: "apk add curl, wget used",
+			dockerfile: `FROM alpine:3.18
+RUN apk add --no-cache curl
+RUN curl https://example.com/file1
+RUN wget https://example.com/file2
+`,
+			wantCount:       1,
+			wantMsgContains: "curl is installed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
+
+			r := New()
+			violations := r.Check(input)
+
+			if len(violations) != tt.wantCount {
+				t.Errorf("got %d violations, want %d", len(violations), tt.wantCount)
+				for _, v := range violations {
+					t.Logf("  - %s: %s", v.RuleCode, v.Message)
+				}
+				return
+			}
+
+			if tt.wantMsgContains != "" && len(violations) > 0 {
+				if !strings.Contains(violations[0].Message, tt.wantMsgContains) {
+					t.Errorf("Message %q should contain %q", violations[0].Message, tt.wantMsgContains)
 				}
 			}
 		})
