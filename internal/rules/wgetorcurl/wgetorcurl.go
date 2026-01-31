@@ -4,6 +4,7 @@
 package wgetorcurl
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
@@ -49,9 +50,18 @@ func (m usageMap) anyInstalled() bool {
 }
 
 // allLocations returns all locations from the usage map.
+// Locations are sorted by stage index for deterministic output.
 func (m usageMap) allLocations() []rules.Location {
+	// Sort stage indices for deterministic output
+	indices := make([]int, 0, len(m))
+	for idx := range m {
+		indices = append(indices, idx)
+	}
+	sort.Ints(indices)
+
 	var locs []rules.Location
-	for _, u := range m {
+	for _, idx := range indices {
+		u := m[idx]
 		locs = append(locs, u.locations...)
 	}
 	return locs
