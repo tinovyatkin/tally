@@ -180,7 +180,7 @@ func newStageInfo(index int, stage *instructions.Stage, isLast bool) *StageInfo 
 		Shell: defaultShell,
 		ShellSetting: ShellSetting{
 			Shell:   defaultShell,
-			Variant: shell.VariantFromShellCmd(DefaultShell),
+			Variant: shell.VariantFromShellCmd(defaultShell),
 			Source:  ShellSourceDefault,
 			Line:    -1,
 		},
