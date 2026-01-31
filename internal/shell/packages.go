@@ -178,7 +178,7 @@ func filterPackageArgs(args []string) []string {
 			// Some flags take a value (e.g., -o option=value, --option value)
 			// Skip common flags that take a following argument
 			if arg == "-o" || arg == "-t" || arg == "--option" ||
-				arg == "--target-release" || arg == "--assume-yes" {
+				arg == "--target-release" {
 				skipNext = true
 			}
 			continue
