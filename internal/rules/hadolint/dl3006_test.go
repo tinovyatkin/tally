@@ -128,7 +128,7 @@ FROM ${BASE_IMAGE}
 	}
 }
 
-func TestHasExplicitTag(t *testing.T) {
+func TestImageRefHasExplicitVersion(t *testing.T) {
 	tests := []struct {
 		image string
 		want  bool
@@ -136,7 +136,7 @@ func TestHasExplicitTag(t *testing.T) {
 		{"ubuntu", false},
 		{"ubuntu:latest", true},
 		{"ubuntu:22.04", true},
-		{"ubuntu@sha256:abc123", true},
+		{"ubuntu@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1", true},
 		{"docker.io/library/ubuntu", false},
 		{"docker.io/library/ubuntu:22.04", true},
 		{"gcr.io/project/image", false},
@@ -147,9 +147,13 @@ func TestHasExplicitTag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.image, func(t *testing.T) {
-			got := hasExplicitTag(tt.image)
+			ref := parseImageRef(tt.image)
+			if ref == nil {
+				t.Fatalf("parseImageRef(%q) returned nil", tt.image)
+			}
+			got := ref.HasExplicitVersion()
 			if got != tt.want {
-				t.Errorf("hasExplicitTag(%q) = %v, want %v", tt.image, got, tt.want)
+				t.Errorf("HasExplicitVersion(%q) = %v, want %v", tt.image, got, tt.want)
 			}
 		})
 	}

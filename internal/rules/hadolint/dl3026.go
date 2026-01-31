@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/distribution/reference"
-
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/rules/configutil"
 )
@@ -97,13 +95,13 @@ func (r *DL3026Rule) Check(input rules.LintInput) []rules.Violation {
 		}
 
 		// Parse the image reference
-		named, err := reference.ParseNormalizedNamed(stage.BaseName)
-		if err != nil {
+		ref := parseImageRef(stage.BaseName)
+		if ref == nil {
 			// Can't parse - skip (BuildKit would have caught parse errors)
 			continue
 		}
 
-		registry := reference.Domain(named)
+		registry := ref.Domain()
 
 		if !isRegistryTrusted(registry, cfg.TrustedRegistries) {
 			loc := rules.NewLocationFromRanges(input.File, stage.Location)

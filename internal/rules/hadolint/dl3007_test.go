@@ -128,7 +128,7 @@ FROM ${BASE_IMAGE}
 	}
 }
 
-func TestUsesLatestTag(t *testing.T) {
+func TestImageRefIsLatestTag(t *testing.T) {
 	tests := []struct {
 		image string
 		want  bool
@@ -136,7 +136,7 @@ func TestUsesLatestTag(t *testing.T) {
 		{"ubuntu", false},
 		{"ubuntu:latest", true},
 		{"ubuntu:22.04", false},
-		{"ubuntu@sha256:abc123", false},
+		{"ubuntu@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1", false},
 		{"docker.io/library/ubuntu:latest", true},
 		{"docker.io/library/ubuntu:22.04", false},
 		{"gcr.io/project/image:latest", true},
@@ -147,15 +147,19 @@ func TestUsesLatestTag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.image, func(t *testing.T) {
-			got := usesLatestTag(tt.image)
+			ref := parseImageRef(tt.image)
+			if ref == nil {
+				t.Fatalf("parseImageRef(%q) returned nil", tt.image)
+			}
+			got := ref.IsLatestTag()
 			if got != tt.want {
-				t.Errorf("usesLatestTag(%q) = %v, want %v", tt.image, got, tt.want)
+				t.Errorf("IsLatestTag(%q) = %v, want %v", tt.image, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestGetImageName(t *testing.T) {
+func TestImageRefFamiliarName(t *testing.T) {
 	tests := []struct {
 		image string
 		want  string
@@ -170,9 +174,13 @@ func TestGetImageName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.image, func(t *testing.T) {
-			got := getImageName(tt.image)
+			ref := parseImageRef(tt.image)
+			if ref == nil {
+				t.Fatalf("parseImageRef(%q) returned nil", tt.image)
+			}
+			got := ref.FamiliarName()
 			if got != tt.want {
-				t.Errorf("getImageName(%q) = %q, want %q", tt.image, got, tt.want)
+				t.Errorf("FamiliarName(%q) = %q, want %q", tt.image, got, tt.want)
 			}
 		})
 	}

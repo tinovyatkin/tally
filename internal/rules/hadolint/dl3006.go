@@ -3,8 +3,6 @@ package hadolint
 import (
 	"fmt"
 
-	"github.com/distribution/reference"
-
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/semantic"
 )
@@ -40,9 +38,12 @@ func (r *DL3006Rule) Check(input rules.LintInput) []rules.Violation {
 
 	violations := make([]rules.Violation, 0, 4)
 	for info := range sem.ExternalImageStages() {
-		if hasExplicitTag(info.Stage.BaseName) {
+		ref := parseImageRef(info.Stage.BaseName)
+		// Can't parse or has explicit version - skip
+		if ref == nil || ref.HasExplicitVersion() {
 			continue
 		}
+
 		loc := rules.NewLocationFromRanges(input.File, info.Stage.Location)
 		violations = append(violations, rules.NewViolation(
 			loc,
@@ -50,7 +51,7 @@ func (r *DL3006Rule) Check(input rules.LintInput) []rules.Violation {
 			fmt.Sprintf(
 				"image %q does not have an explicit tag; pin a specific version (e.g., %s:22.04)",
 				info.Stage.BaseName,
-				info.Stage.BaseName,
+				ref.FamiliarName(),
 			),
 			r.Metadata().DefaultSeverity,
 		).WithDocURL(r.Metadata().DocURL).WithDetail(
@@ -60,27 +61,6 @@ func (r *DL3006Rule) Check(input rules.LintInput) []rules.Violation {
 	}
 
 	return violations
-}
-
-// hasExplicitTag checks if an image reference has an explicit tag or digest.
-// Returns true if the image has a tag (ubuntu:22.04) or digest (ubuntu@sha256:...).
-// Returns false if the image has no tag (ubuntu), which defaults to :latest.
-func hasExplicitTag(image string) bool {
-	// Try to parse as a normalized named reference
-	named, err := reference.ParseNormalizedNamed(image)
-	if err != nil {
-		// Can't parse - conservatively assume it has a tag
-		return true
-	}
-
-	// Check if it has a tag or digest using interface assertions
-	if _, ok := named.(reference.Tagged); ok {
-		return true
-	}
-	if _, ok := named.(reference.Digested); ok {
-		return true
-	}
-	return false
 }
 
 // init registers the rule with the default registry.
