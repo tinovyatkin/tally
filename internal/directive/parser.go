@@ -268,9 +268,9 @@ func nextNonCommentLineRange(directiveLine int, sm *sourcemap.SourceMap) LineRan
 	return LineRange{Start: -1, End: -1}
 }
 
-// parseTallyShell attempts to parse a tally shell directive.
-func parseTallyShell(comment sourcemap.Comment) *ShellDirective {
-	matches := tallyShellPattern.FindStringSubmatch(comment.Text)
+// parseShellDirective parses a shell directive with the given pattern and source.
+func parseShellDirective(comment sourcemap.Comment, pattern *regexp.Regexp, source DirectiveSource) *ShellDirective {
+	matches := pattern.FindStringSubmatch(comment.Text)
 	if matches == nil {
 		return nil
 	}
@@ -278,22 +278,17 @@ func parseTallyShell(comment sourcemap.Comment) *ShellDirective {
 	return &ShellDirective{
 		Shell:   strings.ToLower(matches[1]),
 		Line:    comment.Line,
-		Source:  SourceTally,
+		Source:  source,
 		RawText: comment.Text,
 	}
 }
 
+// parseTallyShell attempts to parse a tally shell directive.
+func parseTallyShell(comment sourcemap.Comment) *ShellDirective {
+	return parseShellDirective(comment, tallyShellPattern, SourceTally)
+}
+
 // parseHadolintShell attempts to parse a hadolint shell directive.
 func parseHadolintShell(comment sourcemap.Comment) *ShellDirective {
-	matches := hadolintShellPattern.FindStringSubmatch(comment.Text)
-	if matches == nil {
-		return nil
-	}
-
-	return &ShellDirective{
-		Shell:   strings.ToLower(matches[1]),
-		Line:    comment.Line,
-		Source:  SourceHadolint,
-		RawText: comment.Text,
-	}
+	return parseShellDirective(comment, hadolintShellPattern, SourceHadolint)
 }
