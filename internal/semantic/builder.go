@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -55,6 +56,11 @@ func (b *Builder) Build() *Model {
 			graph:        newStageGraph(0),
 		}
 	}
+
+	// Construction-time semantic issues (based on AST, not just parsed instructions).
+	// Note: This must run even if instruction parsing was sanitized to continue.
+	b.checkDL3061InstructionOrder()
+	b.checkDL3043ForbiddenOnbuildTriggers()
 
 	stages := b.parseResult.Stages
 	metaArgs := b.parseResult.MetaArgs
@@ -121,19 +127,16 @@ func (b *Builder) applyShellDirectives(stage *instructions.Stage, info *StageInf
 	var activeDirective *directive.ShellDirective
 	for i := range b.shellDirectives {
 		sd := &b.shellDirectives[i]
-		if sd.Line < fromLine {
+		if sd.Line < fromLine && (activeDirective == nil || sd.Line > activeDirective.Line) {
 			activeDirective = sd
 		}
 	}
 
 	if activeDirective != nil {
-		// Apply the directive
-		info.ShellSetting = ShellSetting{
-			Shell:   info.Shell, // Keep the shell command array (directive only hints at variant)
-			Variant: shell.VariantFromShell(activeDirective.Shell),
-			Source:  ShellSourceDirective,
-			Line:    activeDirective.Line,
-		}
+		// Apply the directive (it only hints at shell variant for linting).
+		info.ShellSetting.Variant = shell.VariantFromShell(activeDirective.Shell)
+		info.ShellSetting.Source = ShellSourceDirective
+		info.ShellSetting.Line = activeDirective.Line
 	}
 }
 
@@ -178,7 +181,7 @@ func (b *Builder) processBaseImage(stage *instructions.Stage, stageIndex int, gr
 		ref.StageIndex = idx
 		// FROM another stage creates a base dependency - track it in the graph
 		// This is important for reachability analysis
-		graph.addEdge(idx, stageIndex)
+		graph.addDependency(idx, stageIndex)
 	} else {
 		ref.StageIndex = -1
 	}
@@ -188,6 +191,9 @@ func (b *Builder) processBaseImage(stage *instructions.Stage, stageIndex int, gr
 
 // processStageCommands analyzes commands within a stage.
 func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInfo, graph *StageGraph) {
+	seenHealthcheck := false
+	normalizedStageName := normalizeStageRef(stage.Name)
+
 	for _, cmd := range stage.Commands {
 		switch c := cmd.(type) {
 		case *instructions.ArgCommand:
@@ -196,19 +202,37 @@ func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInf
 		case *instructions.EnvCommand:
 			info.Variables.AddEnvCommand(c)
 
-		case *instructions.ShellCommand:
-			// Update active shell for this stage
-			info.Shell = make([]string, len(c.Shell))
-			copy(info.Shell, c.Shell)
+		case *instructions.HealthCheckCommand:
+			// DL3012: Multiple HEALTHCHECK instructions in a single stage.
+			if seenHealthcheck {
+				var loc parser.Range
+				if ranges := c.Location(); len(ranges) > 0 {
+					loc = ranges[0]
+				}
+				b.issues = append(b.issues, newIssue(
+					b.file,
+					loc,
+					rules.HadolintRulePrefix+"DL3012",
+					"Multiple `HEALTHCHECK` instructions",
+					"https://github.com/hadolint/hadolint/wiki/DL3012",
+				))
+			} else {
+				seenHealthcheck = true
+			}
 
-			// Also update ShellSetting
+		case *instructions.ShellCommand:
+			// Update active shell for this stage.
+			shellCmd := make([]string, len(c.Shell))
+			copy(shellCmd, c.Shell)
+
+			// Also update ShellSetting.
 			shellLine := -1
 			if len(c.Location()) > 0 {
 				shellLine = c.Location()[0].Start.Line - 1 // Convert 1-based to 0-based
 			}
 			info.ShellSetting = ShellSetting{
-				Shell:   info.Shell,
-				Variant: shell.VariantFromShellCmd(c.Shell),
+				Shell:   shellCmd,
+				Variant: shell.VariantFromShellCmd(shellCmd),
 				Source:  ShellSourceInstruction,
 				Line:    shellLine,
 			}
@@ -219,6 +243,20 @@ func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInf
 
 		case *instructions.CopyCommand:
 			if c.From != "" {
+				// DL3023: COPY --from cannot reference its own FROM alias.
+				if stage.Name != "" && normalizeStageRef(c.From) == normalizedStageName {
+					var loc parser.Range
+					if ranges := c.Location(); len(ranges) > 0 {
+						loc = ranges[0]
+					}
+					b.issues = append(b.issues, newIssue(
+						b.file,
+						loc,
+						rules.HadolintRulePrefix+"DL3023",
+						"`COPY --from` cannot reference its own `FROM` alias",
+						"https://github.com/hadolint/hadolint/wiki/DL3023",
+					))
+				}
 				copyRef := b.processCopyFrom(c, info.Index, graph)
 				info.CopyFromRefs = append(info.CopyFromRefs, copyRef)
 			}
@@ -250,7 +288,7 @@ func (b *Builder) processCopyFrom(cmd *instructions.CopyCommand, stageIndex int,
 		if idx >= 0 && idx < graph.stageCount && idx < stageIndex {
 			ref.IsStageRef = true
 			ref.StageIndex = idx
-			graph.addEdge(idx, stageIndex)
+			graph.addDependency(idx, stageIndex)
 		} else {
 			// Invalid numeric reference - will be caught by other rules
 			ref.StageIndex = -1
@@ -261,7 +299,7 @@ func (b *Builder) processCopyFrom(cmd *instructions.CopyCommand, stageIndex int,
 		if idx, found := b.stagesByName[normalized]; found && idx < stageIndex {
 			ref.IsStageRef = true
 			ref.StageIndex = idx
-			graph.addEdge(idx, stageIndex)
+			graph.addDependency(idx, stageIndex)
 		} else if _, found := b.stagesByName[normalized]; found {
 			// Forward reference to a later stage - invalid but not external
 			ref.StageIndex = -1
@@ -331,6 +369,109 @@ func (b *Builder) parseOnbuildCopy(expr string) *instructions.CopyCommand {
 	}
 
 	return nil
+}
+
+// checkDL3061InstructionOrder detects DL3061: Invalid instruction order.
+// Dockerfile must begin with FROM, ARG, or comment.
+//
+// We detect this from the raw AST because BuildKit's instruction parser may
+// reject invalid order and prevent downstream linting.
+func (b *Builder) checkDL3061InstructionOrder() {
+	if b.parseResult == nil || b.parseResult.AST == nil || b.parseResult.AST.AST == nil {
+		return
+	}
+
+	nodes := topLevelInstructionNodes(b.parseResult.AST.AST)
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		if strings.EqualFold(node.Value, "FROM") {
+			return
+		}
+		if strings.EqualFold(node.Value, "ARG") {
+			continue
+		}
+
+		var loc parser.Range
+		if ranges := node.Location(); len(ranges) > 0 {
+			loc = ranges[0]
+		}
+		b.issues = append(b.issues, newIssue(
+			b.file,
+			loc,
+			rules.HadolintRulePrefix+"DL3061",
+			"Invalid instruction order. Dockerfile must begin with `FROM`, `ARG` or comment.",
+			"https://github.com/hadolint/hadolint/wiki/DL3061",
+		))
+	}
+}
+
+// checkDL3043ForbiddenOnbuildTriggers detects DL3043: ONBUILD must not trigger
+// ONBUILD/FROM/MAINTAINER.
+//
+// We detect this from the raw AST because BuildKit's instruction parser rejects
+// these constructs, which would otherwise prevent semantic model construction.
+func (b *Builder) checkDL3043ForbiddenOnbuildTriggers() {
+	if b.parseResult == nil || b.parseResult.AST == nil || b.parseResult.AST.AST == nil {
+		return
+	}
+
+	nodes := topLevelInstructionNodes(b.parseResult.AST.AST)
+	for _, node := range nodes {
+		if node == nil || !strings.EqualFold(node.Value, "ONBUILD") {
+			continue
+		}
+
+		trigger := onbuildTriggerKeyword(node)
+		if trigger == "" {
+			continue
+		}
+
+		if strings.EqualFold(trigger, "ONBUILD") ||
+			strings.EqualFold(trigger, "FROM") ||
+			strings.EqualFold(trigger, "MAINTAINER") {
+			var loc parser.Range
+			if ranges := node.Location(); len(ranges) > 0 {
+				loc = ranges[0]
+			}
+			b.issues = append(b.issues, newIssue(
+				b.file,
+				loc,
+				rules.HadolintRulePrefix+"DL3043",
+				"`ONBUILD`, `FROM` or `MAINTAINER` triggered from within `ONBUILD` instruction.",
+				"https://github.com/hadolint/hadolint/wiki/DL3043",
+			))
+		}
+	}
+}
+
+func topLevelInstructionNodes(root *parser.Node) []*parser.Node {
+	if root == nil {
+		return nil
+	}
+
+	// BuildKit parser stores Dockerfile instructions under root.Children.
+	nodes := make([]*parser.Node, 0, len(root.Children))
+	for _, child := range root.Children {
+		if child != nil {
+			nodes = append(nodes, child)
+		}
+	}
+
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].StartLine < nodes[j].StartLine
+	})
+
+	return nodes
+}
+
+func onbuildTriggerKeyword(node *parser.Node) string {
+	// BuildKit parser represents ONBUILD like: (ONBUILD (TRIGGER ...))
+	if node == nil || node.Next == nil || len(node.Next.Children) == 0 || node.Next.Children[0] == nil {
+		return ""
+	}
+	return node.Next.Children[0].Value
 }
 
 // normalizeStageRef normalizes a stage reference for comparison.

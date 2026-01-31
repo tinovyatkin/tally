@@ -192,6 +192,102 @@ RUN echo "second"
 	}
 }
 
+func TestDL3012MultipleHealthcheck(t *testing.T) {
+	content := `FROM alpine:3.18
+HEALTHCHECK CMD echo ok
+HEALTHCHECK NONE
+`
+	pr := parseDockerfile(t, content)
+	model := NewModel(pr, nil, "Dockerfile")
+
+	violations := model.ConstructionIssues()
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(violations))
+	}
+	if violations[0].Code != "hadolint/DL3012" {
+		t.Errorf("expected hadolint/DL3012, got %q", violations[0].Code)
+	}
+	if violations[0].Location.Start.Line != 3 {
+		t.Errorf("expected violation on line 3, got %d", violations[0].Location.Start.Line)
+	}
+}
+
+func TestDL3012ResetsPerStage(t *testing.T) {
+	content := `FROM alpine:3.18
+HEALTHCHECK NONE
+
+FROM alpine:3.18
+HEALTHCHECK NONE
+`
+	pr := parseDockerfile(t, content)
+	model := NewModel(pr, nil, "Dockerfile")
+
+	violations := model.ConstructionIssues()
+	if len(violations) != 0 {
+		t.Fatalf("expected 0 violations, got %d", len(violations))
+	}
+}
+
+func TestDL3023CopyFromOwnAlias(t *testing.T) {
+	content := `FROM node:20 AS foo
+COPY --from=foo bar .
+`
+	pr := parseDockerfile(t, content)
+	model := NewModel(pr, nil, "Dockerfile")
+
+	violations := model.ConstructionIssues()
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(violations))
+	}
+	if violations[0].Code != "hadolint/DL3023" {
+		t.Errorf("expected hadolint/DL3023, got %q", violations[0].Code)
+	}
+	if violations[0].Location.Start.Line != 2 {
+		t.Errorf("expected violation on line 2, got %d", violations[0].Location.Start.Line)
+	}
+}
+
+func TestDL3043OnbuildForbiddenInstructions(t *testing.T) {
+	content := `FROM alpine:3.18
+ONBUILD FROM debian:buster
+`
+	pr := parseDockerfile(t, content)
+	model := NewModel(pr, nil, "Dockerfile")
+
+	violations := model.ConstructionIssues()
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(violations))
+	}
+	if violations[0].Code != "hadolint/DL3043" {
+		t.Errorf("expected hadolint/DL3043, got %q", violations[0].Code)
+	}
+	if violations[0].Location.Start.Line != 2 {
+		t.Errorf("expected violation on line 2, got %d", violations[0].Location.Start.Line)
+	}
+}
+
+func TestDL3061InvalidInstructionOrder(t *testing.T) {
+	content := `ARG FOO=bar
+RUN echo "hello"
+ARG BAR=baz
+FROM alpine:3.18
+RUN echo "ok"
+`
+	pr := parseDockerfile(t, content)
+	model := NewModel(pr, nil, "Dockerfile")
+
+	violations := model.ConstructionIssues()
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(violations))
+	}
+	if violations[0].Code != "hadolint/DL3061" {
+		t.Errorf("expected hadolint/DL3061, got %q", violations[0].Code)
+	}
+	if violations[0].Location.Start.Line != 2 {
+		t.Errorf("expected violation on line 2, got %d", violations[0].Location.Start.Line)
+	}
+}
+
 func TestVariableResolutionBasic(t *testing.T) {
 	content := `ARG VERSION=1.0
 FROM alpine:3.18
@@ -382,12 +478,12 @@ RUN echo "bash shell"
 
 	// After SHELL instruction, shell should be updated
 	expectedShell := []string{"/bin/bash", "-c"}
-	if len(info.Shell) != len(expectedShell) {
-		t.Fatalf("expected shell %v, got %v", expectedShell, info.Shell)
+	if len(info.ShellSetting.Shell) != len(expectedShell) {
+		t.Fatalf("expected shell %v, got %v", expectedShell, info.ShellSetting.Shell)
 	}
 	for i, s := range expectedShell {
-		if info.Shell[i] != s {
-			t.Errorf("expected shell[%d]=%q, got %q", i, s, info.Shell[i])
+		if info.ShellSetting.Shell[i] != s {
+			t.Errorf("expected shell[%d]=%q, got %q", i, s, info.ShellSetting.Shell[i])
 		}
 	}
 }
@@ -402,12 +498,12 @@ RUN echo "hello"
 	info := model.StageInfo(0)
 
 	expectedShell := []string{"/bin/sh", "-c"}
-	if len(info.Shell) != len(expectedShell) {
-		t.Fatalf("expected default shell %v, got %v", expectedShell, info.Shell)
+	if len(info.ShellSetting.Shell) != len(expectedShell) {
+		t.Fatalf("expected default shell %v, got %v", expectedShell, info.ShellSetting.Shell)
 	}
 	for i, s := range expectedShell {
-		if info.Shell[i] != s {
-			t.Errorf("expected shell[%d]=%q, got %q", i, s, info.Shell[i])
+		if info.ShellSetting.Shell[i] != s {
+			t.Errorf("expected shell[%d]=%q, got %q", i, s, info.ShellSetting.Shell[i])
 		}
 	}
 }
