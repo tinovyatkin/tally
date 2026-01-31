@@ -3,6 +3,8 @@ package shell
 import (
 	"slices"
 	"testing"
+
+	"mvdan.cc/sh/v3/syntax"
 )
 
 func TestCommandNames(t *testing.T) {
@@ -215,5 +217,135 @@ func TestCommandNamesWithVariant(t *testing.T) {
 	posixCmds := CommandNamesWithVariant(posixScript, VariantPOSIX)
 	if len(posixCmds) != 2 || posixCmds[0] != "[" || posixCmds[1] != "echo" {
 		t.Errorf("POSIX variant parsing failed: got %v, want [[ echo]", posixCmds)
+	}
+
+	// Mksh variant should also parse correctly
+	mkshScript := "print hello && echo world"
+	mkshCmds := CommandNamesWithVariant(mkshScript, VariantMksh)
+	if len(mkshCmds) != 2 || mkshCmds[0] != "print" || mkshCmds[1] != "echo" {
+		t.Errorf("Mksh variant parsing failed: got %v, want [print echo]", mkshCmds)
+	}
+}
+
+func TestContainsCommandWithVariant(t *testing.T) {
+	tests := []struct {
+		script  string
+		command string
+		variant Variant
+		want    bool
+	}{
+		{"wget https://example.com", "wget", VariantBash, true},
+		{"curl -o file https://example.com", "curl", VariantPOSIX, true},
+		{"[[ -f /etc/foo ]] && echo hello", "echo", VariantBash, true},
+		{"print hello", "print", VariantMksh, true},
+		{"echo wget", "wget", VariantBash, false}, // wget is an argument
+		{"", "wget", VariantBash, false},
+	}
+
+	for _, tt := range tests {
+		name := tt.script + "_" + tt.command
+		if len(name) > 50 {
+			name = name[:50]
+		}
+		t.Run(name, func(t *testing.T) {
+			got := ContainsCommandWithVariant(tt.script, tt.command, tt.variant)
+			if got != tt.want {
+				t.Errorf("ContainsCommandWithVariant(%q, %q, %v) = %v, want %v",
+					tt.script, tt.command, tt.variant, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSimpleCommandNames(t *testing.T) {
+	// Test the fallback parser by calling it directly
+	tests := []struct {
+		name   string
+		script string
+		want   []string
+	}{
+		{
+			name:   "simple command",
+			script: "apt-get update",
+			want:   []string{"apt-get"},
+		},
+		{
+			name:   "with operators",
+			script: "apt-get update && apt-get install curl",
+			want:   []string{"apt-get", "apt-get"},
+		},
+		{
+			name:   "with pipe",
+			script: "curl http://example.com | grep pattern",
+			want:   []string{"curl", "grep"},
+		},
+		{
+			name:   "with semicolon",
+			script: "echo hello; echo world",
+			want:   []string{"echo", "echo"},
+		},
+		{
+			name:   "with env var assignment",
+			script: "FOO=bar baz",
+			want:   []string{"baz"},
+		},
+		{
+			name:   "with subshell",
+			script: "(apt-get update)",
+			want:   []string{"apt-get"},
+		},
+		{
+			name:   "with command substitution",
+			script: "echo $(which curl)",
+			want:   []string{"echo", "which"},
+		},
+		{
+			name:   "with full path",
+			script: "/usr/bin/wget http://example.com",
+			want:   []string{"wget"},
+		},
+		{
+			name:   "empty script",
+			script: "",
+			want:   nil,
+		},
+		{
+			name:   "multiline with continuation",
+			script: "apt-get \\\nupdate",
+			want:   []string{"apt-get"},
+		},
+		{
+			name:   "skip flags",
+			script: "-y apt-get install curl",
+			want:   []string{"apt-get"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := simpleCommandNames(tt.script)
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("simpleCommandNames(%q) = %v, want %v", tt.script, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToLangVariant(t *testing.T) {
+	tests := []struct {
+		variant Variant
+		want    syntax.LangVariant
+	}{
+		{VariantBash, syntax.LangBash},
+		{VariantPOSIX, syntax.LangPOSIX},
+		{VariantMksh, syntax.LangMirBSDKorn},
+		{Variant(99), syntax.LangBash}, // Unknown variant defaults to Bash
+	}
+
+	for _, tt := range tests {
+		got := tt.variant.toLangVariant()
+		if got != tt.want {
+			t.Errorf("Variant(%d).toLangVariant() = %v, want %v", tt.variant, got, tt.want)
+		}
 	}
 }

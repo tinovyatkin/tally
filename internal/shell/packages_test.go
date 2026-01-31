@@ -165,3 +165,200 @@ func TestFilterPackageArgs(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractPackageInstallsSimple(t *testing.T) {
+	tests := []struct {
+		name   string
+		script string
+		want   []PackageInstallInfo
+	}{
+		{
+			name:   "apt-get install",
+			script: "apt-get install -y curl wget",
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerApt, Packages: []string{"curl", "wget"}},
+			},
+		},
+		{
+			name:   "apt install",
+			script: "apt install nginx",
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerApt, Packages: []string{"nginx"}},
+			},
+		},
+		{
+			name:   "apk add",
+			script: "apk add curl wget",
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerApk, Packages: []string{"curl", "wget"}},
+			},
+		},
+		{
+			name:   "yum install",
+			script: "yum install httpd",
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerYum, Packages: []string{"httpd"}},
+			},
+		},
+		{
+			name:   "dnf install",
+			script: "dnf install nodejs npm",
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerDnf, Packages: []string{"nodejs", "npm"}},
+			},
+		},
+		{
+			name:   "with shell operators",
+			script: "apt-get install -y curl && echo done",
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerApt, Packages: []string{"curl"}},
+			},
+		},
+		{
+			name:   "no package manager",
+			script: "echo hello world",
+			want:   nil,
+		},
+		{
+			name:   "empty script",
+			script: "",
+			want:   nil,
+		},
+		{
+			name:   "multiple patterns",
+			script: "apt-get install curl && yum install httpd",
+			want: []PackageInstallInfo{
+				{Manager: PackageManagerApt, Packages: []string{"curl"}},
+				{Manager: PackageManagerYum, Packages: []string{"httpd"}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractPackageInstallsSimple(tt.script)
+
+			if len(got) != len(tt.want) {
+				t.Errorf("extractPackageInstallsSimple() returned %d installs, want %d", len(got), len(tt.want))
+				for i, g := range got {
+					t.Logf("  got[%d]: manager=%s, packages=%v", i, g.Manager, g.Packages)
+				}
+				return
+			}
+
+			for i, want := range tt.want {
+				if got[i].Manager != want.Manager {
+					t.Errorf("install[%d].Manager = %q, want %q", i, got[i].Manager, want.Manager)
+				}
+				if !slices.Equal(got[i].Packages, want.Packages) {
+					t.Errorf("install[%d].Packages = %v, want %v", i, got[i].Packages, want.Packages)
+				}
+			}
+		})
+	}
+}
+
+func TestExtractSimplePackages(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "simple packages",
+			input: " curl wget",
+			want:  []string{"curl", "wget"},
+		},
+		{
+			name:  "with flags",
+			input: " -y curl wget",
+			want:  []string{"curl", "wget"},
+		},
+		{
+			name:  "stop at &&",
+			input: " curl && echo done",
+			want:  []string{"curl"},
+		},
+		{
+			name:  "stop at ||",
+			input: " curl || wget",
+			want:  []string{"curl"},
+		},
+		{
+			name:  "stop at semicolon",
+			input: " curl ; wget",
+			want:  []string{"curl"},
+		},
+		{
+			name:  "stop at pipe",
+			input: " curl | grep pattern",
+			want:  []string{"curl"},
+		},
+		{
+			name:  "skip env vars",
+			input: " FOO=bar curl",
+			want:  []string{"curl"},
+		},
+		{
+			name:  "skip variables",
+			input: " $package curl",
+			want:  []string{"curl"},
+		},
+		{
+			name:  "empty input",
+			input: "",
+			want:  []string{},
+		},
+		{
+			name:  "only flags",
+			input: " -y --yes",
+			want:  []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractSimplePackages(tt.input)
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("extractSimplePackages(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractPackageInstalls_Emerge(t *testing.T) {
+	// Test emerge (direct install manager)
+	script := "emerge dev-util/git app-misc/screen"
+	got := ExtractPackageInstalls(script, VariantBash)
+
+	if len(got) != 1 {
+		t.Fatalf("ExtractPackageInstalls() returned %d installs, want 1", len(got))
+	}
+
+	if got[0].Manager != PackageManagerEmerge {
+		t.Errorf("Manager = %q, want %q", got[0].Manager, PackageManagerEmerge)
+	}
+
+	wantPackages := []string{"dev-util/git", "app-misc/screen"}
+	if !slices.Equal(got[0].Packages, wantPackages) {
+		t.Errorf("Packages = %v, want %v", got[0].Packages, wantPackages)
+	}
+}
+
+func TestExtractPackageInstalls_WithFullPath(t *testing.T) {
+	// Test with full path to package manager
+	script := "/usr/bin/apt-get install curl"
+	got := ExtractPackageInstalls(script, VariantBash)
+
+	if len(got) != 1 {
+		t.Fatalf("ExtractPackageInstalls() returned %d installs, want 1", len(got))
+	}
+
+	if got[0].Manager != PackageManagerApt {
+		t.Errorf("Manager = %q, want %q", got[0].Manager, PackageManagerApt)
+	}
+
+	if !slices.Equal(got[0].Packages, []string{"curl"}) {
+		t.Errorf("Packages = %v, want [curl]", got[0].Packages)
+	}
+}
