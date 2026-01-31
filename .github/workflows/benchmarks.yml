@@ -31,4 +31,5 @@ jobs:
         with:
           # Go only supports walltime mode currently
           mode: walltime
-          run: go test -bench=. ./internal/integration/...
+          # Use longer benchtime and multiple runs to reduce noise on shared runners
+          run: go test -bench=. -benchtime=5s -count=5 ./internal/integration/...
