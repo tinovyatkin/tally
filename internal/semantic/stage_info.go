@@ -12,30 +12,10 @@ import (
 // DefaultShell is the default shell used by Docker for RUN instructions.
 var DefaultShell = []string{"/bin/sh", "-c"}
 
-// PackageManager identifies a system package manager.
-type PackageManager string
-
-const (
-	// PackageManagerApt is Debian/Ubuntu apt-get or apt.
-	PackageManagerApt PackageManager = "apt"
-	// PackageManagerApk is Alpine apk.
-	PackageManagerApk PackageManager = "apk"
-	// PackageManagerYum is RHEL/CentOS yum.
-	PackageManagerYum PackageManager = "yum"
-	// PackageManagerDnf is Fedora/RHEL dnf.
-	PackageManagerDnf PackageManager = "dnf"
-	// PackageManagerZypper is openSUSE zypper.
-	PackageManagerZypper PackageManager = "zypper"
-	// PackageManagerPacman is Arch Linux pacman.
-	PackageManagerPacman PackageManager = "pacman"
-	// PackageManagerEmerge is Gentoo emerge.
-	PackageManagerEmerge PackageManager = "emerge"
-)
-
 // PackageInstall represents a package installation in a RUN command.
 type PackageInstall struct {
 	// Manager is the package manager used.
-	Manager PackageManager
+	Manager shell.PackageManager
 
 	// Packages is the list of packages being installed.
 	Packages []string
@@ -140,9 +120,9 @@ func (s *StageInfo) IsExternalImage() bool {
 }
 
 // PackageManagers returns the set of package managers used in this stage.
-func (s *StageInfo) PackageManagers() []PackageManager {
-	seen := make(map[PackageManager]bool)
-	var managers []PackageManager
+func (s *StageInfo) PackageManagers() []shell.PackageManager {
+	seen := make(map[shell.PackageManager]bool)
+	var managers []shell.PackageManager
 	for _, install := range s.InstalledPackages {
 		if !seen[install.Manager] {
 			seen[install.Manager] = true

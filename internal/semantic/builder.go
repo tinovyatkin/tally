@@ -362,7 +362,7 @@ func (b *Builder) extractPackageInstalls(run *instructions.RunCommand, info *Sta
 	// Convert shell.PackageInstallInfo to semantic.PackageInstall
 	for _, install := range installs {
 		info.InstalledPackages = append(info.InstalledPackages, PackageInstall{
-			Manager:  PackageManager(install.Manager),
+			Manager:  install.Manager,
 			Packages: install.Packages,
 			Line:     line,
 		})
