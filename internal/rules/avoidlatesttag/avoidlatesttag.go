@@ -5,12 +5,12 @@ package avoidlatesttag
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/distribution/reference"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/semantic"
 )
 
 // Rule implements the DL3007 linting rule.
@@ -32,47 +32,31 @@ func (r *Rule) Metadata() rules.RuleMetadata {
 // Check runs the DL3007 rule.
 // It warns when a FROM instruction uses an image with the :latest tag.
 func (r *Rule) Check(input rules.LintInput) []rules.Violation {
-	// Build a set of stage names for quick lookup
-	stageNames := make(map[string]bool)
-	for i, stage := range input.Stages {
-		if stage.Name != "" {
-			stageNames[strings.ToLower(stage.Name)] = true
-		}
-		// Numeric index is also valid
-		stageNames[strconv.Itoa(i)] = true
+	sem, ok := input.Semantic.(*semantic.Model)
+	if !ok {
+		return nil
 	}
 
-	var violations []rules.Violation
-
-	for _, stage := range input.Stages {
-		// Skip scratch - it's a special "no base" image
-		if stage.BaseName == "scratch" {
+	violations := make([]rules.Violation, 0, 4)
+	for info := range sem.ExternalImageStages() {
+		if !usesLatestTag(info.Stage.BaseName) {
 			continue
 		}
-
-		// Skip stage references (FROM stagename)
-		if stageNames[strings.ToLower(stage.BaseName)] {
-			continue
-		}
-
-		// Check if image uses :latest tag
-		if usesLatestTag(stage.BaseName) {
-			loc := rules.NewLocationFromRanges(input.File, stage.Location)
-			imageName := getImageName(stage.BaseName)
-			violations = append(violations, rules.NewViolation(
-				loc,
-				r.Metadata().Code,
-				fmt.Sprintf(
-					"using :latest tag for image %q is prone to errors; pin a specific version instead (e.g., %s:22.04)",
-					stage.BaseName,
-					imageName,
-				),
-				r.Metadata().DefaultSeverity,
-			).WithDocURL(r.Metadata().DocURL).WithDetail(
-				"The :latest tag can change at any time, potentially breaking builds "+
-					"or introducing unexpected behavior. Use a specific version tag for reproducibility.",
-			))
-		}
+		loc := rules.NewLocationFromRanges(input.File, info.Stage.Location)
+		imageName := getImageName(info.Stage.BaseName)
+		violations = append(violations, rules.NewViolation(
+			loc,
+			r.Metadata().Code,
+			fmt.Sprintf(
+				"using :latest tag for image %q is prone to errors; pin a specific version instead (e.g., %s:22.04)",
+				info.Stage.BaseName,
+				imageName,
+			),
+			r.Metadata().DefaultSeverity,
+		).WithDocURL(r.Metadata().DocURL).WithDetail(
+			"The :latest tag can change at any time, potentially breaking builds "+
+				"or introducing unexpected behavior. Use a specific version tag for reproducibility.",
+		))
 	}
 
 	return violations

@@ -107,7 +107,7 @@ FROM ${BASE_IMAGE}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 
 			r := New()
 			violations := r.Check(input)

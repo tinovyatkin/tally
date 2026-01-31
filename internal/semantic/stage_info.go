@@ -121,6 +121,24 @@ func (s *StageInfo) HasPackage(pkg string) bool {
 	return false
 }
 
+// IsExternalImage returns true if this stage's base image is an external image
+// (not "scratch" and not a reference to another stage in the Dockerfile).
+// This is useful for rules that need to check image tags/versions.
+func (s *StageInfo) IsExternalImage() bool {
+	if s.Stage == nil {
+		return false
+	}
+	// scratch is a special "no base" image
+	if s.Stage.BaseName == "scratch" {
+		return false
+	}
+	// Check if it references another stage
+	if s.BaseImage != nil && s.BaseImage.IsStageRef {
+		return false
+	}
+	return true
+}
+
 // PackageManagers returns the set of package managers used in this stage.
 func (s *StageInfo) PackageManagers() []PackageManager {
 	seen := make(map[PackageManager]bool)
