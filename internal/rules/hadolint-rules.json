@@ -1,0 +1,398 @@
+[
+  {
+    "code": "DL1001",
+    "description": "Please refrain from using inline ignore pragmas `# hadolint ignore=DLxxxx`.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL1001",
+    "severity": "Ignore"
+  },
+  {
+    "code": "DL3000",
+    "description": "Use absolute WORKDIR.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3000",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3001",
+    "description": "For some bash commands it makes no sense running them in a Docker container like ssh, vim, shutdown, service, ps, free, top, kill, mount, ifconfig.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3001",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3002",
+    "description": "Last user should not be root.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3002",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3003",
+    "description": "Use WORKDIR to switch to a directory.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3003",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3004",
+    "description": "Do not use sudo as it leads to unpredictable behavior. Use a tool like gosu to enforce root.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3004",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3006",
+    "description": "Always tag the version of an image explicitly.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3006",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3007",
+    "description": "Using latest is prone to errors if the image will ever update. Pin the version explicitly to a release tag.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3007",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3008",
+    "description": "Pin versions in apt-get install.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3008",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3009",
+    "description": "Delete the apt-get lists after installing something.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3009",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3010",
+    "description": "Use ADD for extracting archives into an image.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3010",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3011",
+    "description": "Valid UNIX ports range from 0 to 65535.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3011",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3012",
+    "description": "Multiple `HEALTHCHECK` instructions.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3012",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3013",
+    "description": "Pin versions in pip.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3013",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3014",
+    "description": "Use the `-y` switch.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3014",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3015",
+    "description": "Avoid additional packages by specifying --no-install-recommends.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3015",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3016",
+    "description": "Pin versions in `npm`.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3016",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3018",
+    "description": "Pin versions in apk add. Instead of `apk add <package>` use `apk add <package>=<version>`.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3018",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3019",
+    "description": "Use the `--no-cache` switch to avoid the need to use `--update` and remove `/var/cache/apk/*` when done installing packages.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3019",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3020",
+    "description": "Use `COPY` instead of `ADD` for files and folders.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3020",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3021",
+    "description": "`COPY` with more than 2 arguments requires the last argument to end with `/`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3021",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3022",
+    "description": "`COPY --from` should reference a previously defined `FROM` alias",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3022",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3023",
+    "description": "`COPY --from` cannot reference its own `FROM` alias",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3023",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3024",
+    "description": "`FROM` aliases (stage names) must be unique",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3024",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3025",
+    "description": "Use arguments JSON notation for CMD and ENTRYPOINT arguments",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3025",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3026",
+    "description": "Use only an allowed registry in the FROM image",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3026",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3027",
+    "description": "Do not use `apt` as it is meant to be an end-user tool, use `apt-get` or `apt-cache` instead",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3027",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3028",
+    "description": "Pin versions in gem install. Instead of `gem install <gem>` use `gem install <gem>:<version>`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3028",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3029",
+    "description": "Do not use --platform flag with FROM.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3029",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3030",
+    "description": "Use the `-y` switch to avoid manual input `yum install -y <package>`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3030",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3032",
+    "description": "`yum clean all` missing after yum command.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3032",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3033",
+    "description": "Specify version with `yum install -y <package>-<version>`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3033",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3034",
+    "description": "Non-interactive switch missing from `zypper` command: `zypper install -y`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3034",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3035",
+    "description": "Do not use `zypper dist-upgrade`.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3035",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3036",
+    "description": "`zypper clean` missing after zypper use.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3036",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3037",
+    "description": "Specify version with `zypper install -y <package>[=]<version>`.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3037",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3038",
+    "description": "Use the `-y` switch to avoid manual input `dnf install -y <package>`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3038",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3040",
+    "description": "`dnf clean all` missing after dnf command.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3040",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3041",
+    "description": "Specify version with `dnf install -y <package>-<version>`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3041",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3042",
+    "description": "Avoid cache directory with `pip install --no-cache-dir <package>`.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3042",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3043",
+    "description": "`ONBUILD`, `FROM` or `MAINTAINER` triggered from within `ONBUILD` instruction.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3043",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3044",
+    "description": "Do not refer to an environment variable within the same `ENV` statement where it is defined.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3044",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3045",
+    "description": "`COPY` to a relative destination without `WORKDIR` set.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3045",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3046",
+    "description": " `useradd` without flag `-l` and high UID will result in excessively large Image.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3046",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3047",
+    "description": "`wget` without flag `--progress` will result in excessively bloated build logs when downloading larger files.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3047",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3048",
+    "description": "Invalid Label Key",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3048",
+    "severity": "Style"
+  },
+  {
+    "code": "DL3049",
+    "description": "Label `<label>` is missing.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3049",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3050",
+    "description": "Superfluous label(s) present.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3050",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3051",
+    "description": "Label `<label>` is empty.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3051",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3052",
+    "description": "Label `<label>` is not a valid URL.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3052",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3053",
+    "description": "Label `<label>` is not a valid time format - must conform to RFC3339.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3053",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3054",
+    "description": "Label `<label>` is not a valid SPDX license identifier.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3054",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3055",
+    "description": "Label `<label>` is not a valid git hash.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3055",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3056",
+    "description": "Label `<label>` does not conform to semantic versioning.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3056",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3057",
+    "description": "`HEALTHCHECK` instruction missing.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3057",
+    "severity": "Ignore"
+  },
+  {
+    "code": "DL3058",
+    "description": "Label `<label>` is not a valid email format - must conform to RFC5322.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3058",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL3059",
+    "description": "Multiple consecutive `RUN` instructions. Consider consolidation.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3059",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3060",
+    "description": "`yarn cache clean` missing after `yarn install` was run.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3060",
+    "severity": "Info"
+  },
+  {
+    "code": "DL3061",
+    "description": "Invalid instruction order. Dockerfile must begin with `FROM`, `ARG` or comment.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3061",
+    "severity": "Error"
+  },
+  {
+    "code": "DL3062",
+    "description": "Pin versions in go install. Instead of `go install <package>` use `go install <package>@<version>`",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL3062",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL4000",
+    "description": "MAINTAINER is deprecated.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL4000",
+    "severity": "Error"
+  },
+  {
+    "code": "DL4001",
+    "description": "Either use Wget or Curl but not both.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL4001",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL4003",
+    "description": "Multiple `CMD` instructions found.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL4003",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL4004",
+    "description": "Multiple `ENTRYPOINT` instructions found.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL4004",
+    "severity": "Error"
+  },
+  {
+    "code": "DL4005",
+    "description": "Use `SHELL` to change the default shell.",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL4005",
+    "severity": "Warning"
+  },
+  {
+    "code": "DL4006",
+    "description": "Set the `SHELL` option -o pipefail before `RUN` with a pipe in it",
+    "wiki_url": "https://github.com/hadolint/hadolint/wiki/DL4006",
+    "severity": "Warning"
+  }
+]

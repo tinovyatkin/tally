@@ -58,3 +58,5 @@ pre-push:
       run: make build
     - name: deadcode
       run: make deadcode
+    - name: validate-hadolint-status
+      run: ./scripts/validate-hadolint-status.sh
