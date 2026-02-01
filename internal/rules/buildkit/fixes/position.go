@@ -40,8 +40,9 @@ func findASKeyword(line []byte) (int, int, int, int) {
 	lineStr := string(line)
 	lineUpper := strings.ToUpper(lineStr)
 
-	// Find " AS " with word boundaries
-	idx := strings.Index(lineUpper, " AS ")
+	// Find " AS " with word boundaries - use LastIndex to handle edge case
+	// where image name is "as" (e.g., "FROM as AS builder")
+	idx := strings.LastIndex(lineUpper, " AS ")
 	asIdx := -1
 	if idx != -1 {
 		// AS should be preceded by whitespace (already checked) and followed by whitespace/identifier
