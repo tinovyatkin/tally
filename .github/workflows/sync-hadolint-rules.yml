@@ -2,8 +2,8 @@ name: Sync Hadolint Rules
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday
-  workflow_dispatch:      # Allow manual trigger
+    - cron: "0 0 * * 0" # Weekly on Sunday
+  workflow_dispatch: # Allow manual trigger
 
 permissions:
   contents: write
@@ -24,9 +24,11 @@ jobs:
           sparse-checkout: src/Hadolint/Rule
 
       - name: Install ast-grep
+        run: npm install --global @ast-grep/cli
+
+      - name: Install rumdl
         run: |
-          curl -fsSL https://ast-grep.github.io/install.sh | bash -s -- -y
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          curl -LsSf https://github.com/rvben/rumdl/releases/latest/download/rumdl-linux-x86_64.tar.gz | tar xzf - -C /usr/local/bin
 
       - name: Extract hadolint rules
         run: ./scripts/extract-hadolint-rules.sh hadolint --only-dl > internal/rules/hadolint-rules.json
@@ -35,6 +37,7 @@ jobs:
         id: update
         run: |
           ./scripts/generate-hadolint-table.sh --update
+          rumdl check --fix --config .rumdl.toml --output-format concise RULES.md README.md
           # Check if there are changes
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -50,8 +53,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8.1.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'docs: sync hadolint rules from upstream'
-          title: 'docs: sync hadolint rules from upstream'
+          commit-message: "docs: sync hadolint rules from upstream"
+          title: "docs: sync hadolint rules from upstream"
           body: |
             This PR updates the Hadolint rules documentation from the upstream repository.
 
