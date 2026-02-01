@@ -28,6 +28,27 @@ func (r *DL3027Rule) Metadata() rules.RuleMetadata {
 	}
 }
 
+// aptCommandMapping maps apt subcommands to their replacement and safety level.
+var aptCommandMapping = map[string]struct {
+	replacement string
+	safety      rules.FixSafety
+}{
+	// Safe: identical behavior in apt-get
+	"install":    {"apt-get", rules.FixSafe},
+	"remove":     {"apt-get", rules.FixSafe},
+	"update":     {"apt-get", rules.FixSafe},
+	"upgrade":    {"apt-get", rules.FixSafe},
+	"autoremove": {"apt-get", rules.FixSafe},
+	"purge":      {"apt-get", rules.FixSafe},
+	"clean":      {"apt-get", rules.FixSafe},
+	"autoclean":  {"apt-get", rules.FixSafe},
+
+	// Suggestion: different command family (apt-cache), output may differ
+	"search": {"apt-cache", rules.FixSuggestion},
+	"show":   {"apt-cache", rules.FixSuggestion},
+	"policy": {"apt-cache", rules.FixSuggestion},
+}
+
 // Check runs the DL3027 rule.
 // It warns when any RUN instruction contains an apt command.
 // Skips analysis for stages using non-POSIX shells (e.g., PowerShell).
@@ -35,24 +56,73 @@ func (r *DL3027Rule) Check(input rules.LintInput) []rules.Violation {
 	meta := r.Metadata()
 
 	return ScanRunCommandsWithPOSIXShell(input, func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
-		// Check if the command contains apt using the shell package
 		cmdStr := GetRunCommandString(run)
-		if shell.ContainsCommandWithVariant(cmdStr, "apt", shellVariant) {
-			loc := rules.NewLocationFromRanges(file, run.Location())
-			return []rules.Violation{
-				rules.NewViolation(
-					loc,
-					meta.Code,
-					"do not use apt as it is meant to be an end-user tool, use apt-get or apt-cache instead",
-					meta.DefaultSeverity,
-				).WithDocURL(meta.DocURL).WithDetail(
-					"The apt command is designed for interactive use and has an unstable command-line interface. "+
-						"For scripting and automation (like Dockerfiles), use apt-get for package management "+
-						"or apt-cache for querying package information.",
-				),
+		occurrences := shell.FindAllCommandOccurrences(cmdStr, "apt", shellVariant)
+
+		if len(occurrences) == 0 {
+			return nil
+		}
+
+		runLoc := run.Location()
+		loc := rules.NewLocationFromRanges(file, runLoc)
+
+		// Consolidate all apt occurrences into a single violation with multiple edits
+		// This avoids deduplication removing multiple apt fixes on the same line
+		var edits []rules.TextEdit
+		overallSafety := rules.FixSafe // Start with safest, downgrade if needed
+
+		for _, occ := range occurrences {
+			// Determine replacement based on subcommand
+			replacement := "apt-get"
+			safety := rules.FixSuggestion // Default for unknown subcommands
+			if mapping, ok := aptCommandMapping[occ.Subcommand]; ok {
+				replacement = mapping.replacement
+				safety = mapping.safety
+			}
+
+			// Track overall safety level (use least safe)
+			if safety > overallSafety {
+				overallSafety = safety
+			}
+
+			// Only add edits for shell form RUN commands
+			if run.PrependShell {
+				// Calculate edit position for shell form
+				// BuildKit uses 1-based lines and 0-based columns
+				// The command content starts after "RUN " (4 characters)
+				const runPrefixLen = 4 // len("RUN ")
+				baseCol := runLoc[0].Start.Character + runPrefixLen
+				editLine := runLoc[0].Start.Line - 1 + occ.Line // Convert line to 0-based
+				editStartCol := baseCol + occ.StartCol
+				editEndCol := baseCol + occ.EndCol
+
+				edits = append(edits, rules.TextEdit{
+					Location: rules.NewRangeLocation(file, editLine, editStartCol, editLine, editEndCol),
+					NewText:  replacement,
+				})
 			}
 		}
-		return nil
+
+		v := rules.NewViolation(
+			loc,
+			meta.Code,
+			"do not use apt as it is meant to be an end-user tool, use apt-get or apt-cache instead",
+			meta.DefaultSeverity,
+		).WithDocURL(meta.DocURL).WithDetail(
+			"The apt command is designed for interactive use and has an unstable command-line interface. "+
+				"For scripting and automation (like Dockerfiles), use apt-get for package management "+
+				"or apt-cache for querying package information.",
+		)
+
+		if len(edits) > 0 {
+			v = v.WithSuggestedFix(&rules.SuggestedFix{
+				Description: "Replace 'apt' with 'apt-get' or 'apt-cache'",
+				Safety:      overallSafety,
+				Edits:       edits,
+			})
+		}
+
+		return []rules.Violation{v}
 	})
 }
 

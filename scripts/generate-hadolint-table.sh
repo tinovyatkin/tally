@@ -97,7 +97,8 @@ merge_rules() {
             . + {
                 impl_status: $status.status,
                 tally_rule: ($status.tally_rule // null),
-                buildkit_rule: ($status.buildkit_rule // null)
+                buildkit_rule: ($status.buildkit_rule // null),
+                fixable: ($status.fixable // false)
             }
         )
     '
@@ -109,9 +110,11 @@ format_markdown() {
         ["| Rule | Description | Severity | Status |",
          "|------|-------------|----------|--------|"] +
         [.[] |
-            # Format status column
+            # Format status column with optional fixable indicator
             (if .impl_status == "implemented" then
-                "✅ `\(.tally_rule)`"
+                if .fixable then "✅🔧 `\(.tally_rule)`"
+                else "✅ `\(.tally_rule)`"
+                end
             elif .impl_status == "covered_by_buildkit" then
                 "🔄 `buildkit/\(.buildkit_rule)`"
             else

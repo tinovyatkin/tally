@@ -110,6 +110,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 **Legend:**
 
 - ✅ Implemented by tally
+- 🔧 Auto-fixable with `tally check --fix`
 - 🔄 Covered by BuildKit rule (use that instead)
 - ⏳ Not yet implemented
 
@@ -144,7 +145,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL3024](https://github.com/hadolint/hadolint/wiki/DL3024) | `FROM` aliases (stage names) must be unique | Error | ✅ `hadolint/DL3024` |
 | [DL3025](https://github.com/hadolint/hadolint/wiki/DL3025) | Use arguments JSON notation for CMD and ENTRYPOINT arguments | Warning | 🔄 `buildkit/JSONArgsRecommended` |
 | [DL3026](https://github.com/hadolint/hadolint/wiki/DL3026) | Use only an allowed registry in the FROM image | Error | ✅ `hadolint/DL3026` |
-| [DL3027](https://github.com/hadolint/hadolint/wiki/DL3027) | Do not use `apt` as it is meant to be an end-user tool, use `apt-get` or `apt-cache` instead | Warning | ✅ `hadolint/DL3027` |
+| [DL3027](https://github.com/hadolint/hadolint/wiki/DL3027) | Do not use `apt` as it is meant to be an end-user tool, use `apt-get` or `apt-cache` instead | Warning | ✅🔧 `hadolint/DL3027` |
 | [DL3028](https://github.com/hadolint/hadolint/wiki/DL3028) | Pin versions in gem install. Instead of `gem install <gem>` use `gem install <gem>:<version>` | Warning | ⏳ |
 | [DL3029](https://github.com/hadolint/hadolint/wiki/DL3029) | Do not use --platform flag with FROM. | Warning | 🔄 `buildkit/FromPlatformFlagConstDisallowed` |
 | [DL3030](https://github.com/hadolint/hadolint/wiki/DL3030) | Use the `-y` switch to avoid manual input `yum install -y <package>` | Warning | ⏳ |

@@ -246,7 +246,67 @@ Add an integration test case for the new rule:
 3. Add test case to `internal/integration/integration_test.go`
 4. Run `UPDATE_SNAPS=true go test ./internal/integration/...`
 
-## Step 9: Update Hadolint Status Tracking
+## Step 9: Consider Auto-Fix Support
+
+Evaluate whether the rule can provide automatic fixes:
+
+### When to Add Auto-Fix
+
+- **Good candidates**: Simple text replacements (apt → apt-get), command additions (--no-cache)
+- **Avoid auto-fix for**: Rules requiring significant restructuring or user decisions
+
+### Sync Fixes (Immediate Edits)
+
+For fixes that can be computed immediately:
+
+```go
+func (r *MyRule) Check(input rules.LintInput) []rules.Violation {
+    // Use helper for RUN commands
+    return ScanRunCommandsWithPOSIXShell(input, func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
+        // ... detection logic ...
+
+        fix := &rules.SuggestedFix{
+            Description: "Replace X with Y",
+            Safety:      rules.FixSafe,  // or FixSuggestion, FixUnsafe
+            Edits: []rules.TextEdit{{
+                Location: rules.NewRangeLocation(file, startLine, startCol, endLine, endCol),
+                NewText:  "replacement text",
+            }},
+        }
+
+        return []rules.Violation{
+            rules.NewViolation(loc, meta.Code, msg, meta.DefaultSeverity).
+                WithSuggestedFix(fix),
+        }
+    })
+}
+```
+
+### Async Fixes (External Data Required)
+
+For fixes requiring network I/O (image digests, checksums):
+
+```go
+fix := &rules.SuggestedFix{
+    Description:  "Add image digest",
+    Safety:       rules.FixSafe,
+    NeedsResolve: true,
+    ResolverID:   "image-digest",
+    ResolverData: map[string]string{"image": "alpine", "tag": "3.18"},
+}
+```
+
+### Safety Levels
+
+- `FixSafe`: Always correct, won't change behavior
+- `FixSuggestion`: Likely correct but may need review
+- `FixUnsafe`: May change behavior significantly
+
+### Shell Position Tracking
+
+For precise command replacement within RUN instructions, use `shell.FindCommandOccurrences()` to get exact byte offsets within shell scripts.
+
+## Step 10: Update Hadolint Status Tracking
 
 After implementation is complete, update the tracking files:
 
@@ -289,6 +349,7 @@ After implementation is complete, update the tracking files:
 - [ ] Unit tests cover ALL original test cases
 - [ ] Tests pass: `go test ./internal/rules/hadolint/... -run $ARGUMENTS -v`
 - [ ] Integration test added with testdata directory and snapshot
+- [ ] Auto-fix considered (add if rule is a good candidate)
 - [ ] `hadolint-status.json` updated with new rule
 - [ ] Documentation regenerated with `generate-hadolint-table.sh --update`
 - [ ] All integration snapshots updated

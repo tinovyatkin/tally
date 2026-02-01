@@ -55,7 +55,7 @@ RUN /usr/bin/apt install python`,
 			name: "apt in command chain",
 			dockerfile: `FROM ubuntu
 RUN apt update && apt install python`,
-			wantCount: 1, // Both should be detected, but we count violations per RUN
+			wantCount: 1, // Single violation with multiple edits for all apt commands
 		},
 		{
 			name: "apt with sudo",
@@ -150,6 +150,103 @@ ONBUILD RUN apt install python`,
 				if v.DocURL != "https://github.com/hadolint/hadolint/wiki/DL3027" {
 					t.Errorf("got doc URL %q, want %q", v.DocURL, "https://github.com/hadolint/hadolint/wiki/DL3027")
 				}
+			}
+		})
+	}
+}
+
+func TestDL3027_MultipleApt(t *testing.T) {
+	input := testutil.MakeLintInput(t, "Dockerfile", "FROM ubuntu\nRUN apt update && apt install curl")
+	r := NewDL3027Rule()
+	violations := r.Check(input)
+
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(violations))
+	}
+
+	v := violations[0]
+	if v.SuggestedFix == nil {
+		t.Fatal("expected SuggestedFix")
+	}
+	if len(v.SuggestedFix.Edits) != 2 {
+		t.Fatalf("expected 2 edits, got %d", len(v.SuggestedFix.Edits))
+	}
+
+	// First edit should be at column 4 (first apt)
+	if v.SuggestedFix.Edits[0].Location.Start.Column != 4 {
+		t.Errorf("first edit startCol = %d, want 4", v.SuggestedFix.Edits[0].Location.Start.Column)
+	}
+
+	// Second edit should be at column 18 (second apt)
+	if v.SuggestedFix.Edits[1].Location.Start.Column != 18 {
+		t.Errorf("second edit startCol = %d, want 18", v.SuggestedFix.Edits[1].Location.Start.Column)
+	}
+}
+
+func TestDL3027Rule_SuggestedFix(t *testing.T) {
+	tests := []struct {
+		name            string
+		dockerfile      string
+		wantReplacement string
+		wantSafety      string
+	}{
+		{
+			name: "apt install -> apt-get (safe)",
+			dockerfile: `FROM ubuntu
+RUN apt install curl`,
+			wantReplacement: "apt-get",
+			wantSafety:      "safe",
+		},
+		{
+			name: "apt update -> apt-get (safe)",
+			dockerfile: `FROM ubuntu
+RUN apt update`,
+			wantReplacement: "apt-get",
+			wantSafety:      "safe",
+		},
+		{
+			name: "apt search -> apt-cache (suggestion)",
+			dockerfile: `FROM ubuntu
+RUN apt search curl`,
+			wantReplacement: "apt-cache",
+			wantSafety:      "suggestion",
+		},
+		{
+			name: "apt show -> apt-cache (suggestion)",
+			dockerfile: `FROM ubuntu
+RUN apt show curl`,
+			wantReplacement: "apt-cache",
+			wantSafety:      "suggestion",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			r := NewDL3027Rule()
+			violations := r.Check(input)
+
+			if len(violations) == 0 {
+				t.Fatal("expected at least one violation")
+			}
+
+			v := violations[0]
+			if v.SuggestedFix == nil {
+				t.Fatal("SuggestedFix is nil")
+			}
+
+			if len(v.SuggestedFix.Edits) == 0 {
+				t.Fatal("SuggestedFix has no edits")
+			}
+
+			edit := v.SuggestedFix.Edits[0]
+			if edit.NewText != tt.wantReplacement {
+				t.Errorf("got replacement %q, want %q", edit.NewText, tt.wantReplacement)
+			}
+
+			gotSafety := v.SuggestedFix.Safety.String()
+			if gotSafety != tt.wantSafety {
+				t.Errorf("got safety %q, want %q", gotSafety, tt.wantSafety)
 			}
 		})
 	}

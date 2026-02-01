@@ -224,6 +224,45 @@ skip-comments = true
 
 See the `max-lines` rule implementation as an exemplary pattern.
 
+## Adding Auto-Fix Support
+
+Rules can provide fixes via `Violation.WithSuggestedFix()`. Two types:
+
+### Sync Fix (immediate, e.g., apt → apt-get)
+
+```go
+fix := &rules.SuggestedFix{
+    Description: "Replace apt with apt-get",
+    Safety:      rules.FixSafe,  // or FixSuggestion, FixUnsafe
+    Edits: []rules.TextEdit{{
+        Location: rules.NewRangeLocation(file, line, startCol, line, endCol),
+        NewText:  "apt-get",
+    }},
+}
+return rules.NewViolation(...).WithSuggestedFix(fix)
+```
+
+### Async Fix (needs external data, e.g., image digest)
+
+```go
+fix := &rules.SuggestedFix{
+    Description:  "Pin image with digest",
+    Safety:       rules.FixSafe,
+    NeedsResolve: true,
+    ResolverID:   "image-digest",  // registered FixResolver
+    ResolverData: &ImageDigestData{Image: "alpine", Tag: "3.18", Location: loc},
+}
+return rules.NewViolation(...).WithSuggestedFix(fix)
+```
+
+Resolvers implement `fix.FixResolver` interface and register via `fix.RegisterResolver()`.
+
+### Safety Levels
+
+- `FixSafe` - Always correct, applied by default with `--fix`
+- `FixSuggestion` - May change semantics slightly, requires `--fix-unsafe`
+- `FixUnsafe` - May change behavior, requires `--fix-unsafe`
+
 ## Package Publishing
 
 Published to three package managers:
