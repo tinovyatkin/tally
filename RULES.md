@@ -82,8 +82,8 @@ These rules are automatically captured from BuildKit during Dockerfile parsing:
 
 | Rule | Description | Severity | Status |
 |------|-------------|----------|--------|
-| `buildkit/StageNameCasing` | Stage names should be lowercase | Warning | ✅ Captured |
-| `buildkit/FromAsCasing` | The 'as' keyword should match 'from' casing | Warning | ✅ Captured |
+| `buildkit/StageNameCasing` | Stage names should be lowercase | Warning | ✅🔧 Captured |
+| `buildkit/FromAsCasing` | The 'as' keyword should match 'from' casing | Warning | ✅🔧 Captured |
 | `buildkit/NoEmptyContinuation` | Empty continuation lines will become errors | Warning | ✅ Captured |
 | `buildkit/ConsistentInstructionCasing` | Instructions should use consistent casing | Warning | ✅ Captured |
 | `buildkit/DuplicateStageName` | Stage names should be unique | Warning | ✅ Captured |
@@ -110,20 +110,20 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 **Legend:**
 
 - ✅ Implemented by tally
+- 🔧 Auto-fixable with `tally check --fix`
 - 🔄 Covered by BuildKit rule (use that instead)
 - ⏳ Not yet implemented
 
 ### DL Rules (Dockerfile Lint)
 
 <!-- BEGIN HADOLINT_DL_RULES -->
-
 | Rule | Description | Severity | Status |
 |------|-------------|----------|--------|
 | [DL1001](https://github.com/hadolint/hadolint/wiki/DL1001) | Please refrain from using inline ignore pragmas `# hadolint ignore=DLxxxx`. | Ignore | ⏳ |
 | [DL3000](https://github.com/hadolint/hadolint/wiki/DL3000) | Use absolute WORKDIR. | Error | 🔄 `buildkit/WorkdirRelativePath` |
 | [DL3001](https://github.com/hadolint/hadolint/wiki/DL3001) | For some bash commands it makes no sense running them in a Docker container like ssh, vim, shutdown, service, ps, free, top, kill, mount, ifconfig. | Info | ⏳ |
 | [DL3002](https://github.com/hadolint/hadolint/wiki/DL3002) | Last user should not be root. | Warning | ✅ `hadolint/DL3002` |
-| [DL3003](https://github.com/hadolint/hadolint/wiki/DL3003) | Use WORKDIR to switch to a directory. | Warning | ⏳ |
+| [DL3003](https://github.com/hadolint/hadolint/wiki/DL3003) | Use WORKDIR to switch to a directory. | Warning | ✅🔧 `hadolint/DL3003` |
 | [DL3004](https://github.com/hadolint/hadolint/wiki/DL3004) | Do not use sudo as it leads to unpredictable behavior. Use a tool like gosu to enforce root. | Error | ✅ `hadolint/DL3004` |
 | [DL3006](https://github.com/hadolint/hadolint/wiki/DL3006) | Always tag the version of an image explicitly. | Warning | ✅ `hadolint/DL3006` |
 | [DL3007](https://github.com/hadolint/hadolint/wiki/DL3007) | Using latest is prone to errors if the image will ever update. Pin the version explicitly to a release tag. | Warning | ✅ `hadolint/DL3007` |
@@ -145,7 +145,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL3024](https://github.com/hadolint/hadolint/wiki/DL3024) | `FROM` aliases (stage names) must be unique | Error | ✅ `hadolint/DL3024` |
 | [DL3025](https://github.com/hadolint/hadolint/wiki/DL3025) | Use arguments JSON notation for CMD and ENTRYPOINT arguments | Warning | 🔄 `buildkit/JSONArgsRecommended` |
 | [DL3026](https://github.com/hadolint/hadolint/wiki/DL3026) | Use only an allowed registry in the FROM image | Error | ✅ `hadolint/DL3026` |
-| [DL3027](https://github.com/hadolint/hadolint/wiki/DL3027) | Do not use `apt` as it is meant to be an end-user tool, use `apt-get` or `apt-cache` instead | Warning | ⏳ |
+| [DL3027](https://github.com/hadolint/hadolint/wiki/DL3027) | Do not use `apt` as it is meant to be an end-user tool, use `apt-get` or `apt-cache` instead | Warning | ✅🔧 `hadolint/DL3027` |
 | [DL3028](https://github.com/hadolint/hadolint/wiki/DL3028) | Pin versions in gem install. Instead of `gem install <gem>` use `gem install <gem>:<version>` | Warning | ⏳ |
 | [DL3029](https://github.com/hadolint/hadolint/wiki/DL3029) | Do not use --platform flag with FROM. | Warning | 🔄 `buildkit/FromPlatformFlagConstDisallowed` |
 | [DL3030](https://github.com/hadolint/hadolint/wiki/DL3030) | Use the `-y` switch to avoid manual input `yum install -y <package>` | Warning | ⏳ |
@@ -185,7 +185,6 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL4004](https://github.com/hadolint/hadolint/wiki/DL4004) | Multiple `ENTRYPOINT` instructions found. | Error | 🔄 `buildkit/MultipleInstructionsDisallowed` |
 | [DL4005](https://github.com/hadolint/hadolint/wiki/DL4005) | Use `SHELL` to change the default shell. | Warning | ⏳ |
 | [DL4006](https://github.com/hadolint/hadolint/wiki/DL4006) | Set the `SHELL` option -o pipefail before `RUN` with a pipe in it | Warning | ⏳ |
-
 <!-- END HADOLINT_DL_RULES -->
 
 ### SC Rules (ShellCheck)

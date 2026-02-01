@@ -20,7 +20,27 @@
           "detail": "Stage names should be lowercase",
           "severity": "warning",
           "docUrl": "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/",
-          "sourceCode": "FROM alpine AS Build"
+          "sourceCode": "FROM alpine AS Build",
+          "suggestedFix": {
+            "description": "Rename stage 'Build' to 'build'",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/inline-directives-disabled/Dockerfile",
+                  "start": {
+                    "line": 2,
+                    "column": 15
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 20
+                  }
+                },
+                "newText": "build"
+              }
+            ],
+            "isPreferred": true
+          }
         },
         {
           "location": {
@@ -53,6 +73,6 @@
     "files": 1
   },
   "files_scanned": 1,
-  "rules_enabled": 35
+  "rules_enabled": 37
 }
 

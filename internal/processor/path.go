@@ -25,6 +25,15 @@ func (p *PathNormalization) Process(violations []rules.Violation, _ *Context) []
 	return transformViolations(violations, func(v rules.Violation) rules.Violation {
 		// Replace backslashes with forward slashes for cross-platform consistency
 		v.Location.File = strings.ReplaceAll(v.Location.File, "\\", "/")
+
+		// Also normalize paths in suggested fix edits
+		if v.SuggestedFix != nil {
+			for i := range v.SuggestedFix.Edits {
+				v.SuggestedFix.Edits[i].Location.File = strings.ReplaceAll(
+					v.SuggestedFix.Edits[i].Location.File, "\\", "/",
+				)
+			}
+		}
 		return v
 	})
 }

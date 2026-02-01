@@ -200,6 +200,17 @@ RUN wget https://example.com/file2
 			wantCount:       1,
 			wantMsgContains: "curl is installed",
 		},
+		// Test case from benchmark real-world Dockerfile pattern
+		{
+			name: "benchmark pattern: curl and wget in same install with flags",
+			dockerfile: `FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates wget && apt-get clean
+RUN curl -L -o /tmp/file.sh https://example.com/file.sh
+RUN wget https://example.com/another-file
+`,
+			wantCount:       1,
+			wantMsgContains: "both wget and curl are installed",
+		},
 	}
 
 	for _, tt := range tests {

@@ -4,6 +4,7 @@ import (
 	stdcontext "context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/urfave/cli/v3"
 
@@ -12,11 +13,13 @@ import (
 	"github.com/tinovyatkin/tally/internal/directive"
 	"github.com/tinovyatkin/tally/internal/discovery"
 	"github.com/tinovyatkin/tally/internal/dockerfile"
+	"github.com/tinovyatkin/tally/internal/fix"
 	"github.com/tinovyatkin/tally/internal/processor"
 	"github.com/tinovyatkin/tally/internal/reporter"
 	"github.com/tinovyatkin/tally/internal/rules"
 	_ "github.com/tinovyatkin/tally/internal/rules/all" // Register all rules
 	"github.com/tinovyatkin/tally/internal/rules/buildkit"
+	"github.com/tinovyatkin/tally/internal/rules/buildkit/fixes"
 	"github.com/tinovyatkin/tally/internal/semantic"
 	"github.com/tinovyatkin/tally/internal/sourcemap"
 	"github.com/tinovyatkin/tally/internal/version"
@@ -29,6 +32,7 @@ const (
 	ExitConfigError = 2 // Parse or config error
 )
 
+//nolint:gocyclo // CLI command with many flags inherently has high cyclomatic complexity
 func checkCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "check",
@@ -112,6 +116,21 @@ func checkCommand() *cli.Command {
 				Name:    "context",
 				Usage:   "Build context directory for context-aware rules",
 				Sources: cli.EnvVars("TALLY_CONTEXT"),
+			},
+			&cli.BoolFlag{
+				Name:    "fix",
+				Usage:   "Apply all safe fixes automatically",
+				Sources: cli.EnvVars("TALLY_FIX"),
+			},
+			&cli.StringSliceFlag{
+				Name:    "fix-rule",
+				Usage:   "Only fix specific rules (can be repeated)",
+				Sources: cli.EnvVars("TALLY_FIX_RULE"),
+			},
+			&cli.BoolFlag{
+				Name:    "fix-unsafe",
+				Usage:   "Also apply suggestion/unsafe fixes (requires --fix)",
+				Sources: cli.EnvVars("TALLY_FIX_UNSAFE"),
 			},
 		},
 		Action: func(ctx stdcontext.Context, cmd *cli.Command) error {
@@ -235,6 +254,9 @@ func checkCommand() *cli.Command {
 					))
 				}
 
+				// Enrich BuildKit violations with auto-fix suggestions
+				fixes.EnrichBuildKitFixes(violations, sem, parseResult.Source)
+
 				allViolations = append(allViolations, violations...)
 			}
 
@@ -267,6 +289,30 @@ func checkCommand() *cli.Command {
 				allViolations = append(allViolations, additionalViolations...)
 				// Re-sort after adding directive warnings
 				allViolations = reporter.SortViolations(allViolations)
+			}
+
+			// Apply fixes if --fix flag is set
+			if cmd.Bool("fix-unsafe") && !cmd.Bool("fix") {
+				fmt.Fprintf(os.Stderr, "Warning: --fix-unsafe has no effect without --fix\n")
+			}
+			if cmd.Bool("fix") {
+				fixResult, fixErr := applyFixes(ctx, cmd, allViolations, fileSources, fileConfigs)
+				if fixErr != nil {
+					fmt.Fprintf(os.Stderr, "Error: failed to apply fixes: %v\n", fixErr)
+					return cli.Exit("", ExitConfigError)
+				}
+
+				// Report fix results
+				if fixResult.TotalApplied() > 0 {
+					fmt.Fprintf(os.Stderr, "Fixed %d issues in %d files\n",
+						fixResult.TotalApplied(), fixResult.FilesModified())
+				}
+				if fixResult.TotalSkipped() > 0 {
+					fmt.Fprintf(os.Stderr, "Skipped %d fixes\n", fixResult.TotalSkipped())
+				}
+
+				// Update violations to exclude fixed ones
+				allViolations = filterFixedViolations(allViolations, fixResult)
 			}
 
 			// Get output configuration
@@ -570,4 +616,137 @@ func isRuleEnabled(ruleCode string, defaultSeverity rules.Severity, cfg *config.
 // against .dockerignore.
 func extractHeredocFiles(parseResult *dockerfile.ParseResult) map[string]bool {
 	return dockerfile.ExtractHeredocFiles(parseResult.Stages)
+}
+
+// applyFixes applies automatic fixes to violations that have suggested fixes.
+// fileConfigs maps file paths to their per-file configs (for per-file fix modes).
+func applyFixes(
+	ctx stdcontext.Context,
+	cmd *cli.Command,
+	violations []rules.Violation,
+	sources map[string][]byte,
+	fileConfigs map[string]*config.Config,
+) (*fix.Result, error) {
+	// Determine safety threshold
+	safetyThreshold := fix.FixSafe
+	if cmd.Bool("fix-unsafe") {
+		safetyThreshold = fix.FixUnsafe
+	}
+
+	// Get rule filter
+	ruleFilter := cmd.StringSlice("fix-rule")
+
+	// Build per-file fix modes from fileConfigs
+	fixModes := buildPerFileFixModes(fileConfigs)
+
+	fixer := &fix.Fixer{
+		SafetyThreshold: safetyThreshold,
+		RuleFilter:      ruleFilter,
+		FixModes:        fixModes,
+		Concurrency:     4,
+	}
+
+	result, err := fixer.Apply(ctx, violations, sources)
+	if err != nil {
+		return nil, err
+	}
+
+	// Write modified files (preserve original permissions)
+	for _, fc := range result.Changes {
+		if !fc.HasChanges() {
+			continue
+		}
+		mode := os.FileMode(0o644)
+		if info, err := os.Stat(fc.Path); err == nil {
+			mode = info.Mode().Perm()
+		}
+		if err := os.WriteFile(fc.Path, fc.ModifiedContent, mode); err != nil {
+			return nil, fmt.Errorf("failed to write %s: %w", fc.Path, err)
+		}
+	}
+
+	return result, nil
+}
+
+// buildPerFileFixModes builds a per-file map of fix modes from fileConfigs.
+// Returns map[filePath]map[ruleCode]FixMode.
+func buildPerFileFixModes(fileConfigs map[string]*config.Config) map[string]map[string]fix.FixMode {
+	result := make(map[string]map[string]fix.FixMode)
+	for filePath, cfg := range fileConfigs {
+		if cfg == nil {
+			continue
+		}
+		modes := buildFixModes(cfg)
+		if len(modes) > 0 {
+			result[filePath] = modes
+		}
+	}
+	return result
+}
+
+// buildFixModes extracts fix mode configuration for all rules from a single config.
+func buildFixModes(cfg *config.Config) map[string]fix.FixMode {
+	modes := make(map[string]fix.FixMode)
+
+	// Helper to add modes from a namespace map
+	addFromNamespace := func(namespace string, ruleConfigs map[string]config.RuleConfig) {
+		for name, ruleCfg := range ruleConfigs {
+			if ruleCfg.Fix != "" {
+				ruleCode := namespace + "/" + name
+				modes[ruleCode] = ruleCfg.Fix
+			}
+		}
+	}
+
+	// Process each namespace
+	if cfg.Rules.Tally != nil {
+		addFromNamespace("tally", cfg.Rules.Tally)
+	}
+	if cfg.Rules.Buildkit != nil {
+		addFromNamespace("buildkit", cfg.Rules.Buildkit)
+	}
+	if cfg.Rules.Hadolint != nil {
+		addFromNamespace("hadolint", cfg.Rules.Hadolint)
+	}
+
+	return modes
+}
+
+// filterFixedViolations removes violations that were fixed from the list.
+func filterFixedViolations(violations []rules.Violation, fixResult *fix.Result) []rules.Violation {
+	// Build set of fixed locations (include column to handle multiple violations on same line)
+	type locKey struct {
+		file string
+		line int
+		col  int
+		code string
+	}
+	fixed := make(map[locKey]bool)
+	for _, fc := range fixResult.Changes {
+		for _, af := range fc.FixesApplied {
+			fixed[locKey{
+				// Use ToSlash for consistent cross-platform path matching
+				// Violations use forward slashes (PathNormalization processor)
+				file: filepath.ToSlash(fc.Path),
+				line: af.Location.Start.Line,
+				col:  af.Location.Start.Column,
+				code: af.RuleCode,
+			}] = true
+		}
+	}
+
+	// Filter violations
+	var remaining []rules.Violation
+	for _, v := range violations {
+		key := locKey{
+			file: filepath.ToSlash(v.File()),
+			line: v.Line(),
+			col:  v.Location.Start.Column,
+			code: v.RuleCode,
+		}
+		if !fixed[key] {
+			remaining = append(remaining, v)
+		}
+	}
+	return remaining
 }

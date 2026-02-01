@@ -115,3 +115,28 @@ func BenchmarkComplexNolus(b *testing.B) {
 		_ = cmd.Run() //nolint:errcheck // intentionally ignoring exit code
 	}
 }
+
+// BenchmarkRealWorldFix measures performance on a real-world Dockerfile with many
+// linting violations and auto-fix opportunities. This exercises the full linting
+// pipeline including fix generation for DL3003, DL3027, and other hadolint rules.
+func BenchmarkRealWorldFix(b *testing.B) {
+	ensureBinary(b)
+
+	dockerfile := filepath.Join("testdata", "benchmark-real-world-fix", "Dockerfile")
+	absPath, err := filepath.Abs(dockerfile)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		b.Fatalf("benchmark fixture does not exist: %s", absPath)
+	}
+
+	b.ResetTimer()
+	for b.Loop() {
+		cmd := exec.Command(benchBinaryPath, "check", "--format", "json", absPath)
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		_ = cmd.Run() //nolint:errcheck // intentionally ignoring exit code
+	}
+}

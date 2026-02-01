@@ -2,13 +2,69 @@ package rules
 
 import "github.com/moby/buildkit/frontend/dockerfile/parser"
 
+// FixSafety categorizes how reliable a fix is.
+type FixSafety int
+
+const (
+	// FixSafe means the fix is always correct and won't change behavior.
+	// These fixes can be applied automatically without review.
+	FixSafe FixSafety = iota
+
+	// FixSuggestion means the fix is likely correct but may need review.
+	// Examples: apt search → apt-cache search (different output format).
+	FixSuggestion
+
+	// FixUnsafe means the fix might change behavior significantly.
+	// These require explicit --fix-unsafe flag to apply.
+	FixUnsafe
+)
+
+// String returns the string representation of FixSafety.
+func (s FixSafety) String() string {
+	switch s {
+	case FixSafe:
+		return "safe"
+	case FixSuggestion:
+		return "suggestion"
+	case FixUnsafe:
+		return "unsafe"
+	default:
+		return "unknown"
+	}
+}
+
 // SuggestedFix represents a structured edit hint for auto-fix suggestions.
 // It describes what text to replace and what to replace it with.
+//
+// Fixes can be synchronous (Edits populated immediately) or asynchronous
+// (NeedsResolve=true, edits computed later by a FixResolver).
 type SuggestedFix struct {
 	// Description explains what this fix does.
 	Description string `json:"description"`
+
 	// Edits contains the actual text replacements to apply.
-	Edits []TextEdit `json:"edits"`
+	// May be empty if NeedsResolve is true (populated by resolver).
+	Edits []TextEdit `json:"edits,omitempty"`
+
+	// Safety indicates how reliable this fix is.
+	// Default (zero value) is FixSafe.
+	Safety FixSafety `json:"safety,omitempty"`
+
+	// IsPreferred marks this as the recommended fix when alternatives exist.
+	IsPreferred bool `json:"isPreferred,omitempty"`
+
+	// NeedsResolve indicates this fix requires async resolution.
+	// When true, Edits is empty and ResolverID specifies which resolver to use.
+	// Examples: fetching image digests, computing file checksums.
+	NeedsResolve bool `json:"needsResolve,omitempty"`
+
+	// ResolverID identifies which FixResolver should compute the edits.
+	// Only used when NeedsResolve is true.
+	ResolverID string `json:"resolverId,omitempty"`
+
+	// ResolverData contains opaque data for the resolver.
+	// Not serialized to JSON; used internally during fix application.
+	ResolverData any `json:"-"`
 }
 
 // TextEdit represents a single text replacement in a file.

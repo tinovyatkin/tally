@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"os/exec"
@@ -129,6 +130,10 @@ func TestCheck(t *testing.T) {
 		{name: "inline-ignore-global", dir: "inline-ignore-global", args: []string{"--format", "json"}},
 		{name: "inline-hadolint-compat", dir: "inline-hadolint-compat", args: []string{"--format", "json"}},
 		{name: "inline-buildx-compat", dir: "inline-buildx-compat", args: []string{"--format", "json"}},
+
+		// Hadolint rule tests
+		{name: "dl3003", dir: "dl3003", args: []string{"--format", "json"}, wantExit: 1},
+		{name: "dl3027", dir: "dl3027", args: []string{"--format", "json"}, wantExit: 1},
 		{name: "inline-ignore-multiple-max-lines", dir: "inline-ignore-multiple", args: []string{"--format", "json"}},
 		{
 			name:     "inline-unused-directive",
@@ -331,5 +336,193 @@ func TestVersion(t *testing.T) {
 	// Version output contains "dev" in tests
 	if len(output) == 0 {
 		t.Error("expected version output, got empty")
+	}
+}
+
+func TestFix(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string // Input Dockerfile content
+		want        string // Expected fixed content
+		args        []string
+		wantApplied int // Expected number of fixes applied
+	}{
+		{
+			name:        "stage-name-casing",
+			input:       "FROM alpine:3.18 AS Builder\nRUN echo hello\nFROM alpine:3.18\nCOPY --from=Builder /app /app\n",
+			want:        "FROM alpine:3.18 AS builder\nRUN echo hello\nFROM alpine:3.18\nCOPY --from=builder /app /app\n",
+			args:        []string{"--fix"},
+			wantApplied: 1,
+		},
+		{
+			name:        "from-as-casing",
+			input:       "FROM alpine:3.18 as builder\nRUN echo hello\n",
+			want:        "FROM alpine:3.18 AS builder\nRUN echo hello\n",
+			args:        []string{"--fix"},
+			wantApplied: 1,
+		},
+		{
+			name:        "combined-stage-and-as-casing",
+			input:       "FROM alpine:3.18 as Builder\nRUN echo hello\n",
+			want:        "FROM alpine:3.18 AS builder\nRUN echo hello\n",
+			args:        []string{"--fix"},
+			wantApplied: 2, // Both FromAsCasing and StageNameCasing
+		},
+		// DL3027: apt -> apt-get (regression test for line number consistency)
+		{
+			name:        "dl3027-apt-to-apt-get",
+			input:       "FROM ubuntu:22.04\nRUN apt update && apt install -y curl\n",
+			want:        "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y curl\n",
+			args:        []string{"--fix"},
+			wantApplied: 1, // Single violation with multiple edits
+		},
+		// DL3003: cd -> WORKDIR (regression test for line number consistency)
+		{
+			// DL3003 fix is FixSuggestion (not FixSafe) because WORKDIR creates
+			// the directory if it doesn't exist, while RUN cd fails.
+			// Requires both --fix and --fix-unsafe since FixSuggestion > FixSafe.
+			name:        "dl3003-cd-to-workdir",
+			input:       "FROM ubuntu:22.04\nRUN cd /app\n",
+			want:        "FROM ubuntu:22.04\nWORKDIR /app\n",
+			args:        []string{"--fix", "--fix-unsafe"},
+			wantApplied: 1,
+		},
+		// Multiple fixes with line shift: DL3003 splits one line into two,
+		// then DL3027 fix on a later line must still apply correctly.
+		// The fixer applies edits from end to start to handle position drift.
+		{
+			name: "multi-fix-line-shift",
+			input: `FROM ubuntu:22.04
+RUN cd /app && make build
+RUN apt install curl
+`,
+			// DL3003 splits "RUN cd /app && make build" into "WORKDIR /app\nRUN make build"
+			// DL3027 changes "apt install" to "apt-get install"
+			want: `FROM ubuntu:22.04
+WORKDIR /app
+RUN make build
+RUN apt-get install curl
+`,
+			args:        []string{"--fix", "--fix-unsafe"},
+			wantApplied: 2, // DL3003 + DL3027
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a temporary directory with a Dockerfile
+			tmpDir := t.TempDir()
+			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+			if err := os.WriteFile(dockerfilePath, []byte(tc.input), 0o644); err != nil {
+				t.Fatalf("failed to write Dockerfile: %v", err)
+			}
+
+			// Create an empty config file to prevent discovery of repo configs
+			configPath := filepath.Join(tmpDir, ".tally.toml")
+			if err := os.WriteFile(configPath, []byte(""), 0o644); err != nil {
+				t.Fatalf("failed to write config: %v", err)
+			}
+
+			// Run tally check --fix
+			args := append([]string{"check", "--config", configPath}, tc.args...)
+			args = append(args, dockerfilePath)
+			cmd := exec.Command(binaryPath, args...)
+			cmd.Env = append(os.Environ(),
+				"GOCOVERDIR="+coverageDir,
+			)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("check --fix failed: %v\noutput:\n%s", err, output)
+			}
+
+			// Read the fixed Dockerfile
+			fixed, err := os.ReadFile(dockerfilePath)
+			if err != nil {
+				t.Fatalf("failed to read fixed Dockerfile: %v", err)
+			}
+
+			if string(fixed) != tc.want {
+				t.Errorf("fixed content mismatch:\ngot:\n%s\nwant:\n%s\noutput:\n%s", fixed, tc.want, output)
+			}
+
+			// Check that the output mentions the expected number of fixes
+			outputStr := string(output)
+			if tc.wantApplied > 0 && !strings.Contains(outputStr, "Fixed") {
+				t.Errorf("expected 'Fixed' in output, got: %s", outputStr)
+			}
+		})
+	}
+}
+
+// TestFixRealWorld tests the auto-fix functionality on a real-world Dockerfile
+// from a public repository, verifying that multiple fixes apply correctly.
+// Source: https://github.com/tle211212/deepspeed_distributed_sagemaker_sample
+func TestFixRealWorld(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "benchmark-real-world-fix")
+
+	// Read the original Dockerfile
+	originalContent, err := os.ReadFile(filepath.Join(testdataDir, "Dockerfile"))
+	if err != nil {
+		t.Fatalf("failed to read original Dockerfile: %v", err)
+	}
+
+	// Read the expected fixed output
+	expectedContent, err := os.ReadFile(filepath.Join(testdataDir, "Dockerfile.expected"))
+	if err != nil {
+		t.Fatalf("failed to read expected Dockerfile: %v", err)
+	}
+
+	// Create a temp directory and copy the Dockerfile
+	tmpDir := t.TempDir()
+	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+	if err := os.WriteFile(dockerfilePath, originalContent, 0o644); err != nil {
+		t.Fatalf("failed to write Dockerfile: %v", err)
+	}
+
+	// Copy the config file to disable max-lines
+	configContent, err := os.ReadFile(filepath.Join(testdataDir, ".tally.toml"))
+	if err != nil {
+		t.Fatalf("failed to read config: %v", err)
+	}
+	configPath := filepath.Join(tmpDir, ".tally.toml")
+	if err := os.WriteFile(configPath, configContent, 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	// Run tally check --fix --fix-unsafe
+	args := []string{"check", "--config", configPath, "--fix", "--fix-unsafe", dockerfilePath}
+	cmd := exec.Command(binaryPath, args...)
+	cmd.Env = append(os.Environ(),
+		"GOCOVERDIR="+coverageDir,
+	)
+	output, err := cmd.CombinedOutput()
+	// Exit code 1 is expected due to remaining unfixable violations
+	// Just verify the command ran (output captured regardless of exit code)
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("command failed to run: %v", err)
+		}
+		// Exit code 1 is expected, other exit codes indicate real failures
+		if exitErr.ExitCode() != 1 {
+			t.Fatalf("unexpected exit code %d: %v\noutput:\n%s", exitErr.ExitCode(), err, output)
+		}
+	}
+
+	// Read the fixed Dockerfile
+	fixedContent, err := os.ReadFile(dockerfilePath)
+	if err != nil {
+		t.Fatalf("failed to read fixed Dockerfile: %v", err)
+	}
+
+	// Compare with expected
+	if !bytes.Equal(fixedContent, expectedContent) {
+		t.Errorf("fixed content does not match expected\noutput:\n%s", output)
+	}
+
+	// Verify the output mentions the expected fixes
+	outputStr := string(output)
+	if !strings.Contains(outputStr, "Fixed 14 issues") {
+		t.Errorf("expected 'Fixed 14 issues' in output, got: %s", outputStr)
 	}
 }
