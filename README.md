@@ -1,17 +1,51 @@
 # tally
 
-A fast, configurable linter for Dockerfiles and Containerfiles.
+[![codecov](https://codecov.io/gh/tinovyatkin/tally/graph/badge.svg?token=J3vK0hyLkf)](https://codecov.io/gh/tinovyatkin/tally)
+
+tally keeps Dockerfiles and Containerfiles clean, modern, and consistent — using BuildKit's own parser and checks (the same foundation behind
+`docker buildx`) plus safe auto-fixes. It runs fast, doesn't require Docker Desktop or a daemon, and fits neatly into CI. If that sounds like your
+workflow, try `tally check .`.
+
+```bash
+# Lint everything in the repo (recursive)
+tally check .
+
+# Apply all safe fixes automatically
+tally check --fix Dockerfile
+```
+
+## Why tally?
+
+Dockerfile linting usually means picking a compromise:
+
+- **Hadolint** is popular and battle-tested, but it uses its own Dockerfile parser, so support for newer BuildKit features can lag behind. It also
+  is commonly consumed as a prebuilt binary, and it focuses on reporting — not fixing.
+- **`docker buildx --check`** runs Docker's official BuildKit checks, but it requires the Docker/buildx toolchain and can be heavier than a pure
+  static linter (and not always available if you're using Podman/Finch/other runtimes).
+
+tally exists to bring modern linter ergonomics to container builds:
+
+- **BuildKit-native parsing**: understands modern syntax like heredocs, `RUN --mount=...`, and `ADD --checksum=...`.
+- **Fixes, not just findings**: applies safe, mechanical fixes automatically (`--fix`), with per-rule control when you need it.
+- **Easy to install anywhere**: available via Homebrew, Go, npm, pip, and RubyGems — so it can flow through your existing artifact mirrors.
+- **Container ecosystem friendly**: supports Dockerfile/Containerfile conventions and `.dockerignore`/`.containerignore`.
+- **A growing ruleset**: combines official BuildKit checks, Hadolint-compatible rules, and tally-specific rules.
+
+Roadmap: editor integrations (VS Code, Zed), more auto-fixes, and higher-level rules (cache & tmpfs mount recommendations, tooling-aware checks for
+uv/bun, line-length and layer optimizations).
 
 ## Supported Rules
 
 tally integrates rules from multiple sources:
 
 <!-- BEGIN RULES_TABLE -->
-| Source | Rules | Description |
-|--------|-------|-------------|
-| **[BuildKit](https://docs.docker.com/reference/build-checks/)** | 22 rules | Docker's official Dockerfile checks (automatically captured) |
-| **tally** | 3 rules | Custom rules including secret detection with [gitleaks](https://github.com/gitleaks/gitleaks) |
-| **[Hadolint](https://github.com/hadolint/hadolint)** | 22 rules | Hadolint-compatible Dockerfile rules (expanding) |
+
+| Source                                                          | Rules    | Description                                                                                   |
+| --------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------- |
+| **[BuildKit](https://docs.docker.com/reference/build-checks/)** | 22 rules | Docker's official Dockerfile checks (automatically captured)                                  |
+| **tally**                                                       | 3 rules  | Custom rules including secret detection with [gitleaks](https://github.com/gitleaks/gitleaks) |
+| **[Hadolint](https://github.com/hadolint/hadolint)**            | 22 rules | Hadolint-compatible Dockerfile rules (expanding)                                              |
+
 <!-- END RULES_TABLE -->
 
 **See [RULES.md](RULES.md) for the complete rules reference.**
@@ -27,7 +61,7 @@ brew install tinovyatkin/tap/tally
 ### NPM
 
 ```bash
-npm install -g @contino/tally
+npm install -g tally-cli
 ```
 
 ### PyPI
@@ -288,21 +322,21 @@ Configuration sources are applied in this order (highest priority first):
 
 ### Environment Variables
 
-| Variable                                 | Description                                               |
-| ---------------------------------------- | --------------------------------------------------------- |
+| Variable                                 | Description                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------- |
 | `TALLY_OUTPUT_FORMAT`                    | Output format (`text`, `json`, `sarif`, `github-actions`, `markdown`) |
-| `TALLY_OUTPUT_PATH`                      | Output destination (`stdout`, `stderr`, or file path)     |
-| `TALLY_OUTPUT_SHOW_SOURCE`               | Show source snippets (`true`/`false`)                     |
-| `TALLY_OUTPUT_FAIL_LEVEL`                | Minimum severity for non-zero exit                        |
-| `NO_COLOR`                               | Disable colored output (standard env var)                 |
-| `TALLY_EXCLUDE`                          | Glob pattern(s) to exclude files (comma-separated)        |
-| `TALLY_CONTEXT`                          | Build context directory for context-aware rules           |
-| `TALLY_RULES_MAX_LINES_MAX`              | Maximum lines allowed                                     |
-| `TALLY_RULES_MAX_LINES_SKIP_BLANK_LINES` | Exclude blank lines (`true`/`false`)                      |
-| `TALLY_RULES_MAX_LINES_SKIP_COMMENTS`    | Exclude comments (`true`/`false`)                         |
-| `TALLY_NO_INLINE_DIRECTIVES`             | Disable inline directive processing (`true`/`false`)      |
-| `TALLY_INLINE_DIRECTIVES_WARN_UNUSED`    | Warn about unused directives (`true`/`false`)             |
-| `TALLY_INLINE_DIRECTIVES_REQUIRE_REASON` | Require reason= on ignore directives (`true`/`false`)     |
+| `TALLY_OUTPUT_PATH`                      | Output destination (`stdout`, `stderr`, or file path)                 |
+| `TALLY_OUTPUT_SHOW_SOURCE`               | Show source snippets (`true`/`false`)                                 |
+| `TALLY_OUTPUT_FAIL_LEVEL`                | Minimum severity for non-zero exit                                    |
+| `NO_COLOR`                               | Disable colored output (standard env var)                             |
+| `TALLY_EXCLUDE`                          | Glob pattern(s) to exclude files (comma-separated)                    |
+| `TALLY_CONTEXT`                          | Build context directory for context-aware rules                       |
+| `TALLY_RULES_MAX_LINES_MAX`              | Maximum lines allowed                                                 |
+| `TALLY_RULES_MAX_LINES_SKIP_BLANK_LINES` | Exclude blank lines (`true`/`false`)                                  |
+| `TALLY_RULES_MAX_LINES_SKIP_COMMENTS`    | Exclude comments (`true`/`false`)                                     |
+| `TALLY_NO_INLINE_DIRECTIVES`             | Disable inline directive processing (`true`/`false`)                  |
+| `TALLY_INLINE_DIRECTIVES_WARN_UNUSED`    | Warn about unused directives (`true`/`false`)                         |
+| `TALLY_INLINE_DIRECTIVES_REQUIRE_REASON` | Require reason= on ignore directives (`true`/`false`)                 |
 
 ### CLI Flags
 
@@ -419,10 +453,10 @@ tally check --format markdown Dockerfile
 ```markdown
 **2 issues** in `Dockerfile`
 
-| Line | Issue |
-|------|-------|
-| 10 | ❌ Use absolute WORKDIR |
-| 2 | ⚠️ Stage name 'Builder' should be lowercase |
+| Line | Issue                                       |
+| ---- | ------------------------------------------- |
+| 10   | ❌ Use absolute WORKDIR                     |
+| 2    | ⚠️ Stage name 'Builder' should be lowercase |
 ```
 
 Features:
@@ -435,13 +469,13 @@ Features:
 
 ### Output Options
 
-| Flag            | Description                                                        |
-| --------------- | ------------------------------------------------------------------ |
+| Flag            | Description                                                          |
+| --------------- | -------------------------------------------------------------------- |
 | `--format, -f`  | Output format: `text`, `json`, `sarif`, `github-actions`, `markdown` |
-| `--output, -o`  | Output destination: `stdout`, `stderr`, or file path      |
-| `--no-color`    | Disable colored output (also respects `NO_COLOR` env var) |
-| `--show-source` | Show source code snippets (default: true)                 |
-| `--hide-source` | Hide source code snippets                                 |
+| `--output, -o`  | Output destination: `stdout`, `stderr`, or file path                 |
+| `--no-color`    | Disable colored output (also respects `NO_COLOR` env var)            |
+| `--show-source` | Show source code snippets (default: true)                            |
+| `--hide-source` | Hide source code snippets                                            |
 
 ### Exit Codes
 

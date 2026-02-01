@@ -145,7 +145,7 @@ go tool cover -html=coverage.txt -o=coverage.html
 │   └── testutil/                     # Test utilities
 ├── packaging/
 │   ├── pack.rb                       # Packaging orchestration script
-│   ├── npm/                          # npm package structure (@contino/tally)
+│   ├── npm/                          # npm package structure (tally-cli)
 │   ├── pypi/                         # Python package (tally-cli)
 │   └── rubygems/                     # Ruby gem (tally-cli)
 └── README.md
@@ -267,7 +267,7 @@ Resolvers implement `fix.FixResolver` interface and register via `fix.RegisterRe
 
 Published to three package managers:
 
-- **NPM**: `@contino/tally` (with platform-specific optional dependencies)
+- **NPM**: `tally-cli` (with platform-specific optional dependencies)
 - **PyPI**: `tally-cli`
 - **RubyGems**: `tally-cli`
 

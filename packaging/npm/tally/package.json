@@ -1,5 +1,5 @@
 {
-  "name": "@contino/tally",
+  "name": "tally-cli",
   "version": "0.1.0",
   "description": "A fast, configurable linter for Dockerfiles and Containerfiles",
   "repository": {
