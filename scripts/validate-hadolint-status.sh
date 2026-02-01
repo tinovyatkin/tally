@@ -22,8 +22,7 @@ NC='\033[0m' # No Color
 
 # Extract implemented rule codes from filesystem (dlXXXX.go files, excluding _test.go)
 get_implemented_rules() {
-    find "$RULES_DIR" -name "dl*.go" -not -name "*_test.go" -not -name "image_ref.go" | \
-        xargs -n1 basename | \
+    find "$RULES_DIR" -name "dl*.go" -not -name "*_test.go" -not -name "image_ref.go" -exec basename {} \; | \
         sed 's/\.go$//' | \
         tr '[:lower:]' '[:upper:]' | \
         sort
