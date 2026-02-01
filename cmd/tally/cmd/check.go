@@ -649,12 +649,16 @@ func applyFixes(
 		return nil, err
 	}
 
-	// Write modified files
+	// Write modified files (preserve original permissions)
 	for _, fc := range result.Changes {
 		if !fc.HasChanges() {
 			continue
 		}
-		if err := os.WriteFile(fc.Path, fc.ModifiedContent, 0o644); err != nil { //nolint:gosec // G306: Dockerfiles should be world-readable
+		mode := os.FileMode(0o644)
+		if info, err := os.Stat(fc.Path); err == nil {
+			mode = info.Mode().Perm()
+		}
+		if err := os.WriteFile(fc.Path, fc.ModifiedContent, mode); err != nil {
 			return nil, fmt.Errorf("failed to write %s: %w", fc.Path, err)
 		}
 	}
