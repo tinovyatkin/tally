@@ -21,7 +21,9 @@ jobs:
           repository: hadolint/hadolint
           path: hadolint
           fetch-depth: 1
-          sparse-checkout: src/Hadolint/Rule
+          sparse-checkout: |
+            src/Hadolint/Rule
+            contrib/hadolint.json
 
       - name: Install ast-grep
         run: npm install --global @ast-grep/cli
