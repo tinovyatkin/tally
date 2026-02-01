@@ -1,7 +1,7 @@
 ---
 name: port-hadolint-rule
 description: Port a Hadolint rule from Haskell to Go implementation
-argument-hint: <rule-code e.g. DL3022>
+argument-hint: rule-code (e.g. DL3022)
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash(go *), Bash(git status), mcp__github__get_file_contents, mcp__github__search_code
 ---
@@ -66,12 +66,12 @@ Before implementing, read these files to understand the patterns:
 
 Decide where to implement based on rule nature:
 
-**Option A: Standard Rule (internal/rules/hadolint/$ARGUMENTS.go)**
+### Option A: Standard Rule (internal/rules/hadolint/$ARGUMENTS.go)
 
 - For rules checking specific instructions (RUN commands, COPY sources, etc.)
 - For rules that can iterate through stages and commands
 
-**Option B: Semantic Model (internal/semantic/builder.go) + Pointer File**
+### Option B: Semantic Model (internal/semantic/builder.go) + Pointer File
 
 - For rules requiring cross-instruction analysis
 - For rules checking duplicate instructions (like DL3012 for HEALTHCHECK)
@@ -246,6 +246,39 @@ If the rule has notable behavior, add integration test case:
 3. Add test case to `internal/integration/integration_test.go`
 4. Run `UPDATE_SNAPS=true go test ./internal/integration/...`
 
+## Step 9: Update Hadolint Status Tracking
+
+After implementation is complete, update the tracking files:
+
+1. **Update hadolint-status.json**:
+
+   Add an entry to `internal/rules/hadolint-status.json`:
+
+   ```json
+   "$ARGUMENTS": {
+     "status": "implemented",
+     "tally_rule": "hadolint/$ARGUMENTS"
+   }
+   ```
+
+   Place it in alphabetical order among the other rules.
+
+2. **Regenerate documentation**:
+
+   ```bash
+   ./scripts/generate-hadolint-table.sh --update
+   ```
+
+   This updates the Hadolint compatibility table in the documentation.
+
+3. **Update all integration test snapshots** (if needed):
+
+   ```bash
+   UPDATE_SNAPS=true go test ./internal/integration/...
+   ```
+
+   This updates the `rules_enabled` count in all snapshots.
+
 ## Checklist Before Completion
 
 - [ ] Original Haskell implementation analyzed
@@ -255,4 +288,8 @@ If the rule has notable behavior, add integration test case:
 - [ ] `init()` function registers the rule
 - [ ] Unit tests cover ALL original test cases
 - [ ] Tests pass: `go test ./internal/rules/hadolint/... -run $ARGUMENTS -v`
+- [ ] Integration test added (if appropriate)
+- [ ] `hadolint-status.json` updated with new rule
+- [ ] Documentation regenerated with `generate-hadolint-table.sh --update`
+- [ ] All integration snapshots updated
 - [ ] Code follows existing patterns in the codebase
