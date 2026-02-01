@@ -15,8 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone hadolint repo
-        run: git clone --depth 1 https://github.com/hadolint/hadolint /tmp/hadolint
+      - name: Checkout hadolint repo
+        uses: actions/checkout@v6
+        with:
+          repository: hadolint/hadolint
+          path: hadolint
+          fetch-depth: 1
+          sparse-checkout: src/Hadolint/Rule
 
       - name: Install ast-grep
         run: |
@@ -24,7 +29,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Extract hadolint rules
-        run: ./scripts/extract-hadolint-rules.sh /tmp/hadolint --only-dl > internal/rules/hadolint-rules.json
+        run: ./scripts/extract-hadolint-rules.sh hadolint --only-dl > internal/rules/hadolint-rules.json
 
       - name: Update RULES.md
         id: update
