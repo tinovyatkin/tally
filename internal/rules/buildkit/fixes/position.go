@@ -33,6 +33,9 @@ func isIdentChar(ch byte) bool {
 // findASKeyword locates the AS keyword in a FROM line.
 // Returns (asStart, asEnd, nameStart, nameEnd) as byte offsets in the line.
 // Returns (-1, -1, -1, -1) if AS keyword not found.
+//
+// Deprecated: Use ParseInstruction(line).FindKeyword("AS") and TokenAfter() instead.
+// The tokenizer provides better handling of quoted values and edge cases.
 func findASKeyword(line []byte) (int, int, int, int) {
 	lineStr := string(line)
 	lineUpper := strings.ToUpper(lineStr)
@@ -83,6 +86,9 @@ func findASKeyword(line []byte) (int, int, int, int) {
 // findCopyFromValue locates the --from=VALUE in a COPY command line.
 // Returns the start and end byte offsets of VALUE (not including --from=).
 // Returns (-1, -1) if --from not found.
+//
+// Deprecated: Use ParseInstruction(line).FindFlag("from") and FlagValue() instead.
+// The tokenizer provides better handling of quoted values.
 func findCopyFromValue(line []byte) (int, int) {
 	lineStr := string(line)
 	lineUpper := strings.ToUpper(lineStr)
@@ -110,6 +116,9 @@ func findCopyFromValue(line []byte) (int, int) {
 
 // findFROMBaseName locates the base image name in a FROM line (before AS if present).
 // Returns the start and end byte offsets of the base image name.
+//
+// Deprecated: Use ParseInstruction(line).Arguments()[0] instead.
+// The tokenizer provides better handling of edge cases.
 func findFROMBaseName(line []byte) (int, int) {
 	lineStr := string(line)
 	lineUpper := strings.ToUpper(lineStr)

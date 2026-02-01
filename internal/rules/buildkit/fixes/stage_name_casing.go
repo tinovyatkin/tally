@@ -24,7 +24,6 @@ var stageCasingRegex = regexp.MustCompile(`Stage name '([^']+)' should be lowerc
 //	FROM alpine AS Builder    -> FROM alpine AS builder
 //	COPY --from=Builder ...   -> COPY --from=builder ...
 //	FROM Builder              -> FROM builder
-//
 func enrichStageNameCasingFix(v *rules.Violation, sem *semantic.Model, source []byte) {
 	// Extract stage name from message
 	matches := stageCasingRegex.FindStringSubmatch(v.Message)
@@ -74,19 +73,25 @@ func createStageDefEdit(stage *instructions.Stage, stageName, lowerName, file st
 		return nil
 	}
 
-	_, _, nameStart, nameEnd := findASKeyword(line)
-	if nameStart < 0 || nameEnd <= nameStart {
+	// Use tokenizer to find the stage name after AS
+	it := ParseInstruction(line)
+	asKeyword := it.FindKeyword("AS")
+	if asKeyword == nil {
+		return nil
+	}
+
+	nameToken := it.TokenAfter(asKeyword)
+	if nameToken == nil {
 		return nil
 	}
 
 	// Verify the name matches what we expect
-	foundName := string(line[nameStart:nameEnd])
-	if !strings.EqualFold(foundName, stageName) {
+	if !strings.EqualFold(nameToken.Value, stageName) {
 		return nil
 	}
 
 	return &rules.TextEdit{
-		Location: createEditLocation(file, stage.Location[0].Start.Line, nameStart, nameEnd),
+		Location: createEditLocation(file, stage.Location[0].Start.Line, nameToken.Start, nameToken.End),
 		NewText:  lowerName,
 	}
 }
@@ -128,18 +133,21 @@ func createFromRefEdit(info *semantic.StageInfo, stageIdx int, stageName, lowerN
 		return nil
 	}
 
-	start, end := findFROMBaseName(line)
-	if start < 0 || end <= start {
+	// Use tokenizer to find the base image (first argument after FROM and any flags)
+	it := ParseInstruction(line)
+	args := it.Arguments()
+	if len(args) == 0 {
 		return nil
 	}
 
-	foundName := string(line[start:end])
-	if !strings.EqualFold(foundName, stageName) {
+	// First argument is the base image name
+	baseNameToken := &args[0]
+	if !strings.EqualFold(baseNameToken.Value, stageName) {
 		return nil
 	}
 
 	return &rules.TextEdit{
-		Location: createEditLocation(file, info.BaseImage.Location[0].Start.Line, start, end),
+		Location: createEditLocation(file, info.BaseImage.Location[0].Start.Line, baseNameToken.Start, baseNameToken.End),
 		NewText:  lowerName,
 	}
 }
@@ -159,13 +167,19 @@ func createCopyFromEdits(info *semantic.StageInfo, stageIdx int, stageName, lowe
 			continue
 		}
 
-		valueStart, valueEnd := findCopyFromValue(line)
-		if valueStart < 0 || valueEnd <= valueStart {
+		// Use tokenizer to find --from flag value
+		it := ParseInstruction(line)
+		fromFlag := it.FindFlag("from")
+		if fromFlag == nil {
 			continue
 		}
 
-		foundName := string(line[valueStart:valueEnd])
-		if !strings.EqualFold(foundName, stageName) {
+		valueStart, valueEnd, value := it.FlagValue(fromFlag)
+		if valueStart < 0 {
+			continue
+		}
+
+		if !strings.EqualFold(value, stageName) {
 			continue
 		}
 

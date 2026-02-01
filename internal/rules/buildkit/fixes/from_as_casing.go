@@ -2,7 +2,6 @@ package fixes
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/tinovyatkin/tally/internal/rules"
 )
@@ -28,18 +27,23 @@ func enrichFromAsCasingFix(v *rules.Violation, source []byte) {
 		return
 	}
 
-	lineStr := string(line)
+	// Parse the instruction using the tokenizer
+	it := ParseInstruction(line)
 
-	// Determine FROM casing by checking if it starts with uppercase F
-	fromIsUpper := strings.HasPrefix(lineStr, "FROM") || strings.HasPrefix(strings.TrimSpace(lineStr), "FROM")
+	// Find the FROM keyword to determine its casing
+	fromKeyword := it.FindKeyword("FROM")
+	if fromKeyword == nil {
+		return
+	}
+	fromIsUpper := fromKeyword.Value == "FROM"
 
-	// Find AS keyword position
-	asStart, asEnd, _, _ := findASKeyword(line)
-	if asStart < 0 {
+	// Find the AS keyword
+	asKeyword := it.FindKeyword("AS")
+	if asKeyword == nil {
 		return
 	}
 
-	currentAS := string(line[asStart:asEnd])
+	currentAS := asKeyword.Value
 	var newAS string
 	if fromIsUpper {
 		newAS = "AS"
@@ -56,7 +60,7 @@ func enrichFromAsCasingFix(v *rules.Violation, source []byte) {
 		Description: fmt.Sprintf("Change '%s' to '%s' to match FROM casing", currentAS, newAS),
 		Safety:      rules.FixSafe,
 		Edits: []rules.TextEdit{{
-			Location: createEditLocation(loc.File, loc.Start.Line, asStart, asEnd),
+			Location: createEditLocation(loc.File, loc.Start.Line, asKeyword.Start, asKeyword.End),
 			NewText:  newAS,
 		}},
 	}
