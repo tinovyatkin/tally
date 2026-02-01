@@ -60,7 +60,7 @@ func (r *DL3003Rule) Check(input rules.LintInput) []rules.Violation {
 		// Try to generate auto-fix for simple cases
 		// Use FindCdCommands for detailed analysis (may not find cd in complex structures)
 		cdCommands := shell.FindCdCommands(cmdStr, shellVariant)
-		if fix := r.generateFix(run, cdCommands, file); fix != nil {
+		if fix := r.generateFix(run, cdCommands, file, shellVariant); fix != nil {
 			v = v.WithSuggestedFix(fix)
 		}
 
@@ -72,7 +72,12 @@ func (r *DL3003Rule) Check(input rules.LintInput) []rules.Violation {
 // Handles all cd commands in a chain by converting each to WORKDIR.
 // Example: "RUN cd /tmp && git clone ... && cd repo && make"
 // becomes: "WORKDIR /tmp\nRUN git clone ...\nWORKDIR repo\nRUN make"
-func (r *DL3003Rule) generateFix(run *instructions.RunCommand, cdCommands []shell.CdCommand, file string) *rules.SuggestedFix {
+func (r *DL3003Rule) generateFix(
+	run *instructions.RunCommand,
+	cdCommands []shell.CdCommand,
+	file string,
+	shellVariant shell.Variant,
+) *rules.SuggestedFix {
 	// Only handle shell form RUN commands
 	if !run.PrependShell {
 		return nil
@@ -107,7 +112,7 @@ func (r *DL3003Rule) generateFix(run *instructions.RunCommand, cdCommands []shel
 	}
 
 	// Build the replacement text by processing all cd commands
-	newText := buildMultiCdFix(validCds)
+	newText := buildMultiCdFix(validCds, shellVariant)
 	if newText == "" {
 		return nil
 	}
@@ -131,7 +136,7 @@ func (r *DL3003Rule) generateFix(run *instructions.RunCommand, cdCommands []shel
 // buildMultiCdFix builds a replacement string for a RUN command with multiple cd commands.
 // Each cd becomes a WORKDIR, and commands between cds become RUN instructions.
 // Redundant mkdir commands (mkdir <target> before cd <target>) are removed since WORKDIR creates dirs.
-func buildMultiCdFix(cds []shell.CdCommand) string {
+func buildMultiCdFix(cds []shell.CdCommand, variant shell.Variant) string {
 	if len(cds) == 0 {
 		return ""
 	}
@@ -168,9 +173,9 @@ func buildMultiCdFix(cds []shell.CdCommand) string {
 					parts = append(parts, "RUN "+cd.RemainingCommands)
 				}
 			} else {
-				// Multiple cds - extract commands between first and second cd
+				// Multiple cds - extract commands between first and second cd using shell parser
 				nextCd := cds[1]
-				cmdsBetween := extractCommandsBefore(cd.RemainingCommands, nextCd)
+				cmdsBetween := shell.ExtractCommandsBetweenCds(cd.RemainingCommands, variant)
 				// Remove redundant mkdir for next cd's target
 				cmdsBetween = removeRedundantMkdir(cmdsBetween, nextCd.TargetDir)
 				if cmdsBetween != "" {
@@ -187,9 +192,9 @@ func buildMultiCdFix(cds []shell.CdCommand) string {
 					parts = append(parts, "RUN "+cd.RemainingCommands)
 				}
 			} else {
-				// Not last - extract commands between this cd and the next
+				// Not last - extract commands between this cd and the next using shell parser
 				nextCd := cds[i+1]
-				cmdsBetween := extractCommandsBefore(cd.RemainingCommands, nextCd)
+				cmdsBetween := shell.ExtractCommandsBetweenCds(cd.RemainingCommands, variant)
 				// Remove redundant mkdir for next cd's target
 				cmdsBetween = removeRedundantMkdir(cmdsBetween, nextCd.TargetDir)
 				if cmdsBetween != "" {
@@ -247,33 +252,6 @@ func removeRedundantMkdir(commands, target string) string {
 	}
 
 	return strings.TrimSpace(result)
-}
-
-// extractCommandsBefore extracts the commands from 'remaining' that come before 'nextCd'.
-// This is done by removing the "cd <target> && <rest>" portion from remaining.
-func extractCommandsBefore(remaining string, nextCd shell.CdCommand) string {
-	if remaining == "" || nextCd.TargetDir == "" {
-		return remaining
-	}
-
-	// Find where the next cd starts in the remaining string
-	// Pattern: "... && cd <target>" or "cd <target> && ..." at start
-	cdPattern := "cd " + nextCd.TargetDir
-
-	idx := strings.Index(remaining, cdPattern)
-	if idx == -1 {
-		return remaining
-	}
-
-	// Extract everything before "cd <target>"
-	before := strings.TrimSpace(remaining[:idx])
-
-	// Remove trailing "&&" or ";" if present
-	before = strings.TrimSuffix(before, "&&")
-	before = strings.TrimSuffix(before, ";")
-	before = strings.TrimSpace(before)
-
-	return before
 }
 
 // init registers the rule with the default registry.

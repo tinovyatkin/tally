@@ -235,3 +235,30 @@ func HasCdAtStart(script string, variant Variant) bool {
 	}
 	return false
 }
+
+// ExtractCommandsBetweenCds parses the remaining commands after a cd and extracts
+// commands that come before the next cd. This properly handles quoted paths.
+// For "make && cd /tmp && build", if we're looking for commands before "cd /tmp",
+// this returns "make".
+func ExtractCommandsBetweenCds(remaining string, variant Variant) string {
+	if remaining == "" {
+		return ""
+	}
+
+	// Parse remaining to find cd commands
+	cds := FindCdCommands(remaining, variant)
+	if len(cds) == 0 {
+		// No cd found - return everything
+		return remaining
+	}
+
+	// Get the first cd in remaining
+	cd := cds[0]
+
+	// If cd is at the start, there's nothing before it
+	if cd.IsAtStart || cd.PrecedingCommands == "" {
+		return ""
+	}
+
+	return cd.PrecedingCommands
+}
