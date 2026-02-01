@@ -74,12 +74,10 @@ func TestFindCdCommands(t *testing.T) {
 			script:    "cd /app && make && make install",
 			wantCount: 1,
 			wantFirst: &CdCommand{
-				TargetDir:    "/app",
-				IsStandalone: false,
-				IsAtStart:    true,
-				// Note: RemainingCommands extracts the immediate right-hand statement,
-				// which may be just the first command in a longer chain.
-				// This is sufficient for our fix detection purposes.
+				TargetDir:         "/app",
+				IsStandalone:      false,
+				IsAtStart:         true,
+				RemainingCommands: "make", // Only immediate next command, not full chain
 			},
 		},
 		{
@@ -114,9 +112,7 @@ func TestFindCdCommands(t *testing.T) {
 				assert.Equal(t, tt.wantFirst.TargetDir, got.TargetDir, "TargetDir")
 				assert.Equal(t, tt.wantFirst.IsStandalone, got.IsStandalone, "IsStandalone")
 				assert.Equal(t, tt.wantFirst.IsAtStart, got.IsAtStart, "IsAtStart")
-				if tt.wantFirst.RemainingCommands != "" {
-					assert.Equal(t, tt.wantFirst.RemainingCommands, got.RemainingCommands, "RemainingCommands")
-				}
+				assert.Equal(t, tt.wantFirst.RemainingCommands, got.RemainingCommands, "RemainingCommands")
 			}
 		})
 	}
