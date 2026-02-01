@@ -1,6 +1,6 @@
 module github.com/tinovyatkin/tally/_tools
 
-go 1.24.0
+go 1.25.6
 
 require (
 	github.com/golangci/plugin-module-register v0.1.2
