@@ -40,7 +40,9 @@ jobs:
         run: pip install rumdl
 
       - name: Extract hadolint rules
-        run: ./scripts/extract-hadolint-rules.sh hadolint --only-dl > internal/rules/hadolint-rules.json
+        run: |
+          ./scripts/extract-hadolint-rules.sh hadolint --only-dl > internal/rules/hadolint-rules.json
+          rm -rf hadolint
 
       - name: Update RULES.md
         id: update
