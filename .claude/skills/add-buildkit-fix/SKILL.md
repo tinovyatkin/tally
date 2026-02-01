@@ -27,7 +27,8 @@ BuildKit Warning → NewViolationFromBuildKitWarning() → enrichBuildKitFix() �
 
 1. Read BuildKit's rule definition to understand what it detects:
    - Use `WebFetch` to fetch the rule documentation from Docker docs
-   - URL pattern: `https://docs.docker.com/go/dockerfile/rule/$ARGUMENTS/`
+   - URL pattern: `https://docs.docker.com/reference/build-checks/$(ARGUMENTS-in-param-case).md`
+     i.e.: `https://docs.docker.com/reference/build-checks/no-empty-continuation.md`
 
 2. Read the existing BuildKit registry to understand the rule:
    - Read `internal/rules/buildkit/registry.go` to see rule metadata
@@ -359,16 +360,16 @@ cat /tmp/test.dockerfile
 
 ## Common BuildKit Rules and Fix Strategies
 
-| Rule | Fix Strategy | Complexity |
-|------|--------------|------------|
-| StageNameCasing | Rename stage + all references | Complex (multi-edit) |
-| FromAsCasing | Match AS casing to FROM | Simple (single-edit) |
-| ConsistentInstructionCasing | Normalize all instruction keywords | Complex (multi-edit) |
-| LegacyKeyValueFormat | Convert `KEY value` to `KEY=value` | Simple (single-edit) |
-| ExposeProtoCasing | Normalize protocol to lowercase | Simple (single-edit) |
-| MaintainerDeprecated | Convert to LABEL maintainer | Simple (single-edit) |
-| JSONArgsRecommended | Convert shell form to exec form | Complex (requires shell parsing) |
-| WorkdirRelativePath | Prepend "/" to relative path | Simple (single-edit) |
+| Rule                        | Fix Strategy                       | Complexity                       |
+| --------------------------- | ---------------------------------- | -------------------------------- |
+| StageNameCasing             | Rename stage + all references      | Complex (multi-edit)             |
+| FromAsCasing                | Match AS casing to FROM            | Simple (single-edit)             |
+| ConsistentInstructionCasing | Normalize all instruction keywords | Complex (multi-edit)             |
+| LegacyKeyValueFormat        | Convert `KEY value` to `KEY=value` | Simple (single-edit)             |
+| ExposeProtoCasing           | Normalize protocol to lowercase    | Simple (single-edit)             |
+| MaintainerDeprecated        | Convert to LABEL maintainer        | Simple (single-edit)             |
+| JSONArgsRecommended         | Convert shell form to exec form    | Complex (requires shell parsing) |
+| WorkdirRelativePath         | Prepend "/" to relative path       | Simple (single-edit)             |
 
 ## Position Helper Patterns
 
