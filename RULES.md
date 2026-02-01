@@ -115,74 +115,76 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 
 ### DL Rules (Dockerfile Lint)
 
+<!-- BEGIN HADOLINT_DL_RULES -->
 | Rule | Description | Severity | Status |
 |------|-------------|----------|--------|
-| DL1001 | Avoid inline ignore pragmas | Ignore | ⏳ |
-| DL3000 | Use absolute WORKDIR paths | Error | 🔄 `buildkit/WorkdirRelativePath` |
-| DL3001 | Avoid running certain commands in containers (ssh, vim, etc.) | Info | ⏳ |
-| DL3002 | Last user should not be root | Warning | ✅ `hadolint/DL3002` |
-| DL3003 | Use WORKDIR to switch directories | Warning | ⏳ |
-| DL3004 | Do not use sudo; use gosu instead | Error | ✅ `hadolint/DL3004` |
-| DL3006 | Always tag image versions explicitly | Warning | ✅ `hadolint/DL3006` |
-| DL3007 | Avoid using "latest" tag | Warning | ✅ `hadolint/DL3007` |
-| DL3008 | Pin versions in apt-get install | Warning | ⏳ |
-| DL3009 | Delete apt-get lists after installing | Info | ⏳ |
-| DL3010 | Use ADD for extracting archives | Info | ⏳ |
-| DL3011 | Valid UNIX ports range 0-65535 | Error | ⏳ |
-| DL3012 | Multiple HEALTHCHECK not allowed | Error | ✅ `hadolint/DL3012` |
-| DL3013 | Pin versions in pip | Warning | ⏳ |
-| DL3014 | Use -y switch with apt-get | Warning | ⏳ |
-| DL3015 | Use --no-install-recommends with apt-get | Info | ⏳ |
-| DL3016 | Pin versions in npm | Warning | ⏳ |
-| DL3018 | Pin versions in apk add | Warning | ⏳ |
-| DL3019 | Use --no-cache with apk | Info | ⏳ |
-| DL3020 | Use COPY instead of ADD for files/folders | Error | ✅ `hadolint/DL3020` |
-| DL3021 | COPY with multiple args requires trailing / | Error | ⏳ |
-| DL3022 | COPY --from should reference defined FROM alias | Warning | ⏳ |
-| DL3023 | COPY --from cannot reference own FROM alias | Error | ✅ `hadolint/DL3023` |
-| DL3024 | FROM stage names must be unique | Error | ✅ `hadolint/DL3024` |
-| DL3025 | Use JSON notation for CMD/ENTRYPOINT | Warning | 🔄 `buildkit/JSONArgsRecommended` |
-| DL3026 | Use only allowed registries | Off (enable via config) | ✅ `hadolint/DL3026` |
-| DL3027 | Avoid apt; use apt-get or apt-cache | Warning | ⏳ |
-| DL3028 | Pin versions in gem install | Warning | ⏳ |
-| DL3029 | Do not use --platform flag with FROM | Warning | 🔄 `buildkit/FromPlatformFlagConstDisallowed` |
-| DL3030 | Use -y switch with yum | Warning | ⏳ |
-| DL3032 | Missing yum clean all | Warning | ⏳ |
-| DL3033 | Specify version with yum install | Warning | ⏳ |
-| DL3034 | Use -y switch with zypper | Warning | ⏳ |
-| DL3035 | Do not use zypper dist-upgrade | Warning | ⏳ |
-| DL3036 | Missing zypper clean | Warning | ⏳ |
-| DL3037 | Specify version with zypper install | Warning | ⏳ |
-| DL3038 | Use -y switch with dnf | Warning | ⏳ |
-| DL3040 | Missing dnf clean all | Warning | ⏳ |
-| DL3041 | Specify version with dnf install | Warning | ⏳ |
-| DL3042 | Use pip install --no-cache-dir | Warning | ⏳ |
-| DL3043 | ONBUILD/FROM/MAINTAINER in ONBUILD not allowed | Error | ✅ `hadolint/DL3043` |
-| DL3044 | Do not refer to env vars in same ENV statement | Error | 🔄 `buildkit/UndefinedVar` |
-| DL3045 | COPY to relative dest without WORKDIR | Warning | 🔄 `buildkit/WorkdirRelativePath` |
-| DL3046 | useradd without -l and high UID creates large images | Warning | ⏳ |
-| DL3047 | wget without --progress bloats logs | Info | ⏳ |
-| DL3048 | Invalid label key | Style | ⏳ |
-| DL3049 | Label is missing | Info | ⏳ |
-| DL3050 | Superfluous labels present | Info | ⏳ |
-| DL3051 | Label is empty | Warning | ⏳ |
-| DL3052 | Label is not a valid URL | Warning | ⏳ |
-| DL3053 | Label does not conform to RFC3339 | Warning | ⏳ |
-| DL3054 | Label is not valid SPDX license | Warning | ⏳ |
-| DL3055 | Label is not valid git hash | Warning | ⏳ |
-| DL3056 | Label does not conform to semver | Warning | ⏳ |
-| DL3057 | HEALTHCHECK instruction missing | Ignore | ⏳ |
-| DL3058 | Label is not valid email (RFC5322) | Warning | ⏳ |
-| DL3059 | Multiple consecutive RUN; consider consolidation | Info | ⏳ |
-| DL3060 | Missing yarn cache clean | Info | ⏳ |
-| DL3061 | Invalid instruction order | Error | ✅ `hadolint/DL3061` |
-| DL3062 | Pin versions in go install | Warning | ⏳ |
-| DL4000 | MAINTAINER is deprecated | Error | 🔄 `buildkit/MaintainerDeprecated` |
-| DL4001 | Use either wget or curl, not both | Warning | ✅ `hadolint/DL4001` |
-| DL4003 | Multiple CMD instructions | Warning | 🔄 `buildkit/MultipleInstructionsDisallowed` |
-| DL4004 | Multiple ENTRYPOINT instructions | Error | 🔄 `buildkit/MultipleInstructionsDisallowed` |
-| DL4005 | Use SHELL to change default shell | Warning | ⏳ |
-| DL4006 | Set SHELL -o pipefail before RUN with pipe | Warning | ⏳ |
+| [DL1001](https://github.com/hadolint/hadolint/wiki/DL1001) | Please refrain from using inline ignore pragmas `# hadolint ignore=DLxxxx`. | Ignore | ⏳ |
+| [DL3000](https://github.com/hadolint/hadolint/wiki/DL3000) | Use absolute WORKDIR. | Error | 🔄 `buildkit/WorkdirRelativePath` |
+| [DL3001](https://github.com/hadolint/hadolint/wiki/DL3001) | For some bash commands it makes no sense running them in a Docker container like ssh, vim, shutdown, service, ps, free, top, kill, mount, ifconfig. | Info | ⏳ |
+| [DL3002](https://github.com/hadolint/hadolint/wiki/DL3002) | Last user should not be root. | Warning | ✅ `hadolint/DL3002` |
+| [DL3003](https://github.com/hadolint/hadolint/wiki/DL3003) | Use WORKDIR to switch to a directory. | Warning | ⏳ |
+| [DL3004](https://github.com/hadolint/hadolint/wiki/DL3004) | Do not use sudo as it leads to unpredictable behavior. Use a tool like gosu to enforce root. | Error | ✅ `hadolint/DL3004` |
+| [DL3006](https://github.com/hadolint/hadolint/wiki/DL3006) | Always tag the version of an image explicitly. | Warning | ✅ `hadolint/DL3006` |
+| [DL3007](https://github.com/hadolint/hadolint/wiki/DL3007) | Using latest is prone to errors if the image will ever update. Pin the version explicitly to a release tag. | Warning | ✅ `hadolint/DL3007` |
+| [DL3008](https://github.com/hadolint/hadolint/wiki/DL3008) | Pin versions in apt-get install. | Warning | ⏳ |
+| [DL3009](https://github.com/hadolint/hadolint/wiki/DL3009) | Delete the apt-get lists after installing something. | Info | ⏳ |
+| [DL3010](https://github.com/hadolint/hadolint/wiki/DL3010) | Use ADD for extracting archives into an image. | Info | ⏳ |
+| [DL3011](https://github.com/hadolint/hadolint/wiki/DL3011) | Valid UNIX ports range from 0 to 65535. | Error | ⏳ |
+| [DL3012](https://github.com/hadolint/hadolint/wiki/DL3012) | Multiple `HEALTHCHECK` instructions. | Error | ✅ `hadolint/DL3012` |
+| [DL3013](https://github.com/hadolint/hadolint/wiki/DL3013) | Pin versions in pip. | Warning | ⏳ |
+| [DL3014](https://github.com/hadolint/hadolint/wiki/DL3014) | Use the `-y` switch. | Warning | ⏳ |
+| [DL3015](https://github.com/hadolint/hadolint/wiki/DL3015) | Avoid additional packages by specifying --no-install-recommends. | Info | ⏳ |
+| [DL3016](https://github.com/hadolint/hadolint/wiki/DL3016) | Pin versions in `npm`. | Warning | ⏳ |
+| [DL3018](https://github.com/hadolint/hadolint/wiki/DL3018) | Pin versions in apk add. Instead of `apk add <package>` use `apk add <package>=<version>`. | Warning | ⏳ |
+| [DL3019](https://github.com/hadolint/hadolint/wiki/DL3019) | Use the `--no-cache` switch to avoid the need to use `--update` and remove `/var/cache/apk/*` when done installing packages. | Info | ⏳ |
+| [DL3020](https://github.com/hadolint/hadolint/wiki/DL3020) | Use `COPY` instead of `ADD` for files and folders. | Error | ✅ `hadolint/DL3020` |
+| [DL3021](https://github.com/hadolint/hadolint/wiki/DL3021) | `COPY` with more than 2 arguments requires the last argument to end with `/` | Error | ⏳ |
+| [DL3022](https://github.com/hadolint/hadolint/wiki/DL3022) | `COPY --from` should reference a previously defined `FROM` alias | Warning | ⏳ |
+| [DL3023](https://github.com/hadolint/hadolint/wiki/DL3023) | `COPY --from` cannot reference its own `FROM` alias | Error | ✅ `hadolint/DL3023` |
+| [DL3024](https://github.com/hadolint/hadolint/wiki/DL3024) | `FROM` aliases (stage names) must be unique | Error | ✅ `hadolint/DL3024` |
+| [DL3025](https://github.com/hadolint/hadolint/wiki/DL3025) | Use arguments JSON notation for CMD and ENTRYPOINT arguments | Warning | 🔄 `buildkit/JSONArgsRecommended` |
+| [DL3026](https://github.com/hadolint/hadolint/wiki/DL3026) | Use only an allowed registry in the FROM image | Error | ✅ `hadolint/DL3026` |
+| [DL3027](https://github.com/hadolint/hadolint/wiki/DL3027) | Do not use `apt` as it is meant to be an end-user tool, use `apt-get` or `apt-cache` instead | Warning | ⏳ |
+| [DL3028](https://github.com/hadolint/hadolint/wiki/DL3028) | Pin versions in gem install. Instead of `gem install <gem>` use `gem install <gem>:<version>` | Warning | ⏳ |
+| [DL3029](https://github.com/hadolint/hadolint/wiki/DL3029) | Do not use --platform flag with FROM. | Warning | 🔄 `buildkit/FromPlatformFlagConstDisallowed` |
+| [DL3030](https://github.com/hadolint/hadolint/wiki/DL3030) | Use the `-y` switch to avoid manual input `yum install -y <package>` | Warning | ⏳ |
+| [DL3032](https://github.com/hadolint/hadolint/wiki/DL3032) | `yum clean all` missing after yum command. | Warning | ⏳ |
+| [DL3033](https://github.com/hadolint/hadolint/wiki/DL3033) | Specify version with `yum install -y <package>-<version>` | Warning | ⏳ |
+| [DL3034](https://github.com/hadolint/hadolint/wiki/DL3034) | Non-interactive switch missing from `zypper` command: `zypper install -y` | Warning | ⏳ |
+| [DL3035](https://github.com/hadolint/hadolint/wiki/DL3035) | Do not use `zypper dist-upgrade`. | Warning | ⏳ |
+| [DL3036](https://github.com/hadolint/hadolint/wiki/DL3036) | `zypper clean` missing after zypper use. | Warning | ⏳ |
+| [DL3037](https://github.com/hadolint/hadolint/wiki/DL3037) | Specify version with `zypper install -y <package>[=]<version>`. | Warning | ⏳ |
+| [DL3038](https://github.com/hadolint/hadolint/wiki/DL3038) | Use the `-y` switch to avoid manual input `dnf install -y <package>` | Warning | ⏳ |
+| [DL3040](https://github.com/hadolint/hadolint/wiki/DL3040) | `dnf clean all` missing after dnf command. | Warning | ⏳ |
+| [DL3041](https://github.com/hadolint/hadolint/wiki/DL3041) | Specify version with `dnf install -y <package>-<version>` | Warning | ⏳ |
+| [DL3042](https://github.com/hadolint/hadolint/wiki/DL3042) | Avoid cache directory with `pip install --no-cache-dir <package>`. | Warning | ⏳ |
+| [DL3043](https://github.com/hadolint/hadolint/wiki/DL3043) | `ONBUILD`, `FROM` or `MAINTAINER` triggered from within `ONBUILD` instruction. | Error | ✅ `hadolint/DL3043` |
+| [DL3044](https://github.com/hadolint/hadolint/wiki/DL3044) | Do not refer to an environment variable within the same `ENV` statement where it is defined. | Error | 🔄 `buildkit/UndefinedVar` |
+| [DL3045](https://github.com/hadolint/hadolint/wiki/DL3045) | `COPY` to a relative destination without `WORKDIR` set. | Warning | 🔄 `buildkit/WorkdirRelativePath` |
+| [DL3046](https://github.com/hadolint/hadolint/wiki/DL3046) |  `useradd` without flag `-l` and high UID will result in excessively large Image. | Warning | ⏳ |
+| [DL3047](https://github.com/hadolint/hadolint/wiki/DL3047) | `wget` without flag `--progress` will result in excessively bloated build logs when downloading larger files. | Info | ⏳ |
+| [DL3048](https://github.com/hadolint/hadolint/wiki/DL3048) | Invalid Label Key | Style | ⏳ |
+| [DL3049](https://github.com/hadolint/hadolint/wiki/DL3049) | Label `<label>` is missing. | Info | ⏳ |
+| [DL3050](https://github.com/hadolint/hadolint/wiki/DL3050) | Superfluous label(s) present. | Info | ⏳ |
+| [DL3051](https://github.com/hadolint/hadolint/wiki/DL3051) | Label `<label>` is empty. | Warning | ⏳ |
+| [DL3052](https://github.com/hadolint/hadolint/wiki/DL3052) | Label `<label>` is not a valid URL. | Warning | ⏳ |
+| [DL3053](https://github.com/hadolint/hadolint/wiki/DL3053) | Label `<label>` is not a valid time format - must conform to RFC3339. | Warning | ⏳ |
+| [DL3054](https://github.com/hadolint/hadolint/wiki/DL3054) | Label `<label>` is not a valid SPDX license identifier. | Warning | ⏳ |
+| [DL3055](https://github.com/hadolint/hadolint/wiki/DL3055) | Label `<label>` is not a valid git hash. | Warning | ⏳ |
+| [DL3056](https://github.com/hadolint/hadolint/wiki/DL3056) | Label `<label>` does not conform to semantic versioning. | Warning | ⏳ |
+| [DL3057](https://github.com/hadolint/hadolint/wiki/DL3057) | `HEALTHCHECK` instruction missing. | Ignore | ⏳ |
+| [DL3058](https://github.com/hadolint/hadolint/wiki/DL3058) | Label `<label>` is not a valid email format - must conform to RFC5322. | Warning | ⏳ |
+| [DL3059](https://github.com/hadolint/hadolint/wiki/DL3059) | Multiple consecutive `RUN` instructions. Consider consolidation. | Info | ⏳ |
+| [DL3060](https://github.com/hadolint/hadolint/wiki/DL3060) | `yarn cache clean` missing after `yarn install` was run. | Info | ⏳ |
+| [DL3061](https://github.com/hadolint/hadolint/wiki/DL3061) | Invalid instruction order. Dockerfile must begin with `FROM`, `ARG` or comment. | Error | ✅ `hadolint/DL3061` |
+| [DL3062](https://github.com/hadolint/hadolint/wiki/DL3062) | Pin versions in go install. Instead of `go install <package>` use `go install <package>@<version>` | Warning | ⏳ |
+| [DL4000](https://github.com/hadolint/hadolint/wiki/DL4000) | MAINTAINER is deprecated. | Error | 🔄 `buildkit/MaintainerDeprecated` |
+| [DL4001](https://github.com/hadolint/hadolint/wiki/DL4001) | Either use Wget or Curl but not both. | Warning | ✅ `hadolint/DL4001` |
+| [DL4003](https://github.com/hadolint/hadolint/wiki/DL4003) | Multiple `CMD` instructions found. | Warning | 🔄 `buildkit/MultipleInstructionsDisallowed` |
+| [DL4004](https://github.com/hadolint/hadolint/wiki/DL4004) | Multiple `ENTRYPOINT` instructions found. | Error | 🔄 `buildkit/MultipleInstructionsDisallowed` |
+| [DL4005](https://github.com/hadolint/hadolint/wiki/DL4005) | Use `SHELL` to change the default shell. | Warning | ⏳ |
+| [DL4006](https://github.com/hadolint/hadolint/wiki/DL4006) | Set the `SHELL` option -o pipefail before `RUN` with a pipe in it | Warning | ⏳ |
+<!-- END HADOLINT_DL_RULES -->
 
 ### SC Rules (ShellCheck)
 
