@@ -46,6 +46,10 @@
       "status": "implemented",
       "tally_rule": "hadolint/DL3026"
     },
+    "DL3027": {
+      "status": "implemented",
+      "tally_rule": "hadolint/DL3027"
+    },
     "DL3029": {
       "status": "covered_by_buildkit",
       "buildkit_rule": "FromPlatformFlagConstDisallowed"
