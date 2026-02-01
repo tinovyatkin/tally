@@ -306,12 +306,10 @@ func TestDL3027_FixLocationConsistency(t *testing.T) {
 	}
 }
 
-// TestDL3027_WhitespaceDrift verifies that auto-fix is skipped when the
-// calculated edit position doesn't match "apt" in the source (due to
-// extra whitespace/tabs in the original RUN line vs normalized cmdStr).
+// TestDL3027_WhitespaceDrift verifies that auto-fix works correctly even with
+// extra whitespace in the RUN command, since we parse the original source.
 func TestDL3027_WhitespaceDrift(t *testing.T) {
-	// RUN with extra spaces - cmdStr will be normalized but source has extra spaces
-	// This tests the validation guard that checks the edit range actually points to "apt"
+	// RUN with extra spaces - parsing original source handles this correctly
 	dockerfile := "FROM ubuntu\nRUN    apt   install curl"
 
 	input := testutil.MakeLintInput(t, "Dockerfile", dockerfile)
@@ -323,16 +321,20 @@ func TestDL3027_WhitespaceDrift(t *testing.T) {
 	}
 
 	v := violations[0]
-	// Drifted spacing should skip fixes because the calculated position
-	// won't match "apt" in the source due to extra whitespace
-	if v.SuggestedFix != nil && len(v.SuggestedFix.Edits) > 0 {
-		t.Fatalf("expected no edits due to whitespace drift, got %d", len(v.SuggestedFix.Edits))
+	// With original source parsing, we should get correct edits
+	if v.SuggestedFix == nil || len(v.SuggestedFix.Edits) == 0 {
+		t.Fatal("expected edits for whitespace case")
+	}
+
+	// Verify the edit points to the correct position (column 7, after "RUN    ")
+	edit := v.SuggestedFix.Edits[0]
+	if edit.Location.Start.Column != 7 {
+		t.Errorf("edit startCol = %d, want 7", edit.Location.Start.Column)
 	}
 }
 
 // TestDL3027_MultiLineRUN verifies that multi-line RUN commands are detected
-// but auto-fix is skipped because line position information is lost when
-// BuildKit collapses backslash continuations.
+// AND auto-fixed correctly by parsing the original source with preserved positions.
 func TestDL3027_MultiLineRUN(t *testing.T) {
 	// Multi-line RUN with backslash continuation - apt on different physical lines
 	dockerfile := `FROM ubuntu
@@ -343,7 +345,7 @@ RUN apt-get update && \
 	r := NewDL3027Rule()
 	violations := r.Check(input)
 
-	// Should still detect the violation
+	// Should detect the violation
 	if len(violations) == 0 {
 		t.Fatal("expected violation for multi-line RUN with apt")
 	}
@@ -355,10 +357,19 @@ RUN apt-get update && \
 		t.Errorf("expected rule code hadolint/DL3027, got %s", v.RuleCode)
 	}
 
-	// Auto-fix should NOT be generated for multi-line RUN
-	// because the line position calculation would be incorrect
-	if v.SuggestedFix != nil && len(v.SuggestedFix.Edits) > 0 {
-		t.Errorf("expected no edits for multi-line RUN, got %d edits (positions would be incorrect)",
-			len(v.SuggestedFix.Edits))
+	// Auto-fix SHOULD be generated for multi-line RUN now
+	// since we parse original source with correct positions
+	if v.SuggestedFix == nil || len(v.SuggestedFix.Edits) == 0 {
+		t.Fatal("expected edits for multi-line RUN")
+	}
+
+	// The edit should be on line 3 (the continuation line with "apt install")
+	edit := v.SuggestedFix.Edits[0]
+	if edit.Location.Start.Line != 3 {
+		t.Errorf("edit line = %d, want 3", edit.Location.Start.Line)
+	}
+	// apt is at column 4 (after "    ")
+	if edit.Location.Start.Column != 4 {
+		t.Errorf("edit startCol = %d, want 4", edit.Location.Start.Column)
 	}
 }

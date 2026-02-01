@@ -1,11 +1,50 @@
 package hadolint
 
 import (
+	"strings"
+
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/shell"
+	"github.com/tinovyatkin/tally/internal/sourcemap"
 )
+
+// getRunSourceScript extracts the original source for a RUN instruction
+// and replaces "RUN " with spaces to preserve column positions for shell parsing.
+// Returns the script and the 1-based start line number.
+func getRunSourceScript(run *instructions.RunCommand, sm *sourcemap.SourceMap) (string, int) {
+	runLoc := run.Location()
+	if len(runLoc) == 0 {
+		return "", 0
+	}
+
+	// BuildKit uses 1-based lines
+	startLine := runLoc[0].Start.Line
+	endLine := runLoc[len(runLoc)-1].End.Line
+
+	// Extract original source lines (SourceMap uses 0-based)
+	var lines []string
+	for lineIdx := startLine - 1; lineIdx < endLine; lineIdx++ {
+		if lineIdx >= 0 && lineIdx < sm.LineCount() {
+			lines = append(lines, sm.Line(lineIdx))
+		}
+	}
+
+	if len(lines) == 0 {
+		return "", 0
+	}
+
+	// Replace "RUN " prefix with spaces to preserve column positions
+	// The shell parser will skip the whitespace but positions remain aligned
+	firstLine := lines[0]
+	if idx := strings.Index(strings.ToUpper(firstLine), "RUN "); idx >= 0 {
+		// Replace "RUN " (4 chars) with 4 spaces
+		lines[0] = firstLine[:idx] + "    " + firstLine[idx+4:]
+	}
+
+	return strings.Join(lines, "\n"), startLine
+}
 
 // DL3027Rule implements the DL3027 linting rule.
 type DL3027Rule struct{}
@@ -54,20 +93,36 @@ var aptCommandMapping = map[string]struct {
 // Skips analysis for stages using non-POSIX shells (e.g., PowerShell).
 func (r *DL3027Rule) Check(input rules.LintInput) []rules.Violation {
 	meta := r.Metadata()
+	sm := input.SourceMap()
 
 	return ScanRunCommandsWithPOSIXShell(input, func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
-		cmdStr := GetRunCommandString(run)
-		occurrences := shell.FindAllCommandOccurrences(cmdStr, "apt", shellVariant)
+		runLoc := run.Location()
+		loc := rules.NewLocationFromRanges(file, runLoc)
+
+		var occurrences []shell.CommandOccurrence
+		var runStartLine int
+
+		if run.PrependShell {
+			// Shell form: parse original source with "RUN " replaced by spaces
+			// This preserves column positions for accurate edits on multi-line commands
+			script, startLine := getRunSourceScript(run, sm)
+			if script == "" {
+				return nil
+			}
+			runStartLine = startLine
+			occurrences = shell.FindAllCommandOccurrences(script, "apt", shellVariant)
+		} else {
+			// Exec form: use collapsed command string (JSON array becomes shell-parseable)
+			cmdStr := GetRunCommandString(run)
+			occurrences = shell.FindAllCommandOccurrences(cmdStr, "apt", shellVariant)
+			// No edits for exec form - positions don't map to source
+		}
 
 		if len(occurrences) == 0 {
 			return nil
 		}
 
-		runLoc := run.Location()
-		loc := rules.NewLocationFromRanges(file, runLoc)
-
 		// Consolidate all apt occurrences into a single violation with multiple edits
-		// This avoids deduplication removing multiple apt fixes on the same line
 		var edits []rules.TextEdit
 		overallSafety := rules.FixSafe // Start with safest, downgrade if needed
 
@@ -85,35 +140,15 @@ func (r *DL3027Rule) Check(input rules.LintInput) []rules.Violation {
 				overallSafety = safety
 			}
 
-			// Only add edits for shell form RUN commands on a single line
-			// Multi-line RUN commands (with backslash continuations) have their content
-			// collapsed by BuildKit, losing line information. We skip generating edits
-			// for these to avoid applying fixes to incorrect positions.
+			// Only add edits for shell form RUN commands
 			if run.PrependShell {
-				// Check if RUN spans multiple lines
-				lastRange := runLoc[len(runLoc)-1]
-				isMultiLine := lastRange.End.Line > runLoc[0].Start.Line
+				// Shell parser positions are relative to script which has "RUN " replaced with spaces
+				// occ.Line is 0-based line within script, runStartLine is 1-based
+				editLine := runStartLine + occ.Line
+				editStartCol := occ.StartCol
+				editEndCol := occ.EndCol
 
-				if isMultiLine {
-					// Skip edit generation for multi-line RUN commands
-					// The position calculation would be incorrect since line info is lost
-					continue
-				}
-
-				// Calculate edit position for shell form
-				// BuildKit uses 1-based lines and 0-based columns
-				// The command content starts after "RUN " (4 characters)
-				const runPrefixLen = 4 // len("RUN ")
-				baseCol := runLoc[0].Start.Character + runPrefixLen
-				// occ.Line is 0-based offset from RUN start, runLoc[0].Start.Line is 1-based
-				editLine := runLoc[0].Start.Line + occ.Line
-				editStartCol := baseCol + occ.StartCol
-				editEndCol := baseCol + occ.EndCol
-
-				// Validate the calculated range actually points to "apt" in source.
-				// cmdStr is normalized via strings.Join, but the original RUN line may
-				// have extra whitespace/tabs causing column drift. Skip if mismatch.
-				sm := input.SourceMap()
+				// Validate the calculated range actually points to "apt" in source
 				lineIdx := editLine - 1 // Convert 1-based to 0-based for SourceMap
 				if lineIdx < 0 || lineIdx >= sm.LineCount() {
 					continue
