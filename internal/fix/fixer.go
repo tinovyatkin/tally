@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/tinovyatkin/tally/internal/config"
 	"github.com/tinovyatkin/tally/internal/rules"
 )
 
@@ -20,6 +21,10 @@ type Fixer struct {
 	// RuleFilter limits fixes to specific rule codes.
 	// If empty, all rules are eligible.
 	RuleFilter []string
+
+	// FixModes maps rule codes to their configured fix modes.
+	// If nil or a rule is not present, FixModeAlways is assumed.
+	FixModes map[string]FixMode
 
 	// Concurrency sets the number of parallel async resolutions.
 	// Defaults to 4 if not set.
@@ -113,6 +118,19 @@ func (f *Fixer) Apply(ctx context.Context, violations []rules.Violation, sources
 			continue
 		}
 
+		// Check fix mode config
+		if !f.fixModeAllowed(v.RuleCode) {
+			fc := result.Changes[v.File()]
+			if fc != nil {
+				fc.FixesSkipped = append(fc.FixesSkipped, SkippedFix{
+					RuleCode: v.RuleCode,
+					Reason:   SkipFixMode,
+					Location: v.Location,
+				})
+			}
+			continue
+		}
+
 		if v.SuggestedFix.NeedsResolve {
 			asyncFixes = append(asyncFixes, v.SuggestedFix)
 		}
@@ -178,6 +196,35 @@ func (f *Fixer) ruleAllowed(ruleCode string) bool {
 		return true
 	}
 	return slices.Contains(f.RuleFilter, ruleCode)
+}
+
+// fixModeAllowed checks if a fix is allowed based on the rule's fix mode config.
+// Returns true if the fix should be applied.
+func (f *Fixer) fixModeAllowed(ruleCode string) bool {
+	mode := config.FixModeAlways // default
+	if f.FixModes != nil {
+		if m, ok := f.FixModes[ruleCode]; ok {
+			mode = m
+		}
+	}
+
+	switch mode {
+	case config.FixModeNever:
+		// Never apply fixes for this rule
+		return false
+	case config.FixModeExplicit:
+		// Only apply if rule is in --fix-rule list
+		return len(f.RuleFilter) > 0 && slices.Contains(f.RuleFilter, ruleCode)
+	case config.FixModeUnsafeOnly:
+		// Only apply if --fix-unsafe was used (SafetyThreshold >= FixUnsafe)
+		return f.SafetyThreshold >= rules.FixUnsafe
+	case config.FixModeAlways:
+		// Always apply (safety already checked)
+		return true
+	default:
+		// Unknown mode, treat as always
+		return true
+	}
 }
 
 // resolveAsyncFixes runs resolvers for fixes that need external data.

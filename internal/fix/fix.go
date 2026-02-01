@@ -2,7 +2,10 @@
 // It includes types for fix safety levels, fix resolution, and fix application.
 package fix
 
-import "github.com/tinovyatkin/tally/internal/rules"
+import (
+	"github.com/tinovyatkin/tally/internal/config"
+	"github.com/tinovyatkin/tally/internal/rules"
+)
 
 // Re-export FixSafety from rules package for convenience.
 // This allows fix package users to use fix.FixSafe instead of rules.FixSafe.
@@ -17,6 +20,23 @@ const (
 
 	// FixUnsafe means the fix might change behavior significantly.
 	FixUnsafe = rules.FixUnsafe
+)
+
+// Re-export FixMode from config for convenience.
+type FixMode = config.FixMode
+
+const (
+	// FixModeNever disables fixes even with --fix.
+	FixModeNever = config.FixModeNever
+
+	// FixModeExplicit requires --fix-rule to apply.
+	FixModeExplicit = config.FixModeExplicit
+
+	// FixModeAlways applies with --fix when safety threshold is met (default).
+	FixModeAlways = config.FixModeAlways
+
+	// FixModeUnsafeOnly requires --fix-unsafe to apply.
+	FixModeUnsafeOnly = config.FixModeUnsafeOnly
 )
 
 // AppliedFix records a successfully applied fix.
@@ -49,6 +69,9 @@ const (
 
 	// SkipNoEdits means the fix has no edits (invalid fix).
 	SkipNoEdits
+
+	// SkipFixMode means the rule's fix mode config disallows fixing.
+	SkipFixMode
 )
 
 // String returns a human-readable description of the skip reason.
@@ -64,6 +87,8 @@ func (r SkipReason) String() string {
 		return "resolver failed"
 	case SkipNoEdits:
 		return "no edits in fix"
+	case SkipFixMode:
+		return "disabled by fix mode config"
 	default:
 		return "unknown reason"
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/tinovyatkin/tally/internal/rules"
 	_ "github.com/tinovyatkin/tally/internal/rules/all" // Register all rules
 	"github.com/tinovyatkin/tally/internal/rules/buildkit"
+	"github.com/tinovyatkin/tally/internal/rules/buildkit/fixes"
 	"github.com/tinovyatkin/tally/internal/semantic"
 	"github.com/tinovyatkin/tally/internal/sourcemap"
 	"github.com/tinovyatkin/tally/internal/version"
@@ -252,6 +253,9 @@ func checkCommand() *cli.Command {
 					))
 				}
 
+				// Enrich BuildKit violations with auto-fix suggestions
+				fixes.EnrichBuildKitFixes(violations, sem, parseResult.Source)
+
 				allViolations = append(allViolations, violations...)
 			}
 
@@ -288,7 +292,7 @@ func checkCommand() *cli.Command {
 
 			// Apply fixes if --fix flag is set
 			if cmd.Bool("fix") {
-				fixResult, fixErr := applyFixes(ctx, cmd, allViolations, fileSources)
+				fixResult, fixErr := applyFixes(ctx, cmd, allViolations, fileSources, firstCfg)
 				if fixErr != nil {
 					fmt.Fprintf(os.Stderr, "Error: failed to apply fixes: %v\n", fixErr)
 					return cli.Exit("", ExitConfigError)
@@ -611,7 +615,13 @@ func extractHeredocFiles(parseResult *dockerfile.ParseResult) map[string]bool {
 }
 
 // applyFixes applies automatic fixes to violations that have suggested fixes.
-func applyFixes(ctx stdcontext.Context, cmd *cli.Command, violations []rules.Violation, sources map[string][]byte) (*fix.Result, error) {
+func applyFixes(
+	ctx stdcontext.Context,
+	cmd *cli.Command,
+	violations []rules.Violation,
+	sources map[string][]byte,
+	cfg *config.Config,
+) (*fix.Result, error) {
 	// Determine safety threshold
 	safetyThreshold := fix.FixSafe
 	if cmd.Bool("fix-unsafe") {
@@ -621,9 +631,16 @@ func applyFixes(ctx stdcontext.Context, cmd *cli.Command, violations []rules.Vio
 	// Get rule filter
 	ruleFilter := cmd.StringSlice("fix-rule")
 
+	// Build fix modes from config
+	var fixModes map[string]fix.FixMode
+	if cfg != nil {
+		fixModes = buildFixModes(cfg)
+	}
+
 	fixer := &fix.Fixer{
 		SafetyThreshold: safetyThreshold,
 		RuleFilter:      ruleFilter,
+		FixModes:        fixModes,
 		Concurrency:     4,
 	}
 
@@ -643,6 +660,34 @@ func applyFixes(ctx stdcontext.Context, cmd *cli.Command, violations []rules.Vio
 	}
 
 	return result, nil
+}
+
+// buildFixModes extracts fix mode configuration for all rules.
+func buildFixModes(cfg *config.Config) map[string]fix.FixMode {
+	modes := make(map[string]fix.FixMode)
+
+	// Helper to add modes from a namespace map
+	addFromNamespace := func(namespace string, ruleConfigs map[string]config.RuleConfig) {
+		for name, ruleCfg := range ruleConfigs {
+			if ruleCfg.Fix != "" {
+				ruleCode := namespace + "/" + name
+				modes[ruleCode] = ruleCfg.Fix
+			}
+		}
+	}
+
+	// Process each namespace
+	if cfg.Rules.Tally != nil {
+		addFromNamespace("tally", cfg.Rules.Tally)
+	}
+	if cfg.Rules.Buildkit != nil {
+		addFromNamespace("buildkit", cfg.Rules.Buildkit)
+	}
+	if cfg.Rules.Hadolint != nil {
+		addFromNamespace("hadolint", cfg.Rules.Hadolint)
+	}
+
+	return modes
 }
 
 // filterFixedViolations removes violations that were fixed from the list.

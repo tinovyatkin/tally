@@ -82,8 +82,8 @@ These rules are automatically captured from BuildKit during Dockerfile parsing:
 
 | Rule | Description | Severity | Status |
 |------|-------------|----------|--------|
-| `buildkit/StageNameCasing` | Stage names should be lowercase | Warning | ✅ Captured |
-| `buildkit/FromAsCasing` | The 'as' keyword should match 'from' casing | Warning | ✅ Captured |
+| `buildkit/StageNameCasing` | Stage names should be lowercase | Warning | ✅🔧 Captured |
+| `buildkit/FromAsCasing` | The 'as' keyword should match 'from' casing | Warning | ✅🔧 Captured |
 | `buildkit/NoEmptyContinuation` | Empty continuation lines will become errors | Warning | ✅ Captured |
 | `buildkit/ConsistentInstructionCasing` | Instructions should use consistent casing | Warning | ✅ Captured |
 | `buildkit/DuplicateStageName` | Stage names should be unique | Warning | ✅ Captured |

@@ -5,11 +5,29 @@ import (
 	"strings"
 )
 
+// FixMode controls when auto-fixes are applied for a rule.
+type FixMode string
+
+const (
+	// FixModeNever disables fixes even with --fix.
+	FixModeNever FixMode = "never"
+
+	// FixModeExplicit requires --fix-rule to apply.
+	FixModeExplicit FixMode = "explicit"
+
+	// FixModeAlways applies with --fix when safety threshold is met (default).
+	FixModeAlways FixMode = "always"
+
+	// FixModeUnsafeOnly requires --fix-unsafe to apply.
+	FixModeUnsafeOnly FixMode = "unsafe-only"
+)
+
 // RuleConfig represents per-rule configuration.
 // Can be specified in TOML as:
 //
 //	[rules.tally.max-lines]
 //	severity = "warning"
+//	fix = "always"
 //	# Rule-specific options are flattened at this level
 //	max = 100
 //	skip-blank-lines = true
@@ -17,6 +35,10 @@ type RuleConfig struct {
 	// Severity overrides the rule's default severity.
 	// Use "off" to disable the rule.
 	Severity string `json:"severity,omitempty" jsonschema:"enum=off,enum=error,enum=warning,enum=info,enum=style" koanf:"severity"`
+
+	// Fix controls when auto-fixes are applied for this rule.
+	// Values: never, explicit, always (default), unsafe-only.
+	Fix FixMode `json:"fix,omitempty" jsonschema:"enum=never,enum=explicit,enum=always,enum=unsafe-only" koanf:"fix"`
 
 	// Exclude contains path patterns where this rule should not run.
 	Exclude ExcludeConfig `json:"exclude" koanf:"exclude"`
@@ -152,6 +174,18 @@ func (rc *RulesConfig) GetSeverity(ruleCode string) string {
 		return cfg.Severity
 	}
 	return ""
+}
+
+// GetFixMode returns the fix mode for a rule.
+// Returns FixModeAlways (default) if no override is configured.
+func (rc *RulesConfig) GetFixMode(ruleCode string) FixMode {
+	if rc == nil {
+		return FixModeAlways
+	}
+	if cfg := rc.Get(ruleCode); cfg != nil && cfg.Fix != "" {
+		return cfg.Fix
+	}
+	return FixModeAlways
 }
 
 // GetExcludePaths returns the exclusion patterns for a rule.

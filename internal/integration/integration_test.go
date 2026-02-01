@@ -336,3 +336,71 @@ func TestVersion(t *testing.T) {
 		t.Error("expected version output, got empty")
 	}
 }
+
+func TestFix(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string // Input Dockerfile content
+		want        string // Expected fixed content
+		args        []string
+		wantApplied int // Expected number of fixes applied
+	}{
+		{
+			name:  "stage-name-casing",
+			input: "FROM alpine:3.18 AS Builder\nRUN echo hello\nFROM alpine:3.18\nCOPY --from=Builder /app /app\n",
+			want:  "FROM alpine:3.18 AS builder\nRUN echo hello\nFROM alpine:3.18\nCOPY --from=builder /app /app\n",
+			args:  []string{"--fix"},
+			wantApplied: 1,
+		},
+		{
+			name:  "from-as-casing",
+			input: "FROM alpine:3.18 as builder\nRUN echo hello\n",
+			want:  "FROM alpine:3.18 AS builder\nRUN echo hello\n",
+			args:  []string{"--fix"},
+			wantApplied: 1,
+		},
+		{
+			name:  "combined-stage-and-as-casing",
+			input: "FROM alpine:3.18 as Builder\nRUN echo hello\n",
+			want:  "FROM alpine:3.18 AS builder\nRUN echo hello\n",
+			args:  []string{"--fix"},
+			wantApplied: 2, // Both FromAsCasing and StageNameCasing
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a temporary directory with a Dockerfile
+			tmpDir := t.TempDir()
+			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+			if err := os.WriteFile(dockerfilePath, []byte(tc.input), 0o644); err != nil {
+				t.Fatalf("failed to write Dockerfile: %v", err)
+			}
+
+			// Run tally check --fix
+			args := append([]string{"check"}, tc.args...)
+			args = append(args, dockerfilePath)
+			cmd := exec.Command(binaryPath, args...)
+			cmd.Env = append(os.Environ(),
+				"GOCOVERDIR="+coverageDir,
+			)
+			output, _ := cmd.CombinedOutput() //nolint:errcheck // Exit code is checked by inspecting output
+
+			// Read the fixed Dockerfile
+			fixed, err := os.ReadFile(dockerfilePath)
+			if err != nil {
+				t.Fatalf("failed to read fixed Dockerfile: %v", err)
+			}
+
+			if string(fixed) != tc.want {
+				t.Errorf("fixed content mismatch:\ngot:\n%s\nwant:\n%s\noutput:\n%s", fixed, tc.want, output)
+			}
+
+			// Check that the output mentions the expected number of fixes
+			outputStr := string(output)
+			if tc.wantApplied > 0 && !strings.Contains(outputStr, "Fixed") {
+				t.Errorf("expected 'Fixed' in output, got: %s", outputStr)
+			}
+		})
+	}
+}

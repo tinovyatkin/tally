@@ -20,7 +20,26 @@
           "detail": "The apt command is designed for interactive use and has an unstable command-line interface. For scripting and automation (like Dockerfiles), use apt-get for package management or apt-cache for querying package information.",
           "severity": "warning",
           "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3027",
-          "sourceCode": "RUN apt update"
+          "sourceCode": "RUN apt update",
+          "suggestedFix": {
+            "description": "Replace 'apt' with 'apt-get' or 'apt-cache'",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3027/Dockerfile",
+                  "start": {
+                    "line": 3,
+                    "column": 4
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 7
+                  }
+                },
+                "newText": "apt-get"
+              }
+            ]
+          }
         },
         {
           "location": {
@@ -39,7 +58,26 @@
           "detail": "The apt command is designed for interactive use and has an unstable command-line interface. For scripting and automation (like Dockerfiles), use apt-get for package management or apt-cache for querying package information.",
           "severity": "warning",
           "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3027",
-          "sourceCode": "RUN apt install -y curl wget"
+          "sourceCode": "RUN apt install -y curl wget",
+          "suggestedFix": {
+            "description": "Replace 'apt' with 'apt-get' or 'apt-cache'",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3027/Dockerfile",
+                  "start": {
+                    "line": 6,
+                    "column": 4
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": 7
+                  }
+                },
+                "newText": "apt-get"
+              }
+            ]
+          }
         },
         {
           "location": {
@@ -58,7 +96,26 @@
           "detail": "The apt command is designed for interactive use and has an unstable command-line interface. For scripting and automation (like Dockerfiles), use apt-get for package management or apt-cache for querying package information.",
           "severity": "warning",
           "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3027",
-          "sourceCode": "RUN apt upgrade -y"
+          "sourceCode": "RUN apt upgrade -y",
+          "suggestedFix": {
+            "description": "Replace 'apt' with 'apt-get' or 'apt-cache'",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3027/Dockerfile",
+                  "start": {
+                    "line": 9,
+                    "column": 4
+                  },
+                  "end": {
+                    "line": 9,
+                    "column": 7
+                  }
+                },
+                "newText": "apt-get"
+              }
+            ]
+          }
         },
         {
           "location": {
@@ -77,7 +134,26 @@
           "detail": "The apt command is designed for interactive use and has an unstable command-line interface. For scripting and automation (like Dockerfiles), use apt-get for package management or apt-cache for querying package information.",
           "severity": "warning",
           "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3027",
-          "sourceCode": "RUN env DEBIAN_FRONTEND=noninteractive apt install -y vim"
+          "sourceCode": "RUN env DEBIAN_FRONTEND=noninteractive apt install -y vim",
+          "suggestedFix": {
+            "description": "Replace 'apt' with 'apt-get' or 'apt-cache'",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3027/Dockerfile",
+                  "start": {
+                    "line": 19,
+                    "column": 39
+                  },
+                  "end": {
+                    "line": 19,
+                    "column": 42
+                  }
+                },
+                "newText": "apt-get"
+              }
+            ]
+          }
         }
       ]
     }
