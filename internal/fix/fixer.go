@@ -245,6 +245,7 @@ func (f *Fixer) resolveAsyncFixes(ctx context.Context, fixes []*rules.SuggestedF
 			continue
 		}
 
+		// Capture loop variable for goroutine
 		g.Go(func() error {
 			edits, err := resolver.Resolve(ctx, fix)
 			if err != nil {
