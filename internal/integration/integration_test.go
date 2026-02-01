@@ -377,10 +377,13 @@ func TestFix(t *testing.T) {
 		},
 		// DL3003: cd -> WORKDIR (regression test for line number consistency)
 		{
+			// DL3003 fix is FixSuggestion (not FixSafe) because WORKDIR creates
+			// the directory if it doesn't exist, while RUN cd fails.
+			// Requires both --fix and --fix-unsafe since FixSuggestion > FixSafe.
 			name:        "dl3003-cd-to-workdir",
 			input:       "FROM ubuntu:22.04\nRUN cd /app\n",
 			want:        "FROM ubuntu:22.04\nWORKDIR /app\n",
-			args:        []string{"--fix"},
+			args:        []string{"--fix", "--fix-unsafe"},
 			wantApplied: 1,
 		},
 	}
