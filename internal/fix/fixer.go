@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 
 	"golang.org/x/sync/errgroup"
 
@@ -401,8 +402,16 @@ func applyEdit(content []byte, edit rules.TextEdit) []byte {
 	// Start line up to the edit start
 	result.Write(lines[startLine][:startCol])
 
+	// Normalize newlines in replacement text to match file's line ending style
+	newText := edit.NewText
+	if !bytes.Equal(lineEnding, []byte("\n")) {
+		// File uses CRLF, normalize any LF-only to CRLF
+		newText = strings.ReplaceAll(newText, "\r\n", "\n") // First normalize to LF
+		newText = strings.ReplaceAll(newText, "\n", string(lineEnding))
+	}
+
 	// The replacement text
-	result.WriteString(edit.NewText)
+	result.WriteString(newText)
 
 	// End line from the edit end
 	result.Write(lines[endLine][endCol:])

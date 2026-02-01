@@ -601,6 +601,46 @@ func TestApplyEdit_CRLF(t *testing.T) {
 	}
 }
 
+func TestApplyEdit_CRLF_ReplacementWithNewlines(t *testing.T) {
+	// Test that replacement text with embedded LF newlines is normalized to CRLF
+	// when the file uses CRLF line endings. This prevents mixed line endings.
+	content := []byte("FROM alpine\r\nRUN cd /app && make\r\n")
+
+	// Replacement text uses LF (Unix-style) but file uses CRLF (Windows-style)
+	// The fix should normalize the replacement to use CRLF
+	edit := rules.TextEdit{
+		Location: rules.NewRangeLocation("Dockerfile", 2, 0, 2, 19),
+		NewText:  "WORKDIR /app\nRUN make", // LF-only newlines
+	}
+
+	result := applyEdit(content, edit)
+	// Expected: replacement newlines should be converted to CRLF
+	expected := []byte("FROM alpine\r\nWORKDIR /app\r\nRUN make\r\n")
+
+	if !bytes.Equal(result, expected) {
+		t.Errorf("applyEdit() should normalize replacement newlines to CRLF\ngot:\n%q\nwant:\n%q", result, expected)
+	}
+}
+
+func TestApplyEdit_CRLF_ReplacementWithMixedNewlines(t *testing.T) {
+	// Test that replacement text with mixed CRLF/LF newlines is fully normalized
+	content := []byte("FROM alpine\r\nRUN echo hello\r\n")
+
+	// Replacement text has mixed CRLF and LF
+	edit := rules.TextEdit{
+		Location: rules.NewRangeLocation("Dockerfile", 2, 0, 2, 14),
+		NewText:  "RUN echo one\r\nRUN echo two\nRUN echo three", // Mixed line endings
+	}
+
+	result := applyEdit(content, edit)
+	// Expected: all newlines should be normalized to CRLF
+	expected := []byte("FROM alpine\r\nRUN echo one\r\nRUN echo two\r\nRUN echo three\r\n")
+
+	if !bytes.Equal(result, expected) {
+		t.Errorf("applyEdit() should normalize mixed newlines to CRLF\ngot:\n%q\nwant:\n%q", result, expected)
+	}
+}
+
 func TestApplyEdit_InvalidStartLine(t *testing.T) {
 	content := []byte("FROM alpine\nRUN echo hello")
 
