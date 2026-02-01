@@ -195,3 +195,148 @@ func TestNewViolationFromBuildKitWarning_NoLocation(t *testing.T) {
 		t.Error("IsFileLevel() = false, want true")
 	}
 }
+
+func TestFixSafety_String(t *testing.T) {
+	tests := []struct {
+		safety FixSafety
+		want   string
+	}{
+		{FixSafe, "safe"},
+		{FixSuggestion, "suggestion"},
+		{FixUnsafe, "unsafe"},
+		{FixSafety(99), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.safety.String(); got != tt.want {
+				t.Errorf("FixSafety(%d).String() = %q, want %q", tt.safety, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSuggestedFix_WithSafety(t *testing.T) {
+	loc := NewLineLocation("Dockerfile", 1)
+	fix := &SuggestedFix{
+		Description: "Replace apt with apt-get",
+		Safety:      FixSafe,
+		Edits: []TextEdit{
+			{Location: loc, NewText: "apt-get"},
+		},
+	}
+
+	if fix.Description == "" {
+		t.Error("Description should not be empty")
+	}
+	if fix.Safety != FixSafe {
+		t.Errorf("Safety = %v, want %v", fix.Safety, FixSafe)
+	}
+	if len(fix.Edits) != 1 {
+		t.Errorf("Edits count = %d, want 1", len(fix.Edits))
+	}
+	if fix.NeedsResolve {
+		t.Error("NeedsResolve should be false for sync fix")
+	}
+}
+
+func TestSuggestedFix_AsyncFix(t *testing.T) {
+	loc := NewLineLocation("Dockerfile", 1)
+	fix := &SuggestedFix{
+		Description:  "Add image digest",
+		Safety:       FixSafe,
+		NeedsResolve: true,
+		ResolverID:   "image-digest",
+		ResolverData: map[string]string{"image": "alpine", "tag": "3.18"},
+	}
+
+	if fix.Description == "" {
+		t.Error("Description should not be empty")
+	}
+	if fix.Safety != FixSafe {
+		t.Errorf("Safety = %v, want %v", fix.Safety, FixSafe)
+	}
+	if !fix.NeedsResolve {
+		t.Error("NeedsResolve should be true for async fix")
+	}
+	if fix.ResolverID != "image-digest" {
+		t.Errorf("ResolverID = %q, want %q", fix.ResolverID, "image-digest")
+	}
+	if fix.ResolverData == nil {
+		t.Error("ResolverData should not be nil")
+	}
+	if len(fix.Edits) != 0 {
+		t.Error("Edits should be empty for async fix before resolution")
+	}
+
+	// Simulate resolution
+	fix.Edits = []TextEdit{
+		{Location: loc, NewText: "alpine:3.18@sha256:abc123"},
+	}
+	fix.NeedsResolve = false
+
+	if fix.NeedsResolve {
+		t.Error("NeedsResolve should be false after resolution")
+	}
+	if len(fix.Edits) != 1 {
+		t.Error("Edits should be populated after resolution")
+	}
+}
+
+func TestSuggestedFix_JSON_WithSafety(t *testing.T) {
+	loc := NewLineLocation("Dockerfile", 1)
+	fix := &SuggestedFix{
+		Description: "Replace apt with apt-get",
+		Safety:      FixSuggestion,
+		IsPreferred: true,
+		Edits: []TextEdit{
+			{Location: loc, NewText: "apt-get"},
+		},
+	}
+
+	data, err := json.Marshal(fix)
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+
+	var parsed SuggestedFix
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("Unmarshal error: %v", err)
+	}
+
+	if parsed.Safety != FixSuggestion {
+		t.Errorf("Safety = %v, want %v", parsed.Safety, FixSuggestion)
+	}
+	if !parsed.IsPreferred {
+		t.Error("IsPreferred should be true")
+	}
+}
+
+func TestSuggestedFix_JSON_AsyncFix(t *testing.T) {
+	fix := &SuggestedFix{
+		Description:  "Add image digest",
+		NeedsResolve: true,
+		ResolverID:   "image-digest",
+		ResolverData: map[string]string{"image": "alpine"}, // Not serialized
+	}
+
+	data, err := json.Marshal(fix)
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+
+	var parsed SuggestedFix
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("Unmarshal error: %v", err)
+	}
+
+	if !parsed.NeedsResolve {
+		t.Error("NeedsResolve should be true")
+	}
+	if parsed.ResolverID != "image-digest" {
+		t.Errorf("ResolverID = %q, want %q", parsed.ResolverID, "image-digest")
+	}
+	if parsed.ResolverData != nil {
+		t.Error("ResolverData should be nil (not serialized)")
+	}
+}

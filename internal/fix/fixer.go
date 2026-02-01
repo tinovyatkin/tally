@@ -1,0 +1,352 @@
+package fix
+
+import (
+	"bytes"
+	"context"
+	"slices"
+	"sort"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/tinovyatkin/tally/internal/rules"
+)
+
+// Fixer applies suggested fixes to source files.
+type Fixer struct {
+	// SafetyThreshold determines the minimum safety level for fixes.
+	// Only fixes with Safety <= SafetyThreshold will be applied.
+	SafetyThreshold FixSafety
+
+	// RuleFilter limits fixes to specific rule codes.
+	// If empty, all rules are eligible.
+	RuleFilter []string
+
+	// Concurrency sets the number of parallel async resolutions.
+	// Defaults to 4 if not set.
+	Concurrency int
+}
+
+// Result contains the outcome of applying fixes.
+type Result struct {
+	// Changes contains modifications for each file.
+	Changes map[string]*FileChange
+}
+
+// TotalApplied returns the total number of fixes applied across all files.
+func (r *Result) TotalApplied() int {
+	count := 0
+	for _, fc := range r.Changes {
+		count += len(fc.FixesApplied)
+	}
+	return count
+}
+
+// TotalSkipped returns the total number of fixes skipped across all files.
+func (r *Result) TotalSkipped() int {
+	count := 0
+	for _, fc := range r.Changes {
+		count += len(fc.FixesSkipped)
+	}
+	return count
+}
+
+// FilesModified returns the number of files with actual changes.
+func (r *Result) FilesModified() int {
+	count := 0
+	for _, fc := range r.Changes {
+		if fc.HasChanges() {
+			count++
+		}
+	}
+	return count
+}
+
+// Apply processes violations and applies their suggested fixes.
+// sources maps file paths to their original content.
+func (f *Fixer) Apply(ctx context.Context, violations []rules.Violation, sources map[string][]byte) (*Result, error) {
+	result := &Result{
+		Changes: make(map[string]*FileChange),
+	}
+
+	// Initialize FileChange for each source file
+	for path, content := range sources {
+		result.Changes[path] = &FileChange{
+			Path:            path,
+			OriginalContent: content,
+			ModifiedContent: bytes.Clone(content),
+		}
+	}
+
+	// Collect fixes that need resolution and those that don't
+	var asyncFixes []*rules.SuggestedFix
+	syncFixes := make([]*fixCandidate, 0, len(violations)) // Pre-allocate for common case
+
+	for i := range violations {
+		v := &violations[i]
+		if v.SuggestedFix == nil {
+			continue
+		}
+
+		// Check rule filter
+		if !f.ruleAllowed(v.RuleCode) {
+			fc := result.Changes[v.File()]
+			if fc != nil {
+				fc.FixesSkipped = append(fc.FixesSkipped, SkippedFix{
+					RuleCode: v.RuleCode,
+					Reason:   SkipRuleFilter,
+					Location: v.Location,
+				})
+			}
+			continue
+		}
+
+		// Check safety threshold
+		if v.SuggestedFix.Safety > f.SafetyThreshold {
+			fc := result.Changes[v.File()]
+			if fc != nil {
+				fc.FixesSkipped = append(fc.FixesSkipped, SkippedFix{
+					RuleCode: v.RuleCode,
+					Reason:   SkipSafety,
+					Location: v.Location,
+				})
+			}
+			continue
+		}
+
+		if v.SuggestedFix.NeedsResolve {
+			asyncFixes = append(asyncFixes, v.SuggestedFix)
+		}
+
+		syncFixes = append(syncFixes, &fixCandidate{
+			violation: v,
+			fix:       v.SuggestedFix,
+		})
+	}
+
+	// Resolve async fixes
+	if len(asyncFixes) > 0 {
+		if err := f.resolveAsyncFixes(ctx, asyncFixes); err != nil {
+			return nil, err
+		}
+	}
+
+	// Group fixes by file
+	fixesByFile := make(map[string][]*fixCandidate)
+	for _, fc := range syncFixes {
+		// Skip fixes that still need resolution (resolver failed)
+		if fc.fix.NeedsResolve {
+			continue
+		}
+		// Skip fixes with no edits
+		if len(fc.fix.Edits) == 0 {
+			file := fc.violation.File()
+			fileChange := result.Changes[file]
+			if fileChange != nil {
+				fileChange.FixesSkipped = append(fileChange.FixesSkipped, SkippedFix{
+					RuleCode: fc.violation.RuleCode,
+					Reason:   SkipNoEdits,
+					Location: fc.violation.Location,
+				})
+			}
+			continue
+		}
+		file := fc.violation.File()
+		fixesByFile[file] = append(fixesByFile[file], fc)
+	}
+
+	// Apply fixes to each file
+	for file, candidates := range fixesByFile {
+		fc := result.Changes[file]
+		if fc == nil {
+			continue
+		}
+		f.applyFixesToFile(fc, candidates)
+	}
+
+	return result, nil
+}
+
+// fixCandidate pairs a violation with its suggested fix for processing.
+type fixCandidate struct {
+	violation *rules.Violation
+	fix       *rules.SuggestedFix
+}
+
+// ruleAllowed checks if a rule passes the filter.
+func (f *Fixer) ruleAllowed(ruleCode string) bool {
+	if len(f.RuleFilter) == 0 {
+		return true
+	}
+	return slices.Contains(f.RuleFilter, ruleCode)
+}
+
+// resolveAsyncFixes runs resolvers for fixes that need external data.
+func (f *Fixer) resolveAsyncFixes(ctx context.Context, fixes []*rules.SuggestedFix) error {
+	concurrency := f.Concurrency
+	if concurrency <= 0 {
+		concurrency = 4
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(concurrency)
+
+	for _, fix := range fixes {
+		if !fix.NeedsResolve {
+			continue
+		}
+
+		resolver := GetResolver(fix.ResolverID)
+		if resolver == nil {
+			// Unknown resolver, will be skipped later
+			continue
+		}
+
+		g.Go(func() error {
+			edits, err := resolver.Resolve(ctx, fix)
+			if err != nil {
+				// Mark as failed but don't fail the whole operation
+				// The fix will be skipped with SkipResolveError
+				return nil //nolint:nilerr // Intentionally swallowing error
+			}
+			fix.Edits = edits
+			fix.NeedsResolve = false
+			return nil
+		})
+	}
+
+	return g.Wait()
+}
+
+// applyFixesToFile applies non-conflicting fixes to a single file.
+func (f *Fixer) applyFixesToFile(fc *FileChange, candidates []*fixCandidate) {
+	// Collect all edits with their source info
+	type editWithSource struct {
+		edit      rules.TextEdit
+		candidate *fixCandidate
+	}
+
+	var allEdits []editWithSource
+	for _, c := range candidates {
+		for _, edit := range c.fix.Edits {
+			allEdits = append(allEdits, editWithSource{
+				edit:      edit,
+				candidate: c,
+			})
+		}
+	}
+
+	// Sort edits by position (descending - apply from end to start)
+	sort.Slice(allEdits, func(i, j int) bool {
+		// Reverse order: later positions first
+		return !compareEdits(allEdits[i].edit, allEdits[j].edit)
+	})
+
+	// Track which candidates have been applied or skipped
+	applied := make(map[*fixCandidate]bool)
+	skipped := make(map[*fixCandidate]bool)
+
+	// Apply edits, checking for conflicts
+	content := fc.ModifiedContent
+	appliedEdits := make([]editWithSource, 0, len(allEdits))
+
+	for _, ews := range allEdits {
+		// Check if this edit conflicts with any already applied
+		hasConflict := false
+		for _, ae := range appliedEdits {
+			if editsOverlap(ews.edit, ae.edit) {
+				hasConflict = true
+				break
+			}
+		}
+
+		if hasConflict {
+			if !skipped[ews.candidate] {
+				skipped[ews.candidate] = true
+				fc.FixesSkipped = append(fc.FixesSkipped, SkippedFix{
+					RuleCode: ews.candidate.violation.RuleCode,
+					Reason:   SkipConflict,
+					Location: ews.candidate.violation.Location,
+				})
+			}
+			continue
+		}
+
+		// Apply the edit
+		content = applyEdit(content, ews.edit)
+		appliedEdits = append(appliedEdits, ews)
+		applied[ews.candidate] = true
+	}
+
+	fc.ModifiedContent = content
+
+	// Record applied fixes
+	for c := range applied {
+		if !skipped[c] {
+			fc.FixesApplied = append(fc.FixesApplied, AppliedFix{
+				RuleCode:    c.violation.RuleCode,
+				Description: c.fix.Description,
+				Location:    c.violation.Location,
+			})
+		}
+	}
+}
+
+// applyEdit applies a single text edit to content.
+// The edit replaces the range [Start, End) with NewText.
+func applyEdit(content []byte, edit rules.TextEdit) []byte {
+	lines := bytes.Split(content, []byte("\n"))
+
+	startLine := edit.Location.Start.Line
+	startCol := edit.Location.Start.Column
+	endLine := edit.Location.End.Line
+	endCol := edit.Location.End.Column
+
+	// Handle 0-based vs 1-based line numbers
+	// Our Location uses 0-based line numbers
+	if startLine < 0 || startLine >= len(lines) {
+		return content
+	}
+	if endLine < 0 || endLine >= len(lines) {
+		return content
+	}
+
+	// Clamp column values
+	if startCol < 0 {
+		startCol = 0
+	}
+	if startCol > len(lines[startLine]) {
+		startCol = len(lines[startLine])
+	}
+	if endCol < 0 {
+		endCol = 0
+	}
+	if endCol > len(lines[endLine]) {
+		endCol = len(lines[endLine])
+	}
+
+	// Build the new content
+	var result bytes.Buffer
+
+	// Lines before the edit
+	for i := range startLine {
+		result.Write(lines[i])
+		result.WriteByte('\n')
+	}
+
+	// Start line up to the edit start
+	result.Write(lines[startLine][:startCol])
+
+	// The replacement text
+	result.WriteString(edit.NewText)
+
+	// End line from the edit end
+	result.Write(lines[endLine][endCol:])
+
+	// Lines after the edit
+	for i := endLine + 1; i < len(lines); i++ {
+		result.WriteByte('\n')
+		result.Write(lines[i])
+	}
+
+	return result.Bytes()
+}

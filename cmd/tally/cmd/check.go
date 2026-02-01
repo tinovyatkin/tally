@@ -12,6 +12,7 @@ import (
 	"github.com/tinovyatkin/tally/internal/directive"
 	"github.com/tinovyatkin/tally/internal/discovery"
 	"github.com/tinovyatkin/tally/internal/dockerfile"
+	"github.com/tinovyatkin/tally/internal/fix"
 	"github.com/tinovyatkin/tally/internal/processor"
 	"github.com/tinovyatkin/tally/internal/reporter"
 	"github.com/tinovyatkin/tally/internal/rules"
@@ -29,6 +30,7 @@ const (
 	ExitConfigError = 2 // Parse or config error
 )
 
+//nolint:gocyclo // CLI command with many flags inherently has high cyclomatic complexity
 func checkCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "check",
@@ -112,6 +114,21 @@ func checkCommand() *cli.Command {
 				Name:    "context",
 				Usage:   "Build context directory for context-aware rules",
 				Sources: cli.EnvVars("TALLY_CONTEXT"),
+			},
+			&cli.BoolFlag{
+				Name:    "fix",
+				Usage:   "Apply all safe fixes automatically",
+				Sources: cli.EnvVars("TALLY_FIX"),
+			},
+			&cli.StringSliceFlag{
+				Name:    "fix-rule",
+				Usage:   "Only fix specific rules (can be repeated)",
+				Sources: cli.EnvVars("TALLY_FIX_RULE"),
+			},
+			&cli.BoolFlag{
+				Name:    "fix-unsafe",
+				Usage:   "Also apply suggestion/unsafe fixes (requires --fix)",
+				Sources: cli.EnvVars("TALLY_FIX_UNSAFE"),
 			},
 		},
 		Action: func(ctx stdcontext.Context, cmd *cli.Command) error {
@@ -267,6 +284,27 @@ func checkCommand() *cli.Command {
 				allViolations = append(allViolations, additionalViolations...)
 				// Re-sort after adding directive warnings
 				allViolations = reporter.SortViolations(allViolations)
+			}
+
+			// Apply fixes if --fix flag is set
+			if cmd.Bool("fix") {
+				fixResult, fixErr := applyFixes(ctx, cmd, allViolations, fileSources)
+				if fixErr != nil {
+					fmt.Fprintf(os.Stderr, "Error: failed to apply fixes: %v\n", fixErr)
+					return cli.Exit("", ExitConfigError)
+				}
+
+				// Report fix results
+				if fixResult.TotalApplied() > 0 {
+					fmt.Fprintf(os.Stderr, "Fixed %d issues in %d files\n",
+						fixResult.TotalApplied(), fixResult.FilesModified())
+				}
+				if fixResult.TotalSkipped() > 0 {
+					fmt.Fprintf(os.Stderr, "Skipped %d fixes\n", fixResult.TotalSkipped())
+				}
+
+				// Update violations to exclude fixed ones
+				allViolations = filterFixedViolations(allViolations, fixResult)
 			}
 
 			// Get output configuration
@@ -570,4 +608,73 @@ func isRuleEnabled(ruleCode string, defaultSeverity rules.Severity, cfg *config.
 // against .dockerignore.
 func extractHeredocFiles(parseResult *dockerfile.ParseResult) map[string]bool {
 	return dockerfile.ExtractHeredocFiles(parseResult.Stages)
+}
+
+// applyFixes applies automatic fixes to violations that have suggested fixes.
+func applyFixes(ctx stdcontext.Context, cmd *cli.Command, violations []rules.Violation, sources map[string][]byte) (*fix.Result, error) {
+	// Determine safety threshold
+	safetyThreshold := fix.FixSafe
+	if cmd.Bool("fix-unsafe") {
+		safetyThreshold = fix.FixUnsafe
+	}
+
+	// Get rule filter
+	ruleFilter := cmd.StringSlice("fix-rule")
+
+	fixer := &fix.Fixer{
+		SafetyThreshold: safetyThreshold,
+		RuleFilter:      ruleFilter,
+		Concurrency:     4,
+	}
+
+	result, err := fixer.Apply(ctx, violations, sources)
+	if err != nil {
+		return nil, err
+	}
+
+	// Write modified files
+	for _, fc := range result.Changes {
+		if !fc.HasChanges() {
+			continue
+		}
+		if err := os.WriteFile(fc.Path, fc.ModifiedContent, 0o644); err != nil { //nolint:gosec // G306: Dockerfiles should be world-readable
+			return nil, fmt.Errorf("failed to write %s: %w", fc.Path, err)
+		}
+	}
+
+	return result, nil
+}
+
+// filterFixedViolations removes violations that were fixed from the list.
+func filterFixedViolations(violations []rules.Violation, fixResult *fix.Result) []rules.Violation {
+	// Build set of fixed locations
+	type locKey struct {
+		file string
+		line int
+		code string
+	}
+	fixed := make(map[locKey]bool)
+	for _, fc := range fixResult.Changes {
+		for _, af := range fc.FixesApplied {
+			fixed[locKey{
+				file: fc.Path,
+				line: af.Location.Start.Line,
+				code: af.RuleCode,
+			}] = true
+		}
+	}
+
+	// Filter violations
+	var remaining []rules.Violation
+	for _, v := range violations {
+		key := locKey{
+			file: v.File(),
+			line: v.Line(),
+			code: v.RuleCode,
+		}
+		if !fixed[key] {
+			remaining = append(remaining, v)
+		}
+	}
+	return remaining
 }
