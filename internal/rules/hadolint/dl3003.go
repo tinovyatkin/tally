@@ -111,10 +111,12 @@ func (r *DL3003Rule) generateFix(run *instructions.RunCommand, cdCommands []shel
 	}
 
 	// Case 1: Standalone cd - replace entire RUN with WORKDIR
+	// Safety is FixSuggestion because behavior differs: WORKDIR creates the directory
+	// if it doesn't exist, while RUN cd fails if the directory is missing.
 	if cd.IsStandalone {
 		return &rules.SuggestedFix{
 			Description: "Replace RUN cd with WORKDIR " + cd.TargetDir,
-			Safety:      rules.FixSafe,
+			Safety:      rules.FixSuggestion,
 			Edits: []rules.TextEdit{{
 				Location: rules.NewRangeLocation(
 					file,

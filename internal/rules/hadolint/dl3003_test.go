@@ -151,6 +151,50 @@ func TestDL3003Rule_AutoFix(t *testing.T) {
 	}
 }
 
+// TestDL3003_FixSafety verifies that the safety levels are correctly assigned.
+// Standalone cd -> WORKDIR is FixSuggestion because WORKDIR creates the directory
+// if it doesn't exist, while RUN cd fails if the directory is missing.
+func TestDL3003_FixSafety(t *testing.T) {
+	tests := []struct {
+		name       string
+		dockerfile string
+		wantSafety string
+	}{
+		{
+			name:       "standalone cd gets FixSuggestion (behavior differs)",
+			dockerfile: "FROM ubuntu\nRUN cd /opt",
+			wantSafety: "suggestion",
+		},
+		{
+			name:       "cd with chain also gets FixSuggestion",
+			dockerfile: "FROM ubuntu\nRUN cd /app && make build",
+			wantSafety: "suggestion",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			r := NewDL3003Rule()
+			violations := r.Check(input)
+
+			if len(violations) == 0 {
+				t.Fatal("expected at least one violation")
+			}
+
+			v := violations[0]
+			if v.SuggestedFix == nil {
+				t.Fatal("expected SuggestedFix")
+			}
+
+			gotSafety := v.SuggestedFix.Safety.String()
+			if gotSafety != tt.wantSafety {
+				t.Errorf("got safety %q, want %q", gotSafety, tt.wantSafety)
+			}
+		})
+	}
+}
+
 // TestDL3003_FixLocationConsistency is a regression test ensuring that
 // fix edit locations use the same line numbering as violation locations.
 // Previously, violations used 1-based lines (BuildKit) while edits used 0-based.
