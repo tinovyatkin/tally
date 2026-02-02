@@ -1,0 +1,172 @@
+{
+  "files": [
+    {
+      "file": "testdata/dl3038/Dockerfile",
+      "violations": [
+        {
+          "location": {
+            "file": "testdata/dl3038/Dockerfile",
+            "start": {
+              "line": 4,
+              "column": 0
+            },
+            "end": {
+              "line": 4,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3038",
+          "message": "Use the -y switch to avoid manual input `dnf install -y \u003cpackage\u003e`",
+          "detail": "Running dnf/microdnf install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y or --assumeyes to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3038",
+          "sourceCode": "RUN dnf install httpd",
+          "suggestedFix": {
+            "description": "Add -y flag to dnf install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3038/Dockerfile",
+                  "start": {
+                    "line": 4,
+                    "column": 15
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 15
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/dl3038/Dockerfile",
+            "start": {
+              "line": 7,
+              "column": 0
+            },
+            "end": {
+              "line": 7,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3038",
+          "message": "Use the -y switch to avoid manual input `dnf install -y \u003cpackage\u003e`",
+          "detail": "Running dnf/microdnf install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y or --assumeyes to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3038",
+          "sourceCode": "RUN microdnf install nginx",
+          "suggestedFix": {
+            "description": "Add -y flag to dnf install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3038/Dockerfile",
+                  "start": {
+                    "line": 7,
+                    "column": 20
+                  },
+                  "end": {
+                    "line": 7,
+                    "column": 20
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/dl3038/Dockerfile",
+            "start": {
+              "line": 10,
+              "column": 0
+            },
+            "end": {
+              "line": 10,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3038",
+          "message": "Use the -y switch to avoid manual input `dnf install -y \u003cpackage\u003e`",
+          "detail": "Running dnf/microdnf install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y or --assumeyes to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3038",
+          "sourceCode": "RUN dnf groupinstall \"Development Tools\"",
+          "suggestedFix": {
+            "description": "Add -y flag to dnf install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3038/Dockerfile",
+                  "start": {
+                    "line": 10,
+                    "column": 20
+                  },
+                  "end": {
+                    "line": 10,
+                    "column": 20
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/dl3038/Dockerfile",
+            "start": {
+              "line": 13,
+              "column": 0
+            },
+            "end": {
+              "line": 13,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3038",
+          "message": "Use the -y switch to avoid manual input `dnf install -y \u003cpackage\u003e`",
+          "detail": "Running dnf/microdnf install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y or --assumeyes to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3038",
+          "sourceCode": "RUN dnf localinstall package.rpm",
+          "suggestedFix": {
+            "description": "Add -y flag to dnf install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3038/Dockerfile",
+                  "start": {
+                    "line": 13,
+                    "column": 20
+                  },
+                  "end": {
+                    "line": 13,
+                    "column": 20
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "errors": 0,
+    "warnings": 4,
+    "info": 0,
+    "style": 0,
+    "files": 1
+  },
+  "files_scanned": 1,
+  "rules_enabled": 1
+}
+

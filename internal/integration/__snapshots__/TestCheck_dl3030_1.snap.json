@@ -1,0 +1,134 @@
+{
+  "files": [
+    {
+      "file": "testdata/dl3030/Dockerfile",
+      "violations": [
+        {
+          "location": {
+            "file": "testdata/dl3030/Dockerfile",
+            "start": {
+              "line": 4,
+              "column": 0
+            },
+            "end": {
+              "line": 4,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3030",
+          "message": "Use the -y switch to avoid manual input `yum install -y \u003cpackage\u003e`",
+          "detail": "Running yum install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y or --assumeyes to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3030",
+          "sourceCode": "RUN yum install httpd",
+          "suggestedFix": {
+            "description": "Add -y flag to yum install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3030/Dockerfile",
+                  "start": {
+                    "line": 4,
+                    "column": 15
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 15
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/dl3030/Dockerfile",
+            "start": {
+              "line": 7,
+              "column": 0
+            },
+            "end": {
+              "line": 7,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3030",
+          "message": "Use the -y switch to avoid manual input `yum install -y \u003cpackage\u003e`",
+          "detail": "Running yum install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y or --assumeyes to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3030",
+          "sourceCode": "RUN yum groupinstall \"Development Tools\"",
+          "suggestedFix": {
+            "description": "Add -y flag to yum install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3030/Dockerfile",
+                  "start": {
+                    "line": 7,
+                    "column": 20
+                  },
+                  "end": {
+                    "line": 7,
+                    "column": 20
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/dl3030/Dockerfile",
+            "start": {
+              "line": 10,
+              "column": 0
+            },
+            "end": {
+              "line": 10,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3030",
+          "message": "Use the -y switch to avoid manual input `yum install -y \u003cpackage\u003e`",
+          "detail": "Running yum install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y or --assumeyes to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3030",
+          "sourceCode": "RUN yum localinstall package.rpm",
+          "suggestedFix": {
+            "description": "Add -y flag to yum install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3030/Dockerfile",
+                  "start": {
+                    "line": 10,
+                    "column": 20
+                  },
+                  "end": {
+                    "line": 10,
+                    "column": 20
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "errors": 0,
+    "warnings": 3,
+    "info": 0,
+    "style": 0,
+    "files": 1
+  },
+  "files_scanned": 1,
+  "rules_enabled": 1
+}
+

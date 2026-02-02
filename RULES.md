@@ -138,7 +138,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL3011](https://github.com/hadolint/hadolint/wiki/DL3011) | Valid UNIX ports range from 0 to 65535. | Error | ⏳ |
 | [DL3012](https://github.com/hadolint/hadolint/wiki/DL3012) | Multiple `HEALTHCHECK` instructions. | Error | ✅ `hadolint/DL3012` |
 | [DL3013](https://github.com/hadolint/hadolint/wiki/DL3013) | Pin versions in pip. | Warning | ⏳ |
-| [DL3014](https://github.com/hadolint/hadolint/wiki/DL3014) | Use the `-y` switch. | Warning | ⏳ |
+| [DL3014](https://github.com/hadolint/hadolint/wiki/DL3014) | Use the `-y` switch. | Warning | ✅🔧 `hadolint/DL3014` |
 | [DL3015](https://github.com/hadolint/hadolint/wiki/DL3015) | Avoid additional packages by specifying --no-install-recommends. | Info | ⏳ |
 | [DL3016](https://github.com/hadolint/hadolint/wiki/DL3016) | Pin versions in `npm`. | Warning | ⏳ |
 | [DL3018](https://github.com/hadolint/hadolint/wiki/DL3018) | Pin versions in apk add. Instead of `apk add <package>` use `apk add <package>=<version>`. | Warning | ⏳ |
@@ -153,14 +153,14 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL3027](https://github.com/hadolint/hadolint/wiki/DL3027) | Do not use `apt` as it is meant to be an end-user tool, use `apt-get` or `apt-cache` instead | Warning | ✅🔧 `hadolint/DL3027` |
 | [DL3028](https://github.com/hadolint/hadolint/wiki/DL3028) | Pin versions in gem install. Instead of `gem install <gem>` use `gem install <gem>:<version>` | Warning | ⏳ |
 | [DL3029](https://github.com/hadolint/hadolint/wiki/DL3029) | Do not use --platform flag with FROM. | Warning | 🔄 `buildkit/FromPlatformFlagConstDisallowed` |
-| [DL3030](https://github.com/hadolint/hadolint/wiki/DL3030) | Use the `-y` switch to avoid manual input `yum install -y <package>` | Warning | ⏳ |
+| [DL3030](https://github.com/hadolint/hadolint/wiki/DL3030) | Use the `-y` switch to avoid manual input `yum install -y <package>` | Warning | ✅🔧 `hadolint/DL3030` |
 | [DL3032](https://github.com/hadolint/hadolint/wiki/DL3032) | `yum clean all` missing after yum command. | Warning | ⏳ |
 | [DL3033](https://github.com/hadolint/hadolint/wiki/DL3033) | Specify version with `yum install -y <package>-<version>` | Warning | ⏳ |
-| [DL3034](https://github.com/hadolint/hadolint/wiki/DL3034) | Non-interactive switch missing from `zypper` command: `zypper install -y` | Warning | ⏳ |
+| [DL3034](https://github.com/hadolint/hadolint/wiki/DL3034) | Non-interactive switch missing from `zypper` command: `zypper install -y` | Warning | ✅🔧 `hadolint/DL3034` |
 | [DL3035](https://github.com/hadolint/hadolint/wiki/DL3035) | Do not use `zypper dist-upgrade`. | Warning | ⏳ |
 | [DL3036](https://github.com/hadolint/hadolint/wiki/DL3036) | `zypper clean` missing after zypper use. | Warning | ⏳ |
 | [DL3037](https://github.com/hadolint/hadolint/wiki/DL3037) | Specify version with `zypper install -y <package>[=]<version>`. | Warning | ⏳ |
-| [DL3038](https://github.com/hadolint/hadolint/wiki/DL3038) | Use the `-y` switch to avoid manual input `dnf install -y <package>` | Warning | ⏳ |
+| [DL3038](https://github.com/hadolint/hadolint/wiki/DL3038) | Use the `-y` switch to avoid manual input `dnf install -y <package>` | Warning | ✅🔧 `hadolint/DL3038` |
 | [DL3040](https://github.com/hadolint/hadolint/wiki/DL3040) | `dnf clean all` missing after dnf command. | Warning | ⏳ |
 | [DL3041](https://github.com/hadolint/hadolint/wiki/DL3041) | Specify version with `dnf install -y <package>-<version>` | Warning | ⏳ |
 | [DL3042](https://github.com/hadolint/hadolint/wiki/DL3042) | Avoid cache directory with `pip install --no-cache-dir <package>`. | Warning | ⏳ |

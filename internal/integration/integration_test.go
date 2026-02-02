@@ -259,6 +259,30 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 		{
+			name:     "dl3014",
+			dir:      "dl3014",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3014")...),
+			wantExit: 1,
+		},
+		{
+			name:     "dl3030",
+			dir:      "dl3030",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3030")...),
+			wantExit: 1,
+		},
+		{
+			name:     "dl3034",
+			dir:      "dl3034",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3034")...),
+			wantExit: 1,
+		},
+		{
+			name:     "dl3038",
+			dir:      "dl3038",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3038")...),
+			wantExit: 1,
+		},
+		{
 			name: "inline-ignore-multiple-max-lines",
 			dir:  "inline-ignore-multiple",
 			args: append([]string{"--format", "json"}, selectRules("tally/max-lines", "hadolint/DL3006")...),
