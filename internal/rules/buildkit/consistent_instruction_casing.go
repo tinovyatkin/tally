@@ -86,19 +86,19 @@ func (r *ConsistentInstructionCasingRule) Check(input rules.LintInput) []rules.V
 
 	// Check MetaArgs for violations
 	for _, arg := range input.MetaArgs {
-		if v := r.checkCasing(arg.Name(), isMajorityLower, arg.Location(), input.File); v != nil {
-			violations = append(violations, *v)
+		if v, ok := r.checkCasing(arg.Name(), isMajorityLower, arg.Location(), input.File); ok {
+			violations = append(violations, v)
 		}
 	}
 
 	for _, stage := range input.Stages {
-		if v := r.checkCasing(stage.OrigCmd, isMajorityLower, stage.Location, input.File); v != nil {
-			violations = append(violations, *v)
+		if v, ok := r.checkCasing(stage.OrigCmd, isMajorityLower, stage.Location, input.File); ok {
+			violations = append(violations, v)
 		}
 
 		for _, cmd := range stage.Commands {
-			if v := r.checkCasing(cmd.Name(), isMajorityLower, cmd.Location(), input.File); v != nil {
-				violations = append(violations, *v)
+			if v, ok := r.checkCasing(cmd.Name(), isMajorityLower, cmd.Location(), input.File); ok {
+				violations = append(violations, v)
 			}
 		}
 	}
@@ -107,13 +107,13 @@ func (r *ConsistentInstructionCasingRule) Check(input rules.LintInput) []rules.V
 }
 
 // checkCasing checks if an instruction name matches the expected casing.
-// Returns a violation if it doesn't match.
+// Returns (violation, true) if casing doesn't match, (zero, false) otherwise.
 func (r *ConsistentInstructionCasingRule) checkCasing(
 	name string,
 	isMajorityLower bool,
 	location []parser.Range,
 	file string,
-) *rules.Violation {
+) (rules.Violation, bool) {
 	var correctCasing string
 	if isMajorityLower && strings.ToLower(name) != name {
 		correctCasing = "lowercase"
@@ -122,7 +122,7 @@ func (r *ConsistentInstructionCasingRule) checkCasing(
 	}
 
 	if correctCasing == "" {
-		return nil
+		return rules.Violation{}, false
 	}
 
 	// Create the message using BuildKit's format function
@@ -136,7 +136,7 @@ func (r *ConsistentInstructionCasingRule) checkCasing(
 		r.Metadata().DefaultSeverity,
 	).WithDocURL(r.Metadata().DocURL)
 
-	return &v
+	return v, true
 }
 
 // isSelfConsistentCasing checks if a string is entirely uppercase or entirely lowercase.
