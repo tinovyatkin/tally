@@ -142,50 +142,20 @@ var wrapperOptionsWithValues = map[string]map[string]bool{
 // wrapper-specific options that consume the next argument.
 func extractWrappedOccurrences(args []*syntax.Word, variant Variant, wrapperName string) []CommandOccurrence {
 	occurrences := make([]CommandOccurrence, 0, 2) // Most wrappers have 1-2 commands
-	skipNext := false
 
-	// Get the options that consume values for this wrapper
-	optionsWithValues := wrapperOptionsWithValues[wrapperName]
-
-	for i, arg := range args {
-		lit := arg.Lit()
-		if lit == "" {
-			continue
-		}
-		if skipNext {
-			skipNext = false
-			continue
-		}
-		if strings.HasPrefix(lit, "-") {
-			// Check if this flag consumes the next argument
-			if optionsWithValues != nil && optionsWithValues[lit] {
-				skipNext = true
-			} else if len(lit) == 2 && lit != "--" {
-				// Short flags without known mapping - assume they might take a value
-				// This is a heuristic: single-char flags like -n often take values
-				skipNext = true
-			}
-			continue
-		}
-		if strings.Contains(lit, "=") || isNumeric(lit) {
-			continue
-		}
-
-		// Found a command
-		name := path.Base(lit)
-		pos := arg.Pos()
-		endPos := arg.End()
+	IterateWrapperArgs(args, wrapperName, func(wa WrapperArg) bool {
+		pos := wa.Arg.Pos()
+		endPos := wa.Arg.End()
 
 		occ := CommandOccurrence{
-			Name:     name,
-			StartCol: int(pos.Col()) - 1,   //nolint:gosec // G115: shell scripts won't have int-overflowing positions
+			Name:     wa.Name,
+			StartCol: int(pos.Col()) - 1,    //nolint:gosec // G115: shell scripts won't have int-overflowing positions
 			EndCol:   int(endPos.Col()) - 1, //nolint:gosec // G115: shell scripts won't have int-overflowing positions
 			Line:     int(pos.Line()) - 1,   //nolint:gosec // G115: shell scripts won't have int-overflowing positions
 		}
 
 		// Get subcommand from remaining args
-		remainingArgs := args[i+1:]
-		for _, ra := range remainingArgs {
+		for _, ra := range wa.RemainingArgs {
 			raLit := ra.Lit()
 			if raLit == "" || strings.HasPrefix(raLit, "-") {
 				continue
@@ -197,14 +167,14 @@ func extractWrappedOccurrences(args []*syntax.Word, variant Variant, wrapperName
 		occurrences = append(occurrences, occ)
 
 		// Recurse for nested wrappers
-		if commandWrappers[name] {
-			occurrences = append(occurrences, extractWrappedOccurrences(remainingArgs, variant, name)...)
+		if commandWrappers[wa.Name] {
+			occurrences = append(occurrences, extractWrappedOccurrences(wa.RemainingArgs, variant, wa.Name)...)
 		}
-		if shellWrappers[name] {
-			occurrences = append(occurrences, extractNestedShellOccurrences(remainingArgs, variant, arg.Pos())...)
+		if shellWrappers[wa.Name] {
+			occurrences = append(occurrences, extractNestedShellOccurrences(wa.RemainingArgs, variant, pos)...)
 		}
-		break
-	}
+		return true // Break after first command found
+	})
 
 	return occurrences
 }

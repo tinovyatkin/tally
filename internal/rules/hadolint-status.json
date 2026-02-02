@@ -31,6 +31,11 @@
       "status": "implemented",
       "tally_rule": "hadolint/DL3012"
     },
+    "DL3014": {
+      "status": "implemented",
+      "tally_rule": "hadolint/DL3014",
+      "fixable": true
+    },
     "DL3020": {
       "status": "implemented",
       "tally_rule": "hadolint/DL3020"
@@ -63,6 +68,21 @@
     "DL3029": {
       "status": "covered_by_buildkit",
       "buildkit_rule": "FromPlatformFlagConstDisallowed"
+    },
+    "DL3030": {
+      "status": "implemented",
+      "tally_rule": "hadolint/DL3030",
+      "fixable": true
+    },
+    "DL3034": {
+      "status": "implemented",
+      "tally_rule": "hadolint/DL3034",
+      "fixable": true
+    },
+    "DL3038": {
+      "status": "implemented",
+      "tally_rule": "hadolint/DL3038",
+      "fixable": true
     },
     "DL3043": {
       "status": "implemented",

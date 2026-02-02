@@ -1,0 +1,96 @@
+{
+  "files": [
+    {
+      "file": "testdata/dl3014/Dockerfile",
+      "violations": [
+        {
+          "location": {
+            "file": "testdata/dl3014/Dockerfile",
+            "start": {
+              "line": 4,
+              "column": 0
+            },
+            "end": {
+              "line": 4,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3014",
+          "message": "Use the -y switch to avoid manual input `apt-get -y install \u003cpackage\u003e`",
+          "detail": "Running apt-get install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y, --yes, --assume-yes, or -qq to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3014",
+          "sourceCode": "RUN apt-get install python3",
+          "suggestedFix": {
+            "description": "Add -y flag to apt-get install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3014/Dockerfile",
+                  "start": {
+                    "line": 4,
+                    "column": 19
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 19
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/dl3014/Dockerfile",
+            "start": {
+              "line": 7,
+              "column": 0
+            },
+            "end": {
+              "line": 7,
+              "column": 0
+            }
+          },
+          "rule": "hadolint/DL3014",
+          "message": "Use the -y switch to avoid manual input `apt-get -y install \u003cpackage\u003e`",
+          "detail": "Running apt-get install without -y will cause the command to wait for user confirmation, which will hang in Docker builds. Use -y, --yes, --assume-yes, or -qq to automatically confirm.",
+          "severity": "warning",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3014",
+          "sourceCode": "RUN apt-get install curl wget git",
+          "suggestedFix": {
+            "description": "Add -y flag to apt-get install",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/dl3014/Dockerfile",
+                  "start": {
+                    "line": 7,
+                    "column": 19
+                  },
+                  "end": {
+                    "line": 7,
+                    "column": 19
+                  }
+                },
+                "newText": " -y"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "errors": 0,
+    "warnings": 2,
+    "info": 0,
+    "style": 0,
+    "files": 1
+  },
+  "files_scanned": 1,
+  "rules_enabled": 1
+}
+
