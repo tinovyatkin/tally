@@ -2,6 +2,7 @@ package fixes
 
 import (
 	"bytes"
+	"slices"
 
 	"github.com/tinovyatkin/tally/internal/rules"
 )
@@ -140,9 +141,7 @@ scanLoop:
 	}
 
 	// Reverse to get ascending order
-	for i, j := 0, len(emptyIndices)-1; i < j; i, j = i+1, j-1 {
-		emptyIndices[i], emptyIndices[j] = emptyIndices[j], emptyIndices[i]
-	}
+	slices.Reverse(emptyIndices)
 
 	return emptyIndices
 }
