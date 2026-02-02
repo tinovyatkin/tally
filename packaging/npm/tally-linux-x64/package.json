@@ -1,7 +1,7 @@
 {
   "name": "@contino/tally-linux-x64",
   "version": "0.1.0",
-  "description": "The Linux 64-bit binary for tally",
+  "description": "tally binary for linux-x64",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tinovyatkin/tally.git"
@@ -11,10 +11,13 @@
     "url": "https://github.com/tinovyatkin/tally/issues"
   },
   "homepage": "https://github.com/tinovyatkin/tally#readme",
-  "os": [
-    "linux"
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": [
+    "bin/",
+    "README.md"
   ],
-  "cpu": [
-    "x64"
-  ]
+  "publishConfig": {
+    "access": "public"
+  }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@contino/tally-linux-arm64",
   "version": "0.1.0",
-  "description": "The Linux ARM64 binary for tally",
+  "description": "tally binary for linux-arm64",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tinovyatkin/tally.git"
@@ -11,10 +11,13 @@
     "url": "https://github.com/tinovyatkin/tally/issues"
   },
   "homepage": "https://github.com/tinovyatkin/tally#readme",
-  "os": [
-    "linux"
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "files": [
+    "bin/",
+    "README.md"
   ],
-  "cpu": [
-    "arm64"
-  ]
+  "publishConfig": {
+    "access": "public"
+  }
 }

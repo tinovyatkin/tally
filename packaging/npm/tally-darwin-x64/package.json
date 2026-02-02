@@ -1,7 +1,7 @@
 {
   "name": "@contino/tally-darwin-x64",
   "version": "0.1.0",
-  "description": "The macOS Intel binary for tally",
+  "description": "tally binary for darwin-x64",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tinovyatkin/tally.git"
@@ -11,10 +11,13 @@
     "url": "https://github.com/tinovyatkin/tally/issues"
   },
   "homepage": "https://github.com/tinovyatkin/tally#readme",
-  "os": [
-    "darwin"
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "files": [
+    "bin/",
+    "README.md"
   ],
-  "cpu": [
-    "x64"
-  ]
+  "publishConfig": {
+    "access": "public"
+  }
 }
