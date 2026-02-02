@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/testutil"
 )
 
 func TestConsistentInstructionCasingRule_Metadata(t *testing.T) {
@@ -205,29 +206,20 @@ func TestConsistentInstructionCasingRule_Check_MetaArgs(t *testing.T) {
 
 	// MetaArgs: arg (lowercase), FROM and RUN are uppercase
 	// Total: 2 upper, 1 lower -> uppercase wins, 'arg' should be flagged
-	input := rules.LintInput{
-		File: "Dockerfile",
-		MetaArgs: []instructions.ArgCommand{
-			{},
-		},
-		Stages: []instructions.Stage{
-			{
-				OrigCmd:  "FROM",
-				Location: []parser.Range{{Start: parser.Position{Line: 2, Character: 0}}},
-				Commands: []instructions.Command{
-					&runCommandMock{name: "RUN", loc: []parser.Range{{Start: parser.Position{Line: 3, Character: 0}}}},
-				},
-			},
-		},
-	}
+	content := `arg VERSION=1.0
+FROM alpine
+RUN echo hello
+`
+	input := testutil.MakeLintInput(t, "Dockerfile", content)
 
-	// Manually set the MetaArg name since we can't easily construct it
-	// The test verifies MetaArgs are included in counting
 	violations := r.Check(input)
 
-	// With no way to set MetaArg.Name() in test, this just verifies the code path doesn't panic
-	// and the existing stage commands are still processed correctly
-	assert.Empty(t, violations) // All uppercase, no violations
+	// The lowercase 'arg' should be flagged since FROM and RUN are uppercase (2 vs 1)
+	require.Len(t, violations, 1)
+	assert.Equal(t, "buildkit/ConsistentInstructionCasing", violations[0].RuleCode)
+	assert.Contains(t, violations[0].Message, "arg")
+	assert.Contains(t, violations[0].Message, "uppercase")
+	assert.Equal(t, 1, violations[0].Location.Start.Line) // MetaArg is on line 1
 }
 
 func TestIsSelfConsistentCasing(t *testing.T) {
