@@ -6,14 +6,13 @@
     "type": "git",
     "url": "git+https://github.com/tinovyatkin/tally.git"
   },
-  "main": "bin/index.js",
-  "files": [
-    "postinstall.js",
-    "get-exe.js"
-  ],
   "bin": {
-    "tally": "bin/index.js"
+    "tally": "./bin/cli.js"
   },
+  "files": [
+    "bin/",
+    "README.md"
+  ],
   "keywords": [
     "docker",
     "dockerfile",
@@ -28,6 +27,9 @@
     "url": "https://github.com/tinovyatkin/tally/issues"
   },
   "homepage": "https://github.com/tinovyatkin/tally#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "optionalDependencies": {
     "@contino/tally-darwin-arm64": "0.1.0",
     "@contino/tally-darwin-x64": "0.1.0",
@@ -37,7 +39,7 @@
     "@contino/tally-windows-x64": "0.1.0",
     "@contino/tally-freebsd-x64": "0.1.0"
   },
-  "scripts": {
-    "postinstall": "node postinstall.js"
+  "publishConfig": {
+    "access": "public"
   }
 }

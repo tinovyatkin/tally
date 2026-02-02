@@ -1,7 +1,7 @@
 {
   "name": "@contino/tally-freebsd-x64",
   "version": "0.1.0",
-  "description": "The FreeBSD 64-bit binary for tally",
+  "description": "tally binary for freebsd-x64",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tinovyatkin/tally.git"
@@ -11,10 +11,13 @@
     "url": "https://github.com/tinovyatkin/tally/issues"
   },
   "homepage": "https://github.com/tinovyatkin/tally#readme",
-  "os": [
-    "freebsd"
+  "os": ["freebsd"],
+  "cpu": ["x64"],
+  "files": [
+    "bin/",
+    "README.md"
   ],
-  "cpu": [
-    "x64"
-  ]
+  "publishConfig": {
+    "access": "public"
+  }
 }
