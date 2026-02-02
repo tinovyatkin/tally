@@ -23,7 +23,7 @@
               "helpUri": "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/"
             }
           ],
-          "version": "dev"
+          "version": "dev (buildkit v0.27.1)"
         }
       },
       "artifacts": [

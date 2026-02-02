@@ -1,20 +1,30 @@
 package version
 
-var (
-	version = "dev"
-	commit  = "unknown"
+import (
+	"runtime/debug"
 )
+
+var version = "dev"
 
 // Version returns the current version string
 func Version() string {
-	commitHash := Commit()
-	if commitHash != "unknown" && len(commitHash) > 7 {
-		return version + " (" + commitHash[:7] + ")"
+	bkVersion := BuildKitVersion()
+	if bkVersion != "" {
+		return version + " (buildkit " + bkVersion + ")"
 	}
 	return version
 }
 
-// Commit returns the git commit hash.
-func Commit() string {
-	return commit
+// BuildKitVersion returns the linked BuildKit version from build info.
+func BuildKitVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	for _, dep := range info.Deps {
+		if dep.Path == "github.com/moby/buildkit" {
+			return dep.Version
+		}
+	}
+	return ""
 }
