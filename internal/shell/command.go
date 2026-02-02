@@ -114,7 +114,7 @@ func (c *CommandInfo) HasAnyArg(args ...string) bool {
 // Returns empty string if not found or no value.
 func (c *CommandInfo) GetArgValue(flag string) string {
 	normalizedFlag := strings.TrimLeft(flag, "-")
-	isLong := strings.HasPrefix(flag, "--") || len(normalizedFlag) > 1
+	isLong := strings.HasPrefix(flag, "--")
 	prefix := "-"
 	if isLong {
 		prefix = "--"
