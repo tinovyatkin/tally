@@ -311,6 +311,263 @@ func TestFindCopyFromValue(t *testing.T) {
 	}
 }
 
+func TestNoEmptyContinuationFix(t *testing.T) {
+	tests := []struct {
+		name             string
+		source           string
+		violationLine    int // 1-based line from BuildKit
+		endLine          int // 0 means same as violationLine
+		wantFix          bool
+		wantEditCount    int
+		wantRemovedLines []int // 1-based line numbers
+	}{
+		{
+			name:             "single empty continuation line",
+			source:           "FROM alpine:3.18\nRUN apk update && \\\n\n    apk add curl",
+			violationLine:    4,
+			wantFix:          true,
+			wantEditCount:    1,
+			wantRemovedLines: []int{3},
+		},
+		{
+			name:             "multiple empty continuation lines",
+			source:           "FROM alpine:3.18\nRUN apk update && \\\n\n    apk add \\\n\n    curl",
+			violationLine:    6,
+			wantFix:          true,
+			wantEditCount:    2,
+			wantRemovedLines: []int{3, 5},
+		},
+		{
+			name:          "no empty continuation lines",
+			source:        "FROM alpine:3.18\nRUN apk update && \\\n    apk add curl",
+			violationLine: 3,
+			wantFix:       false,
+		},
+		{
+			name:          "empty line not in continuation",
+			source:        "FROM alpine:3.18\n\nRUN echo hello",
+			violationLine: 3,
+			wantFix:       false,
+		},
+		{
+			name:          "violation line is zero",
+			source:        "FROM alpine:3.18\nRUN apk update && \\\n\n    apk add curl",
+			violationLine: 0,
+			wantFix:       false,
+		},
+		{
+			name:          "violation line exceeds source lines",
+			source:        "FROM alpine:3.18\nRUN echo hello",
+			violationLine: 10,
+			wantFix:       false,
+		},
+		{
+			name:          "end line zero falls back to start line",
+			source:        "FROM alpine:3.18\nRUN apk update && \\\n\n    apk add curl",
+			violationLine: 4,
+			endLine:       0, // Will use Start.Line
+			wantFix:       true,
+			wantEditCount: 1,
+		},
+		{
+			name:             "CRLF line endings",
+			source:           "FROM alpine:3.18\r\nRUN apk update && \\\r\n\r\n    apk add curl",
+			violationLine:    4,
+			wantFix:          true,
+			wantEditCount:    1,
+			wantRemovedLines: []int{3},
+		},
+		{
+			// Empty line is the last line of the file (no content after it)
+			// The edit spans from end of previous line to start of empty line to remove the newline
+			name:             "empty continuation as last line",
+			source:           "FROM alpine:3.18\nRUN echo \\\n\n",
+			violationLine:    3,
+			wantFix:          true,
+			wantEditCount:    1,
+			wantRemovedLines: []int{2}, // Edit starts at line 2 (prev line end)
+		},
+		{
+			name:          "content line in middle of multiline command",
+			source:        "FROM alpine:3.18\nRUN apk update && \\\n    apk add curl && \\\n    echo done",
+			violationLine: 4,
+			wantFix:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := []byte(tt.source)
+			endLine := tt.endLine
+			if endLine == 0 {
+				endLine = tt.violationLine
+			}
+			v := rules.Violation{
+				Location: rules.NewRangeLocation("test.Dockerfile", tt.violationLine, 0, endLine, 0),
+				RuleCode: rules.BuildKitRulePrefix + "NoEmptyContinuation",
+				Message:  "Empty continuation line found in: RUN ...",
+			}
+
+			enrichNoEmptyContinuationFix(&v, source)
+
+			if tt.wantFix {
+				require.NotNil(t, v.SuggestedFix, "expected a fix")
+				assert.Len(t, v.SuggestedFix.Edits, tt.wantEditCount, "edit count mismatch")
+				assert.Equal(t, rules.FixSafe, v.SuggestedFix.Safety)
+				assert.True(t, v.SuggestedFix.IsPreferred)
+
+				// Verify each edit removes the correct line
+				for i, edit := range v.SuggestedFix.Edits {
+					assert.Empty(t, edit.NewText, "edit %d should have empty NewText", i)
+					if i < len(tt.wantRemovedLines) {
+						assert.Equal(t, tt.wantRemovedLines[i], edit.Location.Start.Line, "edit %d wrong line", i)
+					}
+				}
+			} else {
+				assert.Nil(t, v.SuggestedFix, "expected no fix")
+			}
+		})
+	}
+}
+
+func TestSplitLines(t *testing.T) {
+	tests := []struct {
+		name      string
+		source    string
+		wantLines []string
+	}{
+		{
+			name:      "LF line endings",
+			source:    "line1\nline2\nline3",
+			wantLines: []string{"line1", "line2", "line3"},
+		},
+		{
+			name:      "CRLF line endings",
+			source:    "line1\r\nline2\r\nline3",
+			wantLines: []string{"line1", "line2", "line3"},
+		},
+		{
+			name:      "mixed line endings",
+			source:    "line1\nline2\r\nline3",
+			wantLines: []string{"line1", "line2", "line3"},
+		},
+		{
+			name:      "trailing newline",
+			source:    "line1\nline2\n",
+			wantLines: []string{"line1", "line2"},
+		},
+		{
+			name:      "empty source",
+			source:    "",
+			wantLines: []string{},
+		},
+		{
+			name:      "single line no newline",
+			source:    "single",
+			wantLines: []string{"single"},
+		},
+		{
+			name:      "empty lines",
+			source:    "line1\n\nline3",
+			wantLines: []string{"line1", "", "line3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitLines([]byte(tt.source))
+			gotStrings := make([]string, len(got))
+			for i, line := range got {
+				gotStrings[i] = string(line)
+			}
+			assert.Equal(t, tt.wantLines, gotStrings)
+		})
+	}
+}
+
+func TestHasContinuationBefore(t *testing.T) {
+	tests := []struct {
+		name     string
+		lines    []string
+		emptyIdx int
+		want     bool
+	}{
+		{
+			name:     "continuation before empty line",
+			lines:    []string{"RUN echo \\", "", "done"},
+			emptyIdx: 1,
+			want:     true,
+		},
+		{
+			name:     "no continuation before empty line",
+			lines:    []string{"RUN echo", "", "done"},
+			emptyIdx: 1,
+			want:     false,
+		},
+		{
+			name:     "multiple empty lines after continuation",
+			lines:    []string{"RUN echo \\", "", "", "done"},
+			emptyIdx: 2,
+			want:     true,
+		},
+		{
+			name:     "empty at start",
+			lines:    []string{"", "RUN echo"},
+			emptyIdx: 0,
+			want:     false,
+		},
+		{
+			name:     "continuation with whitespace",
+			lines:    []string{"  RUN echo \\  ", "", "done"},
+			emptyIdx: 1,
+			want:     true,
+		},
+		// Additional cases (from isPartOfMultilineCommand consolidation)
+		{
+			name:     "line after continuation",
+			lines:    []string{"RUN echo \\", "done"},
+			emptyIdx: 1,
+			want:     true,
+		},
+		{
+			name:     "line not after continuation",
+			lines:    []string{"RUN echo", "done"},
+			emptyIdx: 1,
+			want:     false,
+		},
+		{
+			name:     "first line",
+			lines:    []string{"RUN echo"},
+			emptyIdx: 0,
+			want:     false,
+		},
+		{
+			name:     "line after empty line after continuation",
+			lines:    []string{"RUN echo \\", "", "done"},
+			emptyIdx: 2,
+			want:     true,
+		},
+		{
+			name:     "line after multiple empty lines no continuation",
+			lines:    []string{"RUN echo", "", "", "done"},
+			emptyIdx: 3,
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lines := make([][]byte, len(tt.lines))
+			for i, s := range tt.lines {
+				lines[i] = []byte(s)
+			}
+			got := hasContinuationBefore(lines, tt.emptyIdx)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+
 func TestFindFROMBaseName(t *testing.T) {
 	tests := []struct {
 		name      string
