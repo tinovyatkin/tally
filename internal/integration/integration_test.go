@@ -115,6 +115,7 @@ func TestCheck(t *testing.T) {
 		{name: "buildkit-warnings", dir: "buildkit-warnings", args: []string{"--format", "json"}, wantExit: 1},
 		{name: "empty-continuation", dir: "empty-continuation", args: []string{"--format", "json"}, wantExit: 1},
 		{name: "maintainer-deprecated", dir: "maintainer-deprecated", args: []string{"--format", "json"}, wantExit: 1},
+		{name: "consistent-instruction-casing", dir: "consistent-instruction-casing", args: []string{"--format", "json"}, wantExit: 1},
 
 		// Semantic model construction-time violations
 		{name: "duplicate-stage-name", dir: "duplicate-stage-name", args: []string{"--format", "json"}, wantExit: 1},
@@ -403,6 +404,21 @@ func TestFix(t *testing.T) {
 			want:        "FROM alpine:3.18\nRUN apk update && \\\n    apk add \\\n    curl\n",
 			args:        []string{"--fix"},
 			wantApplied: 1, // Single violation covers all empty lines
+		},
+		// ConsistentInstructionCasing: Normalize instruction casing
+		{
+			name:        "consistent-instruction-casing-to-upper",
+			input:       "FROM alpine:3.18\nrun echo hello\nCOPY . /app\nworkdir /app\n",
+			want:        "FROM alpine:3.18\nRUN echo hello\nCOPY . /app\nWORKDIR /app\n",
+			args:        []string{"--fix"},
+			wantApplied: 2, // Two instructions need fixing
+		},
+		{
+			name:        "consistent-instruction-casing-to-lower",
+			input:       "from alpine:3.18\nrun echo hello\nCOPY . /app\nworkdir /app\n",
+			want:        "from alpine:3.18\nrun echo hello\ncopy . /app\nworkdir /app\n",
+			args:        []string{"--fix"},
+			wantApplied: 1, // Only COPY needs fixing
 		},
 		// Multiple fixes with line shift: DL3003 splits one line into two,
 		// then DL3027 fix on a later line must still apply correctly.

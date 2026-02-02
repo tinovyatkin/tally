@@ -1,0 +1,96 @@
+{
+  "files": [
+    {
+      "file": "testdata/consistent-instruction-casing/Dockerfile",
+      "violations": [
+        {
+          "location": {
+            "file": "testdata/consistent-instruction-casing/Dockerfile",
+            "start": {
+              "line": 3,
+              "column": 0
+            },
+            "end": {
+              "line": 3,
+              "column": 0
+            }
+          },
+          "rule": "buildkit/ConsistentInstructionCasing",
+          "message": "Command 'run' should match the case of the command majority (uppercase)",
+          "severity": "warning",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
+          "sourceCode": "run echo hello",
+          "suggestedFix": {
+            "description": "Change 'run' to 'RUN' to match majority casing",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/consistent-instruction-casing/Dockerfile",
+                  "start": {
+                    "line": 3,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 3
+                  }
+                },
+                "newText": "RUN"
+              }
+            ],
+            "isPreferred": true
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/consistent-instruction-casing/Dockerfile",
+            "start": {
+              "line": 5,
+              "column": 0
+            },
+            "end": {
+              "line": 5,
+              "column": 0
+            }
+          },
+          "rule": "buildkit/ConsistentInstructionCasing",
+          "message": "Command 'workdir' should match the case of the command majority (uppercase)",
+          "severity": "warning",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
+          "sourceCode": "workdir /app",
+          "suggestedFix": {
+            "description": "Change 'workdir' to 'WORKDIR' to match majority casing",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/consistent-instruction-casing/Dockerfile",
+                  "start": {
+                    "line": 5,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 5,
+                    "column": 7
+                  }
+                },
+                "newText": "WORKDIR"
+              }
+            ],
+            "isPreferred": true
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "errors": 0,
+    "warnings": 2,
+    "info": 0,
+    "style": 0,
+    "files": 1
+  },
+  "files_scanned": 1,
+  "rules_enabled": 38
+}
+
