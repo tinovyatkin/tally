@@ -672,6 +672,88 @@ func TestMaintainerDeprecatedFix(t *testing.T) {
 	}
 }
 
+func TestConsistentInstructionCasingFix(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		message     string
+		wantFix     bool
+		wantNewText string
+	}{
+		{
+			name:        "lowercase run should become uppercase",
+			source:      "run echo hello",
+			message:     "Command 'run' should match the case of the command majority (uppercase)",
+			wantFix:     true,
+			wantNewText: "RUN",
+		},
+		{
+			name:        "lowercase workdir should become uppercase",
+			source:      "workdir /app",
+			message:     "Command 'workdir' should match the case of the command majority (uppercase)",
+			wantFix:     true,
+			wantNewText: "WORKDIR",
+		},
+		{
+			name:        "uppercase COPY should become lowercase",
+			source:      "COPY . /app",
+			message:     "Command 'COPY' should match the case of the command majority (lowercase)",
+			wantFix:     true,
+			wantNewText: "copy",
+		},
+		{
+			name:        "lowercase from should become uppercase",
+			source:      "from alpine AS builder",
+			message:     "Command 'from' should match the case of the command majority (uppercase)",
+			wantFix:     true,
+			wantNewText: "FROM",
+		},
+		{
+			name:        "uppercase FROM should become lowercase",
+			source:      "FROM alpine AS builder",
+			message:     "Command 'FROM' should match the case of the command majority (lowercase)",
+			wantFix:     true,
+			wantNewText: "from",
+		},
+		{
+			name:    "invalid message format",
+			source:  "run echo hello",
+			message: "Some other message format",
+			wantFix: false,
+		},
+		{
+			name:        "mixed case cmd should become uppercase",
+			source:      "Cmd echo hello",
+			message:     "Command 'Cmd' should match the case of the command majority (uppercase)",
+			wantFix:     true,
+			wantNewText: "CMD",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := []byte(tt.source)
+			v := rules.Violation{
+				Location: rules.NewRangeLocation("test.Dockerfile", 1, 0, 1, len(tt.source)),
+				RuleCode: rules.BuildKitRulePrefix + "ConsistentInstructionCasing",
+				Message:  tt.message,
+			}
+
+			enrichConsistentInstructionCasingFix(&v, source)
+
+			if tt.wantFix {
+				require.NotNil(t, v.SuggestedFix, "expected a fix")
+				assert.Len(t, v.SuggestedFix.Edits, 1)
+				assert.Equal(t, tt.wantNewText, v.SuggestedFix.Edits[0].NewText)
+				assert.Equal(t, rules.FixSafe, v.SuggestedFix.Safety)
+				assert.True(t, v.SuggestedFix.IsPreferred)
+			} else {
+				assert.Nil(t, v.SuggestedFix, "expected no fix")
+			}
+		})
+	}
+}
+
 func TestFindFROMBaseName(t *testing.T) {
 	tests := []struct {
 		name      string
