@@ -311,6 +311,23 @@ func TestFormatMount(t *testing.T) {
 			},
 			want: "--mount=type=secret,id=mysecret,target=/run/secrets/mysecret",
 		},
+		{
+			name: "tmpfs mount",
+			mount: &instructions.Mount{
+				Type:      instructions.MountTypeTmpfs,
+				Target:    "/tmp/build",
+				SizeLimit: 1073741824, // 1GB
+			},
+			want: "--mount=type=tmpfs,target=/tmp/build,size=1073741824",
+		},
+		{
+			name: "ssh mount",
+			mount: &instructions.Mount{
+				Type:    instructions.MountTypeSSH,
+				CacheID: "default",
+			},
+			want: "--mount=type=ssh,id=default",
+		},
 	}
 
 	for _, tt := range tests {
