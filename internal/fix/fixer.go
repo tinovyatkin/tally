@@ -99,9 +99,7 @@ func (f *Fixer) Apply(ctx context.Context, violations []rules.Violation, sources
 
 	// Phase 2: Resolve and apply async fixes (each is applied immediately after resolution)
 	if len(asyncCandidates) > 0 {
-		if err := f.resolveAsyncFixes(ctx, result.Changes, asyncCandidates); err != nil {
-			return nil, err
-		}
+		f.resolveAsyncFixes(ctx, result.Changes, asyncCandidates)
 		// Record skipped fixes for any that still need resolution (resolver failed)
 		for _, fc := range asyncCandidates {
 			if fc.fix.NeedsResolve {
@@ -254,7 +252,7 @@ func (f *Fixer) fixModeAllowed(filePath, ruleCode string) bool {
 // IMPORTANT: Async fixes are resolved and applied ONE AT A TIME, sequentially.
 // This ensures each resolver sees the content after previous async fixes were applied,
 // avoiding position drift between async fixes.
-func (f *Fixer) resolveAsyncFixes(ctx context.Context, changes map[string]*FileChange, candidates []*fixCandidate) error {
+func (f *Fixer) resolveAsyncFixes(ctx context.Context, changes map[string]*FileChange, candidates []*fixCandidate) {
 	for _, candidate := range candidates {
 		fix := candidate.fix
 		if !fix.NeedsResolve {
@@ -293,8 +291,6 @@ func (f *Fixer) resolveAsyncFixes(ctx context.Context, changes map[string]*FileC
 			f.applyFixesToFile(fc, []*fixCandidate{candidate})
 		}
 	}
-
-	return nil
 }
 
 // applyFixesToFile applies non-conflicting fixes to a single file.
