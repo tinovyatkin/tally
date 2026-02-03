@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/urfave/cli/v3"
 
@@ -606,24 +607,36 @@ func getHeredocMinCommands(cfg *config.Config) int {
 // This allows rules to check if other rules are active and coordinate behavior.
 // For example, DL3003 can skip its fix if prefer-run-heredoc is enabled.
 func computeEnabledRules(cfg *config.Config) []string {
-	var enabled []string
+	enabledSet := make(map[string]struct{})
 
 	// Collect registered rules (tally/*, hadolint/*, and implemented buildkit/* rules)
 	registry := rules.DefaultRegistry()
 	for _, rule := range registry.All() {
 		if isRuleEnabled(rule.Metadata().Code, rule.Metadata().DefaultSeverity, cfg) {
-			enabled = append(enabled, rule.Metadata().Code)
+			enabledSet[rule.Metadata().Code] = struct{}{}
 		}
 	}
 
-	// Collect BuildKit parser rules (captured warnings like StageNameCasing, etc.)
-	for _, info := range buildkit.All() {
+	// Collect BuildKit parse-time rules that can be captured by tally.
+	for _, info := range buildkit.Captured() {
 		ruleCode := rules.BuildKitRulePrefix + info.Name
 		if isRuleEnabled(ruleCode, info.DefaultSeverity, cfg) {
-			enabled = append(enabled, ruleCode)
+			enabledSet[ruleCode] = struct{}{}
 		}
 	}
 
+	// Collect semantic construction rules (emitted outside the registry).
+	for _, ruleCode := range semantic.ConstructionRuleCodes() {
+		if isRuleEnabled(ruleCode, rules.SeverityError, cfg) {
+			enabledSet[ruleCode] = struct{}{}
+		}
+	}
+
+	enabled := make([]string, 0, len(enabledSet))
+	for ruleCode := range enabledSet {
+		enabled = append(enabled, ruleCode)
+	}
+	sort.Strings(enabled)
 	return enabled
 }
 

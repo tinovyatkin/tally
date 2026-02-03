@@ -1,20 +1,21 @@
+---
 name: Sync Hadolint Rules
-
 on:
   schedule:
     - cron: "0 0 * * 0" # Weekly on Sunday
   workflow_dispatch: # Allow manual trigger
-
 permissions:
   contents: write
   pull-requests: write
-
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
       - name: Checkout hadolint repo
         uses: actions/checkout@v6
         with:
@@ -24,7 +25,6 @@ jobs:
           sparse-checkout: |
             src/Hadolint/Rule
             contrib/hadolint.json
-
       - name: Install jq
         run: |
           sudo rm -f /usr/bin/jq
@@ -32,22 +32,19 @@ jobs:
           chmod +x /tmp/jq
           sudo mv /tmp/jq /usr/bin/jq
           which jq && jq --version
-
       - name: Install ast-grep
         run: npm install --global @ast-grep/cli
-
       - name: Install rumdl
         run: pip install rumdl
-
       - name: Extract hadolint rules
         run: |
           ./scripts/extract-hadolint-rules.sh hadolint --only-dl > internal/rules/hadolint-rules.json
           rm -rf hadolint
-
       - name: Update RULES.md
         id: update
         run: |
           ./scripts/generate-hadolint-table.sh --update
+          go run ./scripts/sync-buildkit-rules --update-readme --update-summary
           rumdl check --fix --config .rumdl.toml --output-format concise RULES.md README.md
           # Check if there are changes
           if git diff --quiet; then
@@ -55,10 +52,8 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Show summary
         run: ./scripts/generate-hadolint-table.sh --summary
-
       - name: Create Pull Request
         if: steps.update.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8.1.0

@@ -13,6 +13,22 @@ import (
 	"github.com/tinovyatkin/tally/internal/rules"
 )
 
+// CapturedRuleNames lists BuildKit rule names that can be captured by tally during parsing.
+//
+// BuildKit runs some checks during parsing (instructions.Parse / parser warnings) and others
+// only during LLB conversion (dockerfile2llb). Since tally is a static linter and doesn't
+// run LLB conversion, only parse-time checks are "captured".
+//
+// Note: This is intentionally a small, explicit set that reflects tally's current pipeline.
+// When upgrading BuildKit, verify whether new parse-time rules were added.
+var CapturedRuleNames = []string{
+	"StageNameCasing",
+	"FromAsCasing",
+	"MaintainerDeprecated",
+	"InvalidDefinitionDescription", // experimental
+	"NoEmptyContinuation",          // parser warning
+}
+
 // RuleInfo contains metadata for a BuildKit linter rule.
 // Most fields are derived from BuildKit's LinterRule; we add severity and category.
 type RuleInfo struct {
@@ -154,6 +170,18 @@ func All() []RuleInfo {
 		result = append(result, info)
 	}
 	return result
+}
+
+// Captured returns BuildKit rules that can be produced during parsing and therefore can be
+// captured by tally without running LLB conversion.
+func Captured() []RuleInfo {
+	out := make([]RuleInfo, 0, len(CapturedRuleNames))
+	for _, name := range CapturedRuleNames {
+		if info := Get(name); info != nil {
+			out = append(out, *info)
+		}
+	}
+	return out
 }
 
 // GetMetadata converts a BuildKit rule name to a rules.RuleMetadata.
