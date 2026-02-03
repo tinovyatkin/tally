@@ -353,3 +353,343 @@ func TestFormatMounts(t *testing.T) {
 		t.Errorf("FormatMounts() = %q, want %q", got, want)
 	}
 }
+
+func TestFormatMounts_Empty(t *testing.T) {
+	got := FormatMounts(nil)
+	if got != "" {
+		t.Errorf("FormatMounts(nil) = %q, want empty string", got)
+	}
+
+	got = FormatMounts([]*instructions.Mount{})
+	if got != "" {
+		t.Errorf("FormatMounts([]) = %q, want empty string", got)
+	}
+}
+
+func TestFormatMount_WithUIDGIDMode(t *testing.T) {
+	uid := uint64(1000)
+	gid := uint64(1000)
+	mode := uint64(0o755)
+
+	tests := []struct {
+		name  string
+		mount *instructions.Mount
+		want  string
+	}{
+		{
+			name: "cache mount with uid/gid/mode",
+			mount: &instructions.Mount{
+				Type:   instructions.MountTypeCache,
+				Target: "/cache",
+				UID:    &uid,
+				GID:    &gid,
+				Mode:   &mode,
+			},
+			want: "--mount=type=cache,target=/cache,uid=1000,gid=1000,mode=0755",
+		},
+		{
+			name: "secret mount with uid/gid/mode",
+			mount: &instructions.Mount{
+				Type:    instructions.MountTypeSecret,
+				CacheID: "mysecret",
+				UID:     &uid,
+				GID:     &gid,
+				Mode:    &mode,
+			},
+			want: "--mount=type=secret,id=mysecret,uid=1000,gid=1000,mode=0755",
+		},
+		{
+			name: "ssh mount with required",
+			mount: &instructions.Mount{
+				Type:     instructions.MountTypeSSH,
+				CacheID:  "default",
+				Required: true,
+			},
+			want: "--mount=type=ssh,id=default,required",
+		},
+		{
+			name: "cache mount with from and source",
+			mount: &instructions.Mount{
+				Type:   instructions.MountTypeCache,
+				Target: "/cache",
+				From:   "builder",
+				Source: "/build/cache",
+			},
+			want: "--mount=type=cache,target=/cache,from=builder,source=/build/cache",
+		},
+		{
+			name: "cache mount with readonly",
+			mount: &instructions.Mount{
+				Type:     instructions.MountTypeCache,
+				Target:   "/cache",
+				ReadOnly: true,
+			},
+			want: "--mount=type=cache,target=/cache,ro",
+		},
+		{
+			name: "bind mount with from",
+			mount: &instructions.Mount{
+				Type:     instructions.MountTypeBind,
+				Target:   "/app",
+				From:     "builder",
+				ReadOnly: true,
+			},
+			want: "--mount=type=bind,target=/app,from=builder",
+		},
+		{
+			name: "secret mount with target",
+			mount: &instructions.Mount{
+				Type:    instructions.MountTypeSecret,
+				CacheID: "mysecret",
+				Target:  "/run/secrets/mysecret",
+			},
+			want: "--mount=type=secret,id=mysecret,target=/run/secrets/mysecret",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatMount(tt.mount)
+			if got != tt.want {
+				t.Errorf("FormatMount() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMountEqual_AllFields(t *testing.T) {
+	uid1 := uint64(1000)
+	uid2 := uint64(2000)
+
+	tests := []struct {
+		name string
+		a    *instructions.Mount
+		b    *instructions.Mount
+		want bool
+	}{
+		{
+			name: "different source",
+			a:    &instructions.Mount{Type: instructions.MountTypeBind, Source: "/src1", Target: "/app"},
+			b:    &instructions.Mount{Type: instructions.MountTypeBind, Source: "/src2", Target: "/app"},
+			want: false,
+		},
+		{
+			name: "different from",
+			a:    &instructions.Mount{Type: instructions.MountTypeBind, Target: "/app", From: "stage1"},
+			b:    &instructions.Mount{Type: instructions.MountTypeBind, Target: "/app", From: "stage2"},
+			want: false,
+		},
+		{
+			name: "different readonly",
+			a:    &instructions.Mount{Type: instructions.MountTypeBind, Target: "/app", ReadOnly: true},
+			b:    &instructions.Mount{Type: instructions.MountTypeBind, Target: "/app", ReadOnly: false},
+			want: false,
+		},
+		{
+			name: "different cache id",
+			a:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", CacheID: "id1"},
+			b:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", CacheID: "id2"},
+			want: false,
+		},
+		{
+			name: "different cache sharing",
+			a:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", CacheSharing: instructions.MountSharingShared},
+			b:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", CacheSharing: instructions.MountSharingLocked},
+			want: false,
+		},
+		{
+			name: "different UID - both set",
+			a:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", UID: &uid1},
+			b:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", UID: &uid2},
+			want: false,
+		},
+		{
+			name: "different UID - one nil",
+			a:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", UID: &uid1},
+			b:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", UID: nil},
+			want: false,
+		},
+		{
+			name: "same UID",
+			a:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", UID: &uid1},
+			b:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", UID: &uid1},
+			want: true,
+		},
+		{
+			name: "different GID",
+			a:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", GID: &uid1},
+			b:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", GID: &uid2},
+			want: false,
+		},
+		{
+			name: "different Mode",
+			a:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", Mode: &uid1},
+			b:    &instructions.Mount{Type: instructions.MountTypeCache, Target: "/cache", Mode: &uid2},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mountEqual(tt.a, tt.b)
+			if got != tt.want {
+				t.Errorf("mountEqual() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMountsEqual_SecretSSHKeys(t *testing.T) {
+	// Test that secret/ssh mounts use CacheID as key instead of Target
+	tests := []struct {
+		name string
+		a    []*instructions.Mount
+		b    []*instructions.Mount
+		want bool
+	}{
+		{
+			name: "secret mounts same id",
+			a:    []*instructions.Mount{{Type: instructions.MountTypeSecret, CacheID: "mysecret"}},
+			b:    []*instructions.Mount{{Type: instructions.MountTypeSecret, CacheID: "mysecret"}},
+			want: true,
+		},
+		{
+			name: "secret mounts different id",
+			a:    []*instructions.Mount{{Type: instructions.MountTypeSecret, CacheID: "secret1"}},
+			b:    []*instructions.Mount{{Type: instructions.MountTypeSecret, CacheID: "secret2"}},
+			want: false,
+		},
+		{
+			name: "ssh mounts same id",
+			a:    []*instructions.Mount{{Type: instructions.MountTypeSSH, CacheID: "default"}},
+			b:    []*instructions.Mount{{Type: instructions.MountTypeSSH, CacheID: "default"}},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MountsEqual(tt.a, tt.b)
+			if got != tt.want {
+				t.Errorf("MountsEqual() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUint64PtrEqual(t *testing.T) {
+	val1 := uint64(100)
+	val2 := uint64(200)
+	val1Copy := uint64(100)
+
+	tests := []struct {
+		name string
+		a    *uint64
+		b    *uint64
+		want bool
+	}{
+		{name: "both nil", a: nil, b: nil, want: true},
+		{name: "a nil b set", a: nil, b: &val1, want: false},
+		{name: "a set b nil", a: &val1, b: nil, want: false},
+		{name: "both same value", a: &val1, b: &val1Copy, want: true},
+		{name: "different values", a: &val1, b: &val2, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := uint64PtrEqual(tt.a, tt.b)
+			if got != tt.want {
+				t.Errorf("uint64PtrEqual() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatOctal(t *testing.T) {
+	tests := []struct {
+		input uint64
+		want  string
+	}{
+		{0o755, "0755"},
+		{0o644, "0644"},
+		{0o777, "0777"},
+		{0, "0000"},
+		{1, "0001"},
+		{8, "0010"},   // Octal 10 = decimal 8
+		{64, "0100"},  // Octal 100 = decimal 64
+		{511, "0777"}, // Octal 777 = decimal 511
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			got := formatOctal(tt.input)
+			if got != tt.want {
+				t.Errorf("formatOctal(%d) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatUint64(t *testing.T) {
+	tests := []struct {
+		input uint64
+		want  string
+	}{
+		{0, "0"},
+		{1, "1"},
+		{1000, "1000"},
+		{18446744073709551615, "18446744073709551615"}, // Max uint64
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			got := formatUint64(tt.input)
+			if got != tt.want {
+				t.Errorf("formatUint64(%d) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMountsPopulated(t *testing.T) {
+	tests := []struct {
+		name   string
+		mounts []*instructions.Mount
+		want   bool
+	}{
+		{
+			name:   "empty slice",
+			mounts: []*instructions.Mount{},
+			want:   false,
+		},
+		{
+			name:   "unparsed bind mount (default)",
+			mounts: []*instructions.Mount{{Type: instructions.MountTypeBind, Target: ""}},
+			want:   false,
+		},
+		{
+			name:   "parsed bind mount with target",
+			mounts: []*instructions.Mount{{Type: instructions.MountTypeBind, Target: "/app"}},
+			want:   true,
+		},
+		{
+			name:   "parsed cache mount",
+			mounts: []*instructions.Mount{{Type: instructions.MountTypeCache, Target: "/cache"}},
+			want:   true,
+		},
+		{
+			name:   "secret mount with cache id",
+			mounts: []*instructions.Mount{{Type: instructions.MountTypeSecret, CacheID: "mysecret"}},
+			want:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mountsPopulated(tt.mounts)
+			if got != tt.want {
+				t.Errorf("mountsPopulated() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
