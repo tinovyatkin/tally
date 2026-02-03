@@ -109,9 +109,8 @@ func (r *PreferHeredocRule) Check(input rules.LintInput) []rules.Violation {
 	meta := r.Metadata()
 	sm := input.SourceMap()
 
-	// Get semantic model for shell variant info
-	sem, ok := input.Semantic.(*semantic.Model)
-	_ = ok // Semantic may be nil, handled below
+	// Get semantic model for shell variant info (may be nil)
+	sem, _ := input.Semantic.(*semantic.Model) //nolint:errcheck // Type assertion OK returns false for nil, sem is nil-checked below
 
 	for stageIdx, stage := range input.Stages {
 		// Get shell variant for this stage
