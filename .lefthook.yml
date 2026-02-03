@@ -23,6 +23,9 @@ pre-commit:
     yamllint:
       glob: "*.{yml,yaml}"
       run: uvx yamllint {staged_files}
+    format-yml:
+      glob: "{.yamlfmt,*.yml,*.yaml}"
+      run: yamlfmt {staged_files}
     typos:
       glob: "*.{py,js,ts,tsx,toml,yaml,yml,json,html,css,md,txt,rst,tex}"
       run: uv tool run typos==1.43.0 --force-exclude {staged_files}

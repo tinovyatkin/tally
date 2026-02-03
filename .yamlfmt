@@ -1,0 +1,13 @@
+---
+formatter:
+  type: basic
+  indent: 2
+  include_document_start: true
+  line_ending: lf
+  emoji_support: true
+include:
+  - .yamlfmt
+  - "**/*.yaml"
+  - "**/*.yml"
+exclude:
+  - "**/__snapshots__/**"
