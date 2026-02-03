@@ -4,6 +4,8 @@ version: '2'
 
 run:
   concurrency: 4
+  go: "1.25.6"
+  modules-download-mode: readonly
   timeout: 5m
 
 linters:
@@ -109,7 +111,7 @@ linters:
           disabled: true
 
     staticcheck:
-      checks: ["all", "-SA1019", "-SA4006"]
+      checks: ["all", "-SA4006"]
 
   exclusions:
     presets:
