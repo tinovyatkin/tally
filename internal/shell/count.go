@@ -46,11 +46,12 @@ func countInStatement(stmt *syntax.Stmt) int {
 		// Simple command (including pipelines which are represented differently)
 		return 1
 	case *syntax.BinaryCmd:
-		// && or || chain
-		if cmd.Op == syntax.AndStmt || cmd.Op == syntax.OrStmt {
+		// Only count && chains - || chains have different semantics with set -e
+		// and cannot be safely converted to heredocs
+		if cmd.Op == syntax.AndStmt {
 			return countInStatement(cmd.X) + countInStatement(cmd.Y)
 		}
-		// Pipe is a single logical command
+		// || chains and pipes are single logical commands
 		return 1
 	default:
 		// Other compound commands (if, for, while, case, etc.) count as 1
@@ -84,6 +85,8 @@ func ExtractChainedCommands(script string, variant Variant) []string {
 }
 
 // extractFromStatement extracts commands from a statement, flattening && chains.
+// Only && chains are flattened - || chains have different semantics with set -e
+// and are kept as single commands (which will fail the IsSimpleScript check).
 func extractFromStatement(stmt *syntax.Stmt, variant Variant) []string {
 	if stmt == nil || stmt.Cmd == nil {
 		return nil
@@ -91,14 +94,14 @@ func extractFromStatement(stmt *syntax.Stmt, variant Variant) []string {
 
 	switch cmd := stmt.Cmd.(type) {
 	case *syntax.BinaryCmd:
-		if cmd.Op == syntax.AndStmt || cmd.Op == syntax.OrStmt {
-			// Flatten && and || chains
+		if cmd.Op == syntax.AndStmt {
+			// Flatten && chains only
 			var commands []string
 			commands = append(commands, extractFromStatement(cmd.X, variant)...)
 			commands = append(commands, extractFromStatement(cmd.Y, variant)...)
 			return commands
 		}
-		// Pipe or other binary - format as single command
+		// || chains, pipes, or other binary - format as single command
 		return []string{FormatStatement(stmt, variant)}
 	default:
 		return []string{FormatStatement(stmt, variant)}
@@ -169,9 +172,15 @@ func isSimpleStatement(stmt *syntax.Stmt) bool {
 		}
 		return true
 	case *syntax.BinaryCmd:
-		// && and || chains are simple if their parts are simple
-		if cmd.Op == syntax.AndStmt || cmd.Op == syntax.OrStmt {
+		// Only && chains are simple - || chains have different semantics with set -e
+		// and cannot be safely converted to heredocs (the fallback commands would
+		// never run because set -e exits on the first failure)
+		if cmd.Op == syntax.AndStmt {
 			return isSimpleStatement(cmd.X) && isSimpleStatement(cmd.Y)
+		}
+		// || chains are NOT simple - they can't be converted to heredocs
+		if cmd.Op == syntax.OrStmt {
+			return false
 		}
 		// Pipes are simple
 		if cmd.Op == syntax.Pipe || cmd.Op == syntax.PipeAll {

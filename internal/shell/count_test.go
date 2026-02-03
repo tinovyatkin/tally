@@ -48,16 +48,16 @@ func TestCountChainedCommands(t *testing.T) {
 			want:    3,
 		},
 		{
-			name:    "or chain",
+			name:    "or chain counts as one",
 			script:  "test -f file || touch file",
 			variant: VariantBash,
-			want:    2,
+			want:    1, // || chains are not split (set -e would change their semantics)
 		},
 		{
-			name:    "mixed chain",
+			name:    "mixed chain with or counts as one",
 			script:  "cmd1 && cmd2 || cmd3",
 			variant: VariantBash,
-			want:    3,
+			want:    1, // Contains ||, so treated as single command
 		},
 		{
 			name:    "empty script",
@@ -222,6 +222,18 @@ func TestIsSimpleScript(t *testing.T) {
 			script:  "echo hello",
 			variant: VariantNonPOSIX,
 			want:    false,
+		},
+		{
+			name:    "or chain is not simple",
+			script:  "test -f file || touch file",
+			variant: VariantBash,
+			want:    false, // || chains can't be converted to heredocs (set -e changes semantics)
+		},
+		{
+			name:    "mixed and-or chain is not simple",
+			script:  "cmd1 && cmd2 || cmd3",
+			variant: VariantBash,
+			want:    false, // Contains ||, can't be converted
 		},
 	}
 
