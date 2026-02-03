@@ -162,7 +162,7 @@ func isSimpleStatement(stmt *syntax.Stmt) bool {
 		if len(cmd.Args) > 0 {
 			if name := cmd.Args[0].Lit(); name != "" {
 				switch name {
-				case cmdExit, "return", "break", "continue":
+				case cmdExit, "return", "break", "continue", "exec":
 					return false
 				}
 			}
