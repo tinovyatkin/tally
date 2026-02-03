@@ -401,7 +401,7 @@ func (r *PreferHeredocRule) generateConsecutiveAsyncFix(
 	return r.generateHeredocAsyncFix(
 		rules.HeredocFixConsecutive,
 		fmt.Sprintf("Combine %d commands into heredoc", len(commands)),
-		stageIdx, shellVariant, commands, minCommands, meta,
+		stageIdx, shellVariant, minCommands, meta,
 	)
 }
 
@@ -417,7 +417,7 @@ func (r *PreferHeredocRule) generateChainedAsyncFix(
 	return r.generateHeredocAsyncFix(
 		rules.HeredocFixChained,
 		fmt.Sprintf("Convert chained commands to heredoc (%d commands)", len(commands)),
-		stageIdx, shellVariant, commands, minCommands, meta,
+		stageIdx, shellVariant, minCommands, meta,
 	)
 }
 
@@ -429,7 +429,6 @@ func (r *PreferHeredocRule) generateHeredocAsyncFix(
 	description string,
 	stageIdx int,
 	shellVariant shell.Variant,
-	_ []string, // commands - unused, resolver re-parses to find candidates
 	minCommands int,
 	meta rules.RuleMetadata,
 ) *rules.SuggestedFix {
