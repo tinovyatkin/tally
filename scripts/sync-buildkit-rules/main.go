@@ -596,13 +596,11 @@ func hadolintCounts(path string) (int, int, int, error) {
 	var supported, implemented, covered int
 	for _, v := range st.Rules {
 		switch v.Status {
-		case "implemented", "covered_by_buildkit":
-			supported++
-		}
-		switch v.Status {
 		case "implemented":
+			supported++
 			implemented++
 		case "covered_by_buildkit":
+			supported++
 			covered++
 		}
 	}
