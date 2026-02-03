@@ -852,37 +852,47 @@ func escapePipes(s string) string {
 	return strings.ReplaceAll(s, "|", "\\|")
 }
 
+type markerBounds struct {
+	begin    int
+	beginEnd int
+	end      int
+}
+
+func findMarkerBounds(orig []byte, beginMarker, endMarker string) (markerBounds, error) {
+	begin := bytes.Index(orig, []byte(beginMarker))
+	if begin == -1 {
+		return markerBounds{}, fmt.Errorf("begin marker not found: %s", beginMarker)
+	}
+	searchFrom := begin + len(beginMarker)
+	endRel := bytes.Index(orig[searchFrom:], []byte(endMarker))
+	if endRel == -1 {
+		return markerBounds{}, fmt.Errorf("end marker not found: %s", endMarker)
+	}
+	end := searchFrom + endRel
+	if end < begin {
+		return markerBounds{}, errors.New("end marker occurs before begin marker")
+	}
+	return markerBounds{begin: begin, beginEnd: begin + len(beginMarker), end: end}, nil
+}
+
 func replaceBetweenMarkers(path, beginMarker, endMarker, newContent string) error {
 	orig, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	begin := bytes.Index(orig, []byte(beginMarker))
-	if begin == -1 {
-		return fmt.Errorf("begin marker not found: %s", beginMarker)
-	}
-	searchFrom := begin + len(beginMarker)
-	endRel := bytes.Index(orig[searchFrom:], []byte(endMarker))
-	if endRel == -1 {
-		return fmt.Errorf("end marker not found: %s", endMarker)
-	}
-	end := searchFrom + endRel
-	if end == -1 {
-		return fmt.Errorf("end marker not found: %s", endMarker)
-	}
-	if end < begin {
-		return errors.New("end marker occurs before begin marker")
-	}
 
-	beginEnd := begin + len(beginMarker)
+	bounds, err := findMarkerBounds(orig, beginMarker, endMarker)
+	if err != nil {
+		return err
+	}
 
 	// Keep the markers themselves and replace only the content between them.
 	var out bytes.Buffer
-	out.Write(orig[:beginEnd])
+	out.Write(orig[:bounds.beginEnd])
 	out.WriteByte('\n')
 	out.WriteString(strings.TrimRight(newContent, "\n"))
 	out.WriteByte('\n')
-	out.Write(orig[end:])
+	out.Write(orig[bounds.end:])
 
 	mode := os.FileMode(0o644)
 	if info, statErr := os.Stat(path); statErr == nil {
@@ -896,22 +906,11 @@ func checkBetweenMarkers(path, beginMarker, endMarker, newContent string) error 
 	if err != nil {
 		return err
 	}
-	begin := bytes.Index(orig, []byte(beginMarker))
-	if begin == -1 {
-		return fmt.Errorf("begin marker not found: %s", beginMarker)
+	bounds, err := findMarkerBounds(orig, beginMarker, endMarker)
+	if err != nil {
+		return err
 	}
-	searchFrom := begin + len(beginMarker)
-	endRel := bytes.Index(orig[searchFrom:], []byte(endMarker))
-	if endRel == -1 {
-		return fmt.Errorf("end marker not found: %s", endMarker)
-	}
-	end := searchFrom + endRel
-	if end < begin {
-		return errors.New("end marker occurs before begin marker")
-	}
-
-	beginEnd := begin + len(beginMarker)
-	existing := string(orig[beginEnd:end])
+	existing := string(orig[bounds.beginEnd:bounds.end])
 
 	normalize := func(s string) string {
 		s = strings.ReplaceAll(s, "\r\n", "\n")
