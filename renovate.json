@@ -82,7 +82,8 @@
     },
     {
       "matchFileNames": [
-        "packaging/**"
+        "packaging/**",
+        "**/__snapshots__/**"
       ],
       "enabled": false
     },

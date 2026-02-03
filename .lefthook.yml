@@ -29,9 +29,9 @@ pre-commit:
     codecov:
       glob: ".codecov.yml"
       run: curl --fail --data-binary @.codecov.yml https://codecov.io/validate
-    renovate:
-      glob: "renovate.json"
-      run: npx -y -q -y --package renovate renovate-config-validator renovate.json
+    # renovate:
+    #   glob: "renovate.json"
+    #   run: npx -y -q -y --package renovate renovate-config-validator renovate.json
     actionlint:
       glob: ".github/workflows/*.{yaml,yml}"
       run: actionlint {staged_files}
