@@ -1,10 +1,10 @@
+---
 output:
   # - summary # Print summary block (successful and failed steps)
   # - empty_summary # Print summary heading when there are no steps to run
   - failure # Print failed steps printing
 # - skips # Print "skip" (i.e. no files matched)
 assert_lefthook_installed: true
-
 pre-commit:
   commands:
     lint-go:
@@ -26,6 +26,7 @@ pre-commit:
     format-yml:
       glob: "{.yamlfmt,*.yml,*.yaml}"
       run: yamlfmt {staged_files}
+      stage_fixed: true
     typos:
       glob: "*.{py,js,ts,tsx,toml,yaml,yml,json,html,css,md,txt,rst,tex}"
       run: uv tool run typos==1.43.0 --force-exclude {staged_files}
@@ -41,20 +42,17 @@ pre-commit:
     commitlint-config:
       glob: ".commitlintrc.yaml"
       run: uvx check-jsonschema --schemafile https://json.schemastore.org/commitlintrc.json .commitlintrc.yaml
-
 commit-msg:
   commands:
     "lint commit message":
       run: npx -y -q commitlint --edit {1}
     "check spelling":
       run: uv tool run typos==1.43.0 {1}
-
 post-merge:
   files: "git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD"
   commands:
     delete-merged-branches:
       run: git branch --merged | grep -Ev '\*|master|main|dev|develop|development|stag|staging|prod|production' | xargs git branch -d; git fetch --prune;
-
 pre-push:
   jobs:
     - name: build
