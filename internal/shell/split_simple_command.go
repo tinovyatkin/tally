@@ -73,6 +73,9 @@ func simpleLiteralWord(w *syntax.Word) (string, bool) {
 	if w == nil {
 		return "", false
 	}
+	if len(w.Parts) == 0 {
+		return "", false
+	}
 
 	var b strings.Builder
 	for _, part := range w.Parts {
@@ -100,8 +103,5 @@ func simpleLiteralWord(w *syntax.Word) (string, bool) {
 		}
 	}
 
-	if b.Len() == 0 {
-		return "", false
-	}
 	return b.String(), true
 }
