@@ -18,6 +18,7 @@ import (
 
 	"github.com/tinovyatkin/tally/internal/rules"
 	_ "github.com/tinovyatkin/tally/internal/rules/all"
+	bkregistry "github.com/tinovyatkin/tally/internal/rules/buildkit"
 	buildkitfixes "github.com/tinovyatkin/tally/internal/rules/buildkit/fixes"
 )
 
@@ -126,6 +127,13 @@ func main() {
 	tallyCount := countRegisteredPrefix(rules.TallyRulePrefix)
 	buildkitSupported := len(implementedRows) + len(capturedRows)
 	buildkitTotal := len(defs)
+	if got := len(bkregistry.All()); got != buildkitTotal {
+		fatalf(
+			"internal BuildKit rule registry out of sync: got %d, upstream has %d (update internal/rules/buildkit/registry.go)",
+			got,
+			buildkitTotal,
+		)
+	}
 
 	if *updateReadme {
 		readmeBlock := renderReadmeRulesTable(buildkitSupported, buildkitTotal, tallyCount, hadolintSupported)
