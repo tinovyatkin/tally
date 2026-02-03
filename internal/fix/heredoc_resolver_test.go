@@ -790,8 +790,8 @@ RUN apt-get clean
 	// Different mounts break the sequence
 	// Only the last two (pip install + apt-get clean) have incompatible mounts
 	// so no sequence of 2+ with same mounts exists
-	if edits != nil {
-		t.Logf("edits: %v", edits)
+	if len(edits) != 0 {
+		t.Fatalf("expected no edits when mounts differ, got %d", len(edits))
 	}
 }
 
