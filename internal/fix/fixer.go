@@ -95,7 +95,7 @@ func (f *Fixer) Apply(ctx context.Context, violations []rules.Violation, sources
 	syncCandidates, asyncCandidates := f.classifyViolations(violations, result.Changes)
 
 	// Phase 1: Apply sync fixes (content fixes with pre-computed edits)
-	f.applyCandidatesToFiles(result.Changes, syncCandidates, false)
+	f.applyCandidatesToFiles(result.Changes, syncCandidates)
 
 	// Phase 2: Resolve and apply async fixes (each is applied immediately after resolution)
 	if len(asyncCandidates) > 0 {
@@ -159,14 +159,9 @@ func (f *Fixer) classifyViolations(violations []rules.Violation, changes map[str
 }
 
 // applyCandidatesToFiles groups candidates by file and applies them.
-// If checkResolved is true, skips candidates that still need resolution.
-func (f *Fixer) applyCandidatesToFiles(changes map[string]*FileChange, candidates []*fixCandidate, checkResolved bool) {
+func (f *Fixer) applyCandidatesToFiles(changes map[string]*FileChange, candidates []*fixCandidate) {
 	byFile := make(map[string][]*fixCandidate)
 	for _, fc := range candidates {
-		if checkResolved && fc.fix.NeedsResolve {
-			recordSkipped(changes, fc.violation, SkipResolveError, "resolver failed or missing")
-			continue
-		}
 		if len(fc.fix.Edits) == 0 {
 			recordSkipped(changes, fc.violation, SkipNoEdits, "")
 			continue
