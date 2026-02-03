@@ -607,28 +607,8 @@ func computeEnabledRules(cfg *config.Config) []string {
 
 // countEffectivelyEnabledRules returns the number of rules that are actually enabled
 // after applying config overrides (include/exclude patterns and severity overrides).
-// Counts both registered rules and BuildKit parser rules.
 func countEffectivelyEnabledRules(cfg *config.Config) int {
-	count := 0
-
-	// Count registered rules (tally/*, hadolint/*, and implemented buildkit/* rules)
-	registry := rules.DefaultRegistry()
-	for _, rule := range registry.All() {
-		if isRuleEnabled(rule.Metadata().Code, rule.Metadata().DefaultSeverity, cfg) {
-			count++
-		}
-	}
-
-	// Count BuildKit parser rules (captured warnings like StageNameCasing, etc.)
-	// These are always enabled unless explicitly disabled via config
-	for _, info := range buildkit.All() {
-		ruleCode := rules.BuildKitRulePrefix + info.Name
-		if isRuleEnabled(ruleCode, info.DefaultSeverity, cfg) {
-			count++
-		}
-	}
-
-	return count
+	return len(computeEnabledRules(cfg))
 }
 
 // isRuleEnabled checks if a rule is effectively enabled based on config.
