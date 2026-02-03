@@ -28,9 +28,9 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
-        "^Makefile$",
-        "^\\.github/workflows/ci\\.yaml$"
+      "managerFilePatterns": [
+        "/^Makefile$/",
+        "/^\\.github/workflows/ci\\.yaml$/"
       ],
       "matchStrings": [
         "PMD_VERSION\\s*[:=]\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)",
@@ -42,8 +42,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
-        "^Makefile$"
+      "managerFilePatterns": [
+        "/^Makefile$/"
       ],
       "matchStrings": [
         "DEADCODE_VERSION\\s*[:=]\\s*(?<currentValue>v\\S+)"
@@ -54,8 +54,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
-        "^\\.lefthook\\.yml$"
+      "managerFilePatterns": [
+        "/^\\.lefthook\\.yml$/"
       ],
       "matchStrings": [
         "uv tool run (?<depName>[a-z0-9_-]+)==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
