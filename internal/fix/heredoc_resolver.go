@@ -291,7 +291,13 @@ func (r *heredocResolver) extractCommands(run *instructions.RunCommand, shellVar
 }
 
 // getRunScript extracts the shell script from a RUN instruction.
+// For heredoc RUNs, returns the heredoc content. For regular RUNs, returns CmdLine.
 func (r *heredocResolver) getRunScript(run *instructions.RunCommand) string {
+	// Prefer heredoc content when present - important for detecting exit commands
+	// that would break merging semantics
+	if len(run.Files) > 0 && run.Files[0].Data != "" {
+		return run.Files[0].Data
+	}
 	if len(run.CmdLine) > 0 {
 		return strings.Join(run.CmdLine, " ")
 	}

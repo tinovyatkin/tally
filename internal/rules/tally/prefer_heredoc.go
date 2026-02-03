@@ -497,8 +497,13 @@ func formatHeredocWithMounts(commands []string, mounts []*instructions.Mount) st
 }
 
 // getRunScriptFromCmd extracts the shell script from a RUN instruction.
-// Uses the parsed CmdLine which excludes mount options and other flags.
+// For heredoc RUNs, returns the heredoc content. For regular RUNs, returns CmdLine.
+// This is important for detecting exit commands that would break merging semantics.
 func getRunScriptFromCmd(run *instructions.RunCommand) string {
+	// Prefer heredoc content when present - important for detecting exit commands
+	if len(run.Files) > 0 && run.Files[0].Data != "" {
+		return run.Files[0].Data
+	}
 	// Use the parsed CmdLine which has the actual command without mount options
 	if len(run.CmdLine) > 0 {
 		return strings.Join(run.CmdLine, " ")

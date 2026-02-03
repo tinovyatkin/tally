@@ -155,6 +155,32 @@ RUN echo 5
 			},
 			WantViolations: 1,
 		},
+		{
+			Name: "heredoc with exit breaks sequence",
+			Content: `FROM alpine
+RUN echo 1
+RUN <<EOF
+if [ ! -f /etc/foo ]; then
+  exit 0
+fi
+echo setup
+EOF
+RUN echo 2
+`,
+			WantViolations: 0, // exit in heredoc breaks the sequence, only 1+1=2 commands on each side
+		},
+		{
+			Name: "heredoc without exit allows sequence",
+			Content: `FROM alpine
+RUN echo 1
+RUN <<EOF
+echo setup
+echo more
+EOF
+RUN echo 2
+`,
+			WantViolations: 1, // no exit, 4 commands total (1 + 2 + 1)
+		},
 	})
 }
 
