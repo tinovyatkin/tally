@@ -292,19 +292,6 @@ func (r *heredocResolver) getRunScript(run *instructions.RunCommand) string {
 	return ""
 }
 
-// setsErrorFlag checks if a command is a "set" builtin that enables the -e flag.
-// Uses shell AST to properly detect any flag combination containing 'e'
-// (e.g., "set -e", "set -ex", "set -euo pipefail").
-func setsErrorFlag(cmd string, variant shell.Variant) bool {
-	setCmds := shell.FindCommands(cmd, variant, "set")
-	for _, setCmd := range setCmds {
-		if setCmd.HasFlag("e") {
-			return true
-		}
-	}
-	return false
-}
-
 // formatHeredocWithMounts formats commands as a heredoc RUN instruction.
 //
 // We always prepend "set -e" to preserve the fail-fast semantics of && chains.
@@ -334,7 +321,7 @@ func formatHeredocWithMounts(commands []string, mounts []*instructions.Mount, va
 		// Skip only bare "set -e" since we already added one.
 		// Preserve commands like "set -ex" or "set -euo pipefail" to retain
 		// additional flags (-x for trace, -u for undefined vars, -o pipefail).
-		if setsErrorFlag(cmd, variant) {
+		if shell.SetsErrorFlag(cmd, variant) {
 			trimmed := strings.TrimSpace(cmd)
 			if trimmed == "set -e" {
 				continue
