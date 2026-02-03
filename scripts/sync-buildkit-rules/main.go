@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,12 +58,28 @@ type hadolintStatusFile struct {
 }
 
 func main() {
-	var (
-		update        = flag.Bool("update", false, "Update RULES.md and README.md in place")
-		updateReadme  = flag.Bool("update-readme", false, "Update README.md in place")
-		updateSummary = flag.Bool("update-summary", false, "Update RULES.md summary table in place")
-		updateBuildkt = flag.Bool("update-buildkit", false, "Update BuildKit section in RULES.md in place")
-	)
+	targets := parseTargets()
+	if !targets.updateReadme && !targets.updateSummary && !targets.updateBuildkit {
+		fmt.Fprintln(os.Stderr, "Nothing to do: use --update, --update-readme, --update-summary, or --update-buildkit")
+		os.Exit(2)
+	}
+
+	if err := run(targets); err != nil {
+		fatalf("%v", err)
+	}
+}
+
+type targets struct {
+	updateReadme   bool
+	updateSummary  bool
+	updateBuildkit bool
+}
+
+func parseTargets() targets {
+	update := flag.Bool("update", false, "Update RULES.md and README.md in place")
+	updateReadme := flag.Bool("update-readme", false, "Update README.md in place")
+	updateSummary := flag.Bool("update-summary", false, "Update RULES.md summary table in place")
+	updateBuildkt := flag.Bool("update-buildkit", false, "Update BuildKit section in RULES.md in place")
 	flag.Parse()
 
 	if *update {
@@ -70,79 +87,67 @@ func main() {
 		*updateSummary = true
 		*updateBuildkt = true
 	}
-	if !*updateReadme && !*updateSummary && !*updateBuildkt {
-		fmt.Fprintln(os.Stderr, "Nothing to do: use --update, --update-readme, --update-summary, or --update-buildkit")
-		os.Exit(2)
-	}
 
+	return targets{
+		updateReadme:   *updateReadme,
+		updateSummary:  *updateSummary,
+		updateBuildkit: *updateBuildkt,
+	}
+}
+
+func run(targets targets) error {
 	buildkitDir, err := goListModuleDir("github.com/moby/buildkit")
 	if err != nil {
-		fatalf("failed to locate BuildKit module: %v", err)
+		return fmt.Errorf("failed to locate BuildKit module: %w", err)
 	}
 
 	defs, err := parseBuildkitRuleDefinitions(filepath.Join(buildkitDir, "frontend", "dockerfile", "linter"))
 	if err != nil {
-		fatalf("failed to parse BuildKit linter rule definitions: %v", err)
+		return fmt.Errorf("failed to parse BuildKit linter rule definitions: %w", err)
 	}
 	usages, err := scanBuildkitRuleUsages(filepath.Join(buildkitDir, "frontend", "dockerfile"))
 	if err != nil {
-		fatalf("failed to scan BuildKit rule usages: %v", err)
+		return fmt.Errorf("failed to scan BuildKit rule usages: %w", err)
 	}
 	parserWarningURLs, err := scanBuildkitParserWarningURLs(filepath.Join(buildkitDir, "frontend", "dockerfile", "parser"))
 	if err != nil {
-		fatalf("failed to scan BuildKit parser warnings: %v", err)
+		return fmt.Errorf("failed to scan BuildKit parser warnings: %w", err)
 	}
 
 	implBuildkitRules := implementedBuildkitRules()
 	implBuildkitMeta := implementedBuildkitRuleMetadata()
 	fixable := makeStringSet(buildkitfixes.FixableRuleNames())
 
-	var implementedRows, capturedRows, unsupportedRows []buildkitRuleDef
-	for _, d := range defs {
-		isImplemented := implBuildkitRules[d.Name]
-		u := usages[d.VarName]
-		switch {
-		case isImplemented:
-			implementedRows = append(implementedRows, d)
-		case u.ParsePhase || parserWarningURLs[d.URL]:
-			capturedRows = append(capturedRows, d)
-		default:
-			unsupportedRows = append(unsupportedRows, d)
-		}
-	}
+	implementedRows, capturedRows, unsupportedRows := classifyBuildkitRules(defs, implBuildkitRules, usages, parserWarningURLs)
 
-	sort.Slice(implementedRows, func(i, j int) bool { return implementedRows[i].Name < implementedRows[j].Name })
-	sort.Slice(capturedRows, func(i, j int) bool { return capturedRows[i].Name < capturedRows[j].Name })
-	sort.Slice(unsupportedRows, func(i, j int) bool { return unsupportedRows[i].Name < unsupportedRows[j].Name })
-
-	// README counts
 	hadolintSupported, hadolintImplemented, hadolintCovered, err := hadolintCounts("internal/rules/hadolint-status.json")
 	if err != nil {
-		fatalf("failed to read Hadolint status file: %v", err)
+		return fmt.Errorf("failed to read Hadolint status file: %w", err)
 	}
 	hadolintTotal, err := hadolintTotalCount("internal/rules/hadolint-rules.json")
 	if err != nil {
-		fatalf("failed to read Hadolint rules file: %v", err)
+		return fmt.Errorf("failed to read Hadolint rules file: %w", err)
 	}
+
 	tallyCount := countRegisteredPrefix(rules.TallyRulePrefix)
 	buildkitSupported := len(implementedRows) + len(capturedRows)
 	buildkitTotal := len(defs)
 	if got := len(bkregistry.All()); got != buildkitTotal {
-		fatalf(
+		return fmt.Errorf(
 			"internal BuildKit rule registry out of sync: got %d, upstream has %d (update internal/rules/buildkit/registry.go)",
 			got,
 			buildkitTotal,
 		)
 	}
 
-	if *updateReadme {
+	if targets.updateReadme {
 		readmeBlock := renderReadmeRulesTable(buildkitSupported, buildkitTotal, tallyCount, hadolintSupported)
 		if err := replaceBetweenMarkers(readmePath, readmeBeginMarker, readmeEndMarker, readmeBlock); err != nil {
-			fatalf("failed to update %s: %v", readmePath, err)
+			return fmt.Errorf("failed to update %s: %w", readmePath, err)
 		}
 	}
 
-	if *updateSummary {
+	if targets.updateSummary {
 		summaryBlock := renderRulesSummaryTable(
 			tallyCount,
 			len(implementedRows),
@@ -153,11 +158,11 @@ func main() {
 			hadolintTotal,
 		)
 		if err := replaceBetweenMarkers(rulesPath, rulesSummaryBeginMarker, rulesSummaryEndMarker, summaryBlock); err != nil {
-			fatalf("failed to update %s summary: %v", rulesPath, err)
+			return fmt.Errorf("failed to update %s summary: %w", rulesPath, err)
 		}
 	}
 
-	if *updateBuildkt {
+	if targets.updateBuildkit {
 		buildkitBlock := renderRulesBuildkitSection(
 			buildkitSupported,
 			buildkitTotal,
@@ -171,9 +176,43 @@ func main() {
 			fixable,
 		)
 		if err := replaceBetweenMarkers(rulesPath, buildkitBeginMarker, buildkitEndMarker, buildkitBlock); err != nil {
-			fatalf("failed to update %s: %v", rulesPath, err)
+			return fmt.Errorf("failed to update %s: %w", rulesPath, err)
 		}
 	}
+
+	return nil
+}
+
+func classifyBuildkitRules(
+	defs []buildkitRuleDef,
+	implBuildkitRules map[string]bool,
+	usages map[string]buildkitRuleUsage,
+	parserWarningURLs map[string]bool,
+) ([]buildkitRuleDef, []buildkitRuleDef, []buildkitRuleDef) {
+	implementedRows := make([]buildkitRuleDef, 0, len(defs))
+	capturedRows := make([]buildkitRuleDef, 0, len(defs))
+	unsupportedRows := make([]buildkitRuleDef, 0, len(defs))
+
+	for _, d := range defs {
+		if implBuildkitRules[d.Name] {
+			implementedRows = append(implementedRows, d)
+			continue
+		}
+
+		u := usages[d.VarName]
+		if u.ParsePhase || parserWarningURLs[d.URL] {
+			capturedRows = append(capturedRows, d)
+			continue
+		}
+
+		unsupportedRows = append(unsupportedRows, d)
+	}
+
+	sort.Slice(implementedRows, func(i, j int) bool { return implementedRows[i].Name < implementedRows[j].Name })
+	sort.Slice(capturedRows, func(i, j int) bool { return capturedRows[i].Name < capturedRows[j].Name })
+	sort.Slice(unsupportedRows, func(i, j int) bool { return unsupportedRows[i].Name < unsupportedRows[j].Name })
+
+	return implementedRows, capturedRows, unsupportedRows
 }
 
 func fatalf(format string, args ...any) {
@@ -200,77 +239,18 @@ func parseBuildkitRuleDefinitions(linterDir string) ([]buildkitRuleDef, error) {
 		return nil, err
 	}
 
-	fset := token.NewFileSet()
 	byVar := make(map[string]buildkitRuleDef)
 
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
 			continue
 		}
-		path := filepath.Join(linterDir, e.Name())
-		file, err := parser.ParseFile(fset, path, nil, 0)
+		defs, err := parseBuildkitRuleDefinitionsFromFile(filepath.Join(linterDir, e.Name()))
 		if err != nil {
-			return nil, fmt.Errorf("parse %s: %w", path, err)
+			return nil, err
 		}
 
-		for _, decl := range file.Decls {
-			gen, ok := decl.(*ast.GenDecl)
-			if !ok || gen.Tok != token.VAR {
-				continue
-			}
-			for _, spec := range gen.Specs {
-				vs, ok := spec.(*ast.ValueSpec)
-				if !ok {
-					continue
-				}
-				for i, nameIdent := range vs.Names {
-					if nameIdent == nil {
-						continue
-					}
-					varName := nameIdent.Name
-					if !strings.HasPrefix(varName, "Rule") {
-						continue
-					}
-					if i >= len(vs.Values) {
-						continue
-					}
-					cl, ok := vs.Values[i].(*ast.CompositeLit)
-					if !ok {
-						continue
-					}
-
-					def := buildkitRuleDef{VarName: varName}
-					for _, elt := range cl.Elts {
-						kv, ok := elt.(*ast.KeyValueExpr)
-						if !ok {
-							continue
-						}
-						key, ok := kv.Key.(*ast.Ident)
-						if !ok {
-							continue
-						}
-						switch key.Name {
-						case "Name":
-							def.Name = mustStringLiteral(kv.Value)
-						case "Description":
-							def.Description = mustStringLiteral(kv.Value)
-						case "URL":
-							def.URL = mustStringLiteral(kv.Value)
-						case "Experimental":
-							def.Experimental = mustBoolLiteral(kv.Value)
-						case "Deprecated":
-							def.Deprecated = mustBoolLiteral(kv.Value)
-						}
-					}
-
-					// Some buildkit rules might omit Name/Description/URL; keep but with defaults.
-					if def.Name == "" {
-						def.Name = strings.TrimPrefix(def.VarName, "Rule")
-					}
-					byVar[varName] = def
-				}
-			}
-		}
+		maps.Copy(byVar, defs)
 	}
 
 	result := make([]buildkitRuleDef, 0, len(byVar))
@@ -283,6 +263,82 @@ func parseBuildkitRuleDefinitions(linterDir string) ([]buildkitRuleDef, error) {
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result, nil
+}
+
+func parseBuildkitRuleDefinitionsFromFile(path string) (map[string]buildkitRuleDef, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+
+	defs := make(map[string]buildkitRuleDef)
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			addRuleDefsFromValueSpec(defs, vs)
+		}
+	}
+	return defs, nil
+}
+
+func addRuleDefsFromValueSpec(dst map[string]buildkitRuleDef, vs *ast.ValueSpec) {
+	for i, nameIdent := range vs.Names {
+		if nameIdent == nil {
+			continue
+		}
+		varName := nameIdent.Name
+		if !strings.HasPrefix(varName, "Rule") {
+			continue
+		}
+		if i >= len(vs.Values) {
+			continue
+		}
+		cl, ok := vs.Values[i].(*ast.CompositeLit)
+		if !ok {
+			continue
+		}
+		dst[varName] = parseRuleCompositeLit(varName, cl)
+	}
+}
+
+func parseRuleCompositeLit(varName string, cl *ast.CompositeLit) buildkitRuleDef {
+	def := buildkitRuleDef{VarName: varName}
+	for _, elt := range cl.Elts {
+		kv, ok := elt.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, ok := kv.Key.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		switch key.Name {
+		case "Name":
+			def.Name = mustStringLiteral(kv.Value)
+		case "Description":
+			def.Description = mustStringLiteral(kv.Value)
+		case "URL":
+			def.URL = mustStringLiteral(kv.Value)
+		case "Experimental":
+			def.Experimental = mustBoolLiteral(kv.Value)
+		case "Deprecated":
+			def.Deprecated = mustBoolLiteral(kv.Value)
+		}
+	}
+
+	// Some buildkit rules might omit Name/Description/URL; keep but with defaults.
+	if def.Name == "" {
+		def.Name = strings.TrimPrefix(def.VarName, "Rule")
+	}
+	return def
 }
 
 func mustStringLiteral(expr ast.Expr) string {
@@ -462,7 +518,7 @@ func countRegisteredPrefix(prefix string) int {
 	return n
 }
 
-func hadolintCounts(path string) (supported, implemented, covered int, err error) {
+func hadolintCounts(path string) (int, int, int, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return 0, 0, 0, err
@@ -471,6 +527,7 @@ func hadolintCounts(path string) (supported, implemented, covered int, err error
 	if err := json.Unmarshal(b, &st); err != nil {
 		return 0, 0, 0, err
 	}
+	var supported, implemented, covered int
 	for _, v := range st.Rules {
 		switch v.Status {
 		case "implemented", "covered_by_buildkit":
@@ -499,18 +556,23 @@ func hadolintTotalCount(path string) (int, error) {
 }
 
 func renderReadmeRulesTable(buildkitSupported, buildkitTotal, tallyCount, hadolintSupported int) string {
-	return fmt.Sprintf(
-		""+
-			"| Source | Rules | Description |\n"+
-			"|--------|-------|-------------|\n"+
-			"| **[BuildKit](https://docs.docker.com/reference/build-checks/)** | %d/%d rules | Docker's official Dockerfile checks (captured + reimplemented) |\n"+
-			"| **tally** | %d rules | Custom rules including secret detection with [gitleaks](https://github.com/gitleaks/gitleaks) |\n"+
-			"| **[Hadolint](https://github.com/hadolint/hadolint)** | %d rules | Hadolint-compatible Dockerfile rules (expanding) |\n",
-		buildkitSupported,
-		buildkitTotal,
-		tallyCount,
-		hadolintSupported,
-	)
+	var b strings.Builder
+	b.WriteString("| Source | Rules | Description |\n")
+	b.WriteString("|--------|-------|-------------|\n")
+
+	b.WriteString("| **[BuildKit](https://docs.docker.com/reference/build-checks/)** | ")
+	fmt.Fprintf(&b, "%d/%d rules | ", buildkitSupported, buildkitTotal)
+	b.WriteString("Docker's official Dockerfile checks (captured + reimplemented) |\n")
+
+	b.WriteString("| **tally** | ")
+	fmt.Fprintf(&b, "%d rules | ", tallyCount)
+	b.WriteString("Custom rules including secret detection with [gitleaks](https://github.com/gitleaks/gitleaks) |\n")
+
+	b.WriteString("| **[Hadolint](https://github.com/hadolint/hadolint)** | ")
+	fmt.Fprintf(&b, "%d rules | ", hadolintSupported)
+	b.WriteString("Hadolint-compatible Dockerfile rules (expanding) |\n")
+
+	return b.String()
 }
 
 func renderRulesSummaryTable(
@@ -564,7 +626,8 @@ func renderRulesBuildkitSection(
 	fmt.Fprintf(&b, "- **%d** with auto-fixes (🔧)\n\n", countFixable(implementedDefs, capturedDefs, fixable))
 
 	b.WriteString("### Implemented by tally\n\n")
-	b.WriteString("These BuildKit checks run during LLB conversion in Docker/BuildKit. tally reimplements them so they work as a pure static linter.\n\n")
+	b.WriteString("These BuildKit checks run during LLB conversion in Docker/BuildKit. ")
+	b.WriteString("tally reimplements them so they work as a pure static linter.\n\n")
 	b.WriteString(renderImplementedBuildkitTable(implementedDefs, implementedMeta, fixable))
 	b.WriteString("\n\n")
 

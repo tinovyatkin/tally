@@ -295,13 +295,7 @@ func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter
 
 	// Determine if buildkit/* is explicitly included.
 	// If so, enable all experimental rules without maintaining a separate list.
-	includeAllBuildkit := false
-	for _, pattern := range cfg.Rules.Include {
-		if pattern == "buildkit/*" {
-			includeAllBuildkit = true
-			break
-		}
-	}
+	includeAllBuildkit := slices.Contains(cfg.Rules.Include, "buildkit/*")
 	if includeAllBuildkit {
 		lintCfg.ExperimentalAll = true
 	}
