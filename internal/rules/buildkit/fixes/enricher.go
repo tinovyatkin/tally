@@ -16,6 +16,7 @@ var fixableRuleNames = []string{
 	"NoEmptyContinuation",
 	"MaintainerDeprecated",
 	"ConsistentInstructionCasing",
+	"JSONArgsRecommended",
 }
 
 // FixableRuleNames returns the BuildKit rule names for which tally can generate auto-fixes.
@@ -54,6 +55,8 @@ func EnrichBuildKitFixes(violations []rules.Violation, sem *semantic.Model, sour
 			enrichMaintainerDeprecatedFix(v, source)
 		case "ConsistentInstructionCasing":
 			enrichConsistentInstructionCasingFix(v, source)
+		case "JSONArgsRecommended":
+			enrichJSONArgsRecommendedFix(v, source)
 		}
 	}
 }
