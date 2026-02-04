@@ -538,6 +538,7 @@ func TestDetectFileCreationCatHeredoc(t *testing.T) {
 		wantNil     bool
 		wantPath    string
 		wantContent string
+		wantUnsafe  bool
 	}{
 		{
 			name:        "cat heredoc simple",
@@ -552,10 +553,10 @@ func TestDetectFileCreationCatHeredoc(t *testing.T) {
 			wantContent: "hello\nworld\n",
 		},
 		{
-			name:     "cat heredoc with variable - unsafe",
-			script:   "cat <<EOF > /app/config\nhello $USER\nEOF",
-			wantPath: "/app/config",
-			// HasUnsafeVariables should be true
+			name:       "cat heredoc with variable - unsafe",
+			script:     "cat <<EOF > /app/config\nhello $USER\nEOF",
+			wantPath:   "/app/config",
+			wantUnsafe: true,
 		},
 	}
 
@@ -577,6 +578,9 @@ func TestDetectFileCreationCatHeredoc(t *testing.T) {
 			if tt.wantContent != "" && result.Content != tt.wantContent {
 				t.Errorf("Content = %q, want %q", result.Content, tt.wantContent)
 			}
+			if result.HasUnsafeVariables != tt.wantUnsafe {
+				t.Errorf("HasUnsafeVariables = %v, want %v", result.HasUnsafeVariables, tt.wantUnsafe)
+			}
 		})
 	}
 }
@@ -588,6 +592,7 @@ func TestDetectFileCreationEchoEdgeCases(t *testing.T) {
 		wantNil     bool
 		wantPath    string
 		wantContent string
+		wantUnsafe  bool
 	}{
 		{
 			name:        "echo with no arguments",
@@ -596,10 +601,10 @@ func TestDetectFileCreationEchoEdgeCases(t *testing.T) {
 			wantContent: "\n",
 		},
 		{
-			name:     "echo -e with escape",
-			script:   `echo -e "hello\tworld" > /app/file`,
-			wantPath: "/app/file",
-			// HasUnsafeVariables should be true due to -e
+			name:       "echo -e with escape",
+			script:     `echo -e "hello\tworld" > /app/file`,
+			wantPath:   "/app/file",
+			wantUnsafe: true,
 		},
 		{
 			name:        "echo with single quotes",
@@ -626,6 +631,9 @@ func TestDetectFileCreationEchoEdgeCases(t *testing.T) {
 			}
 			if tt.wantContent != "" && result.Content != tt.wantContent {
 				t.Errorf("Content = %q, want %q", result.Content, tt.wantContent)
+			}
+			if result.HasUnsafeVariables != tt.wantUnsafe {
+				t.Errorf("HasUnsafeVariables = %v, want %v", result.HasUnsafeVariables, tt.wantUnsafe)
 			}
 		})
 	}
