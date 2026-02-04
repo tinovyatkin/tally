@@ -177,59 +177,6 @@ update_rules_md() {
     echo "Updated $RULES_MD"
 }
 
-# Update README.md rules count
-update_readme_md() {
-    local count="$1"
-    local readme="$ROOT_DIR/README.md"
-
-    if [[ ! -f "$readme" ]]; then
-        echo "Warning: README.md not found at $readme" >&2
-        return 0
-    fi
-
-    local begin_marker="<!-- BEGIN RULES_TABLE -->"
-    local end_marker="<!-- END RULES_TABLE -->"
-
-    # Check markers exist
-    if ! grep -q "$begin_marker" "$readme"; then
-        echo "Warning: Begin marker not found in README.md, skipping update" >&2
-        return 0
-    fi
-    if ! grep -q "$end_marker" "$readme"; then
-        echo "Warning: End marker not found in README.md, skipping update" >&2
-        return 0
-    fi
-
-    # Generate new table
-    local new_table
-    new_table=$(cat <<TABLE
-| Source | Rules | Description |
-|--------|-------|-------------|
-| **[BuildKit](https://docs.docker.com/reference/build-checks/)** | 22 rules | Docker's official Dockerfile checks (automatically captured) |
-| **tally** | 3 rules | Custom rules including secret detection with [gitleaks](https://github.com/gitleaks/gitleaks) |
-| **[Hadolint](https://github.com/hadolint/hadolint)** | $count rules | Hadolint-compatible Dockerfile rules (expanding) |
-TABLE
-)
-
-    # Write new table to temp file
-    local tmp_table tmp_before tmp_after
-    tmp_table=$(mktemp)
-    tmp_before=$(mktemp)
-    tmp_after=$(mktemp)
-
-    echo "$new_table" > "$tmp_table"
-
-    # Extract parts
-    sed -n "1,/$begin_marker/p" "$readme" > "$tmp_before"
-    sed -n "/$end_marker/,\$p" "$readme" > "$tmp_after"
-
-    # Combine
-    cat "$tmp_before" "$tmp_table" "$tmp_after" > "$readme"
-
-    rm -f "$tmp_table" "$tmp_before" "$tmp_after"
-    echo "Updated $readme with count: $count"
-}
-
 # Format summary
 format_summary() {
     jq -r '
@@ -315,11 +262,9 @@ main() {
 
     # Handle update mode
     if [[ "$do_update" == true ]]; then
-        local table count
+        local table
         table=$(echo "$merged" | format_markdown)
-        count=$(echo "$merged" | jq '[.[] | select(.impl_status == "implemented" or .impl_status == "covered_by_buildkit")] | length')
         update_rules_md "$table"
-        update_readme_md "$count"
         echo "$merged" | format_summary
         return
     fi

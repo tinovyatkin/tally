@@ -603,6 +603,13 @@ RUN apt-get install curl
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
+		{
+			name:        "json-args-recommended",
+			input:       "FROM alpine:3.18\nCMD echo hello\n",
+			want:        "FROM alpine:3.18\nCMD [\"echo\",\"hello\"]\n",
+			args:        []string{"--fix", "--fix-unsafe"},
+			wantApplied: 1,
+		},
 	}
 
 	for _, tc := range testCases {

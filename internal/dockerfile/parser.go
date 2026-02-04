@@ -293,6 +293,13 @@ func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter
 		return lintCfg
 	}
 
+	// Determine if buildkit/* is explicitly included.
+	// If so, enable all experimental rules without maintaining a separate list.
+	includeAllBuildkit := slices.Contains(cfg.Rules.Include, "buildkit/*")
+	if includeAllBuildkit {
+		lintCfg.ExperimentalAll = true
+	}
+
 	// Check Exclude patterns for buildkit rules
 	for _, pattern := range cfg.Rules.Exclude {
 		// Handle "buildkit/*" - skip all buildkit rules
@@ -307,36 +314,16 @@ func buildLinterConfig(cfg *config.Config, warnFunc linter.LintWarnFunc) *linter
 		}
 	}
 
-	// Check Include patterns for experimental rules
+	// Check Include patterns for experimental rules.
+	// We don't need to know which rules are experimental: adding the name is enough.
 	for _, pattern := range cfg.Rules.Include {
-		// Handle "buildkit/*" - enable all experimental rules
-		if pattern == "buildkit/*" {
-			// Add known experimental rules
-			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, experimentalBuildKitRules...)
-			continue
-		}
 		// Handle specific buildkit rule: "buildkit/InvalidDefinitionDescription"
-		if ns, name := parseRuleCode(pattern); ns == "buildkit" && isExperimentalBuildKitRule(name) {
+		if ns, name := parseRuleCode(pattern); ns == "buildkit" && name != "" && name != "*" {
 			lintCfg.ExperimentalRules = append(lintCfg.ExperimentalRules, name)
 		}
 	}
 
 	return lintCfg
-}
-
-// experimentalBuildKitRules is the list of known experimental BuildKit linter rules.
-// These rules are disabled by default and must be explicitly enabled.
-//
-// NOTE: This list must be kept in sync with BuildKit's experimental rules.
-// When BuildKit introduces new experimental rules, add them here.
-// Check BuildKit release notes or linter/linter.go for updates.
-var experimentalBuildKitRules = []string{
-	"InvalidDefinitionDescription",
-}
-
-// isExperimentalBuildKitRule checks if a rule name is a known experimental BuildKit rule.
-func isExperimentalBuildKitRule(name string) bool {
-	return slices.Contains(experimentalBuildKitRules, name)
 }
 
 // parseRuleCode parses a rule code into namespace and name.

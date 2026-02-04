@@ -1,6 +1,7 @@
 package buildkit
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/tinovyatkin/tally/internal/rules"
@@ -103,5 +104,30 @@ func TestAllRulesHaveDocURL(t *testing.T) {
 
 	if missingDocs > 1 {
 		t.Errorf("expected at most 1 rule without DocURL, got %d", missingDocs)
+	}
+}
+
+func TestAll(t *testing.T) {
+	all := All()
+	if len(all) != len(Registry) {
+		t.Fatalf("len(All()) = %d, want %d", len(all), len(Registry))
+	}
+
+	// Basic sanity: a known rule should be present.
+	if !slices.ContainsFunc(all, func(info RuleInfo) bool { return info.Name == "StageNameCasing" }) {
+		t.Fatalf("All() missing StageNameCasing")
+	}
+}
+
+func TestCaptured(t *testing.T) {
+	captured := Captured()
+	if len(captured) != len(CapturedRuleNames) {
+		t.Fatalf("len(Captured()) = %d, want %d", len(captured), len(CapturedRuleNames))
+	}
+
+	for i, name := range CapturedRuleNames {
+		if captured[i].Name != name {
+			t.Fatalf("Captured()[%d].Name = %q, want %q", i, captured[i].Name, name)
+		}
 	}
 }
