@@ -102,6 +102,20 @@ RUN apt-get clean
 - Skips relative paths (only absolute paths like `/etc/file`)
 - Skips commands with shell variables not defined as ARG/ENV
 
+**Mount handling:**
+
+Since `COPY` doesn't support `--mount` flags, the rule handles RUN mounts carefully:
+
+| Mount Type | Behavior |
+|------------|----------|
+| `bind` | Skip - content might depend on bound files |
+| `cache` | Safe if file target is outside cache path |
+| `tmpfs` | Safe if file target is outside tmpfs path |
+| `secret` | Safe if file target is outside secret path |
+| `ssh` | Safe - no content dependency |
+
+When extracting file creation from mixed commands, mounts are preserved on the remaining RUN instructions.
+
 **Chmod support:**
 
 Converts both octal and symbolic chmod modes to `COPY --chmod`:

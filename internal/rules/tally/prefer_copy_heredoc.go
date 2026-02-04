@@ -9,6 +9,7 @@ import (
 
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/rules/configutil"
+	"github.com/tinovyatkin/tally/internal/runmount"
 	"github.com/tinovyatkin/tally/internal/semantic"
 	"github.com/tinovyatkin/tally/internal/shell"
 	"github.com/tinovyatkin/tally/internal/sourcemap"
@@ -171,6 +172,12 @@ func identifySequenceRuns(
 		// Check for file creation
 		info := shell.DetectFileCreation(script, shellVariant, knownVars)
 		if info != nil && !info.HasUnsafeVariables {
+			// Skip if RUN has mounts that conflict with COPY conversion
+			if shouldSkipForMounts(run, info.TargetPath) {
+				prevInfo, prevRun = nil, nil
+				continue
+			}
+
 			if prevInfo != nil && prevRun != nil && info.TargetPath == prevInfo.TargetPath {
 				inSequence[prevRun] = true
 				inSequence[run] = true
@@ -244,6 +251,11 @@ func (r *PreferCopyHeredocRule) checkSingleRuns(
 			continue
 		}
 
+		// Skip if RUN has mounts that conflict with COPY conversion
+		if shouldSkipForMounts(run, info.TargetPath) {
+			continue
+		}
+
 		// Create violation
 		loc := rules.NewLocationFromRanges(file, run.Location())
 
@@ -314,25 +326,17 @@ func (r *PreferCopyHeredocRule) checkConsecutiveRuns(
 		// Detect file creation pattern
 		info := shell.DetectFileCreation(script, shellVariant, knownVars)
 		if info != nil && !info.HasUnsafeVariables {
-			// Clear any pending chmod when we see a new file creation
-			sequenceChmodMode = ""
-			sequenceChmodRun = nil
-
-			// Check if this continues the sequence
-			switch {
-			case len(sequence) == 0:
-				// Start new sequence
-				sequence = append(sequence, fileCreationRun{run: run, info: info})
-				targetPath = info.TargetPath
-			case info.TargetPath == targetPath:
-				// Continue sequence (must be append or overwrites)
-				sequence = append(sequence, fileCreationRun{run: run, info: info})
-			default:
-				// Different file - flush and start new sequence
+			// Skip if RUN has mounts that conflict with COPY conversion
+			if shouldSkipForMounts(run, info.TargetPath) {
 				flushSequence()
-				sequence = append(sequence, fileCreationRun{run: run, info: info})
-				targetPath = info.TargetPath
+				continue
 			}
+
+			// Update sequence with this file creation
+			sequence, targetPath = updateFileCreationSequence(
+				sequence, targetPath, run, info, flushSequence,
+			)
+			sequenceChmodMode, sequenceChmodRun = "", nil // Clear pending chmod
 			continue
 		}
 
@@ -353,6 +357,29 @@ func (r *PreferCopyHeredocRule) checkConsecutiveRuns(
 
 	flushSequence()
 	return violations
+}
+
+// updateFileCreationSequence updates the sequence with a new file creation.
+// Returns the updated sequence and target path.
+func updateFileCreationSequence(
+	sequence []fileCreationRun,
+	targetPath string,
+	run *instructions.RunCommand,
+	info *shell.FileCreationInfo,
+	flushSequence func(),
+) ([]fileCreationRun, string) {
+	switch {
+	case len(sequence) == 0:
+		// Start new sequence
+		return []fileCreationRun{{run: run, info: info}}, info.TargetPath
+	case info.TargetPath == targetPath:
+		// Continue sequence (must be append or overwrites)
+		return append(sequence, fileCreationRun{run: run, info: info}), targetPath
+	default:
+		// Different file - flush and start new sequence
+		flushSequence()
+		return []fileCreationRun{{run: run, info: info}}, info.TargetPath
+	}
 }
 
 // createSequenceViolation creates a violation for a sequence of file creation RUNs.
@@ -415,18 +442,25 @@ func (r *PreferCopyHeredocRule) generateFix(
 	// Build the replacement text
 	var parts []string
 
-	// Add preceding commands as RUN if any
+	// Get mount flags to preserve on remaining RUN commands
+	mountFlags := runmount.FormatMounts(runmount.GetMounts(run))
+	runPrefix := "RUN "
+	if mountFlags != "" {
+		runPrefix = "RUN " + mountFlags + " "
+	}
+
+	// Add preceding commands as RUN if any (preserve mounts)
 	if info.PrecedingCommands != "" {
-		parts = append(parts, "RUN "+info.PrecedingCommands)
+		parts = append(parts, runPrefix+info.PrecedingCommands)
 	}
 
 	// Add COPY heredoc for the file creation
 	copyCmd := buildCopyHeredoc(info.TargetPath, info.Content, info.ChmodMode)
 	parts = append(parts, copyCmd)
 
-	// Add remaining commands as RUN if any
+	// Add remaining commands as RUN if any (preserve mounts)
 	if info.RemainingCommands != "" {
-		parts = append(parts, "RUN "+info.RemainingCommands)
+		parts = append(parts, runPrefix+info.RemainingCommands)
 	}
 
 	newText := strings.Join(parts, "\n")
@@ -640,6 +674,61 @@ func makeKnownVarsChecker(scope *semantic.VariableScope) func(string) bool {
 	return func(name string) bool {
 		return scope.HasArg(name) || scope.GetEnv(name) != nil
 	}
+}
+
+// shouldSkipForMounts checks if a RUN instruction should be skipped due to mounts.
+// COPY doesn't support --mount, so we need to be careful about when to suggest conversion.
+//
+// Safety by mount type:
+//   - bind: SKIP - content might depend on bound files, can't verify at lint time
+//   - cache: SAFE if file target is outside cache path (cache is for build artifacts)
+//   - tmpfs: SAFE if file target is outside tmpfs path (tmpfs is temp space)
+//   - secret: SAFE if file target is outside secret path (our HasUnsafeVariables catches $(cat /secret/...))
+//   - ssh: SAFE - no target path that affects file content
+func shouldSkipForMounts(run *instructions.RunCommand, fileTarget string) bool {
+	mounts := runmount.GetMounts(run)
+	if len(mounts) == 0 {
+		return false
+	}
+
+	for _, m := range mounts {
+		switch m.Type {
+		case instructions.MountTypeBind:
+			// Bind mounts are risky - content might depend on bound files
+			// and we can't verify the content source at lint time
+			return true
+
+		case instructions.MountTypeCache, instructions.MountTypeTmpfs:
+			// Safe unless writing to mount target (file won't persist)
+			if m.Target != "" && isPathUnder(fileTarget, m.Target) {
+				return true
+			}
+
+		case instructions.MountTypeSecret:
+			// Safe if our content detection already validated it
+			// (HasUnsafeVariables catches $(cat /run/secrets/...))
+			// But skip if writing to secret path (unusual but possible)
+			if m.Target != "" && isPathUnder(fileTarget, m.Target) {
+				return true
+			}
+
+		case instructions.MountTypeSSH:
+			// Always safe - SSH just forwards agent socket, no content dependency
+			continue
+		}
+	}
+
+	return false
+}
+
+// isPathUnder checks if path is under or equal to base directory.
+func isPathUnder(path, base string) bool {
+	// Normalize: ensure base ends with / for proper prefix matching
+	if !strings.HasSuffix(base, "/") {
+		base += "/"
+	}
+	// Check if path equals base (without trailing slash) or is under it
+	return path == strings.TrimSuffix(base, "/") || strings.HasPrefix(path, base)
 }
 
 // getRunCmdLine extracts the command line from a RUN instruction for shell parsing.

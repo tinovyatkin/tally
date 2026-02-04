@@ -153,6 +153,56 @@ RUN apt-get update && echo "done" > /app/log
 `,
 			WantViolations: 1, // File creation can be extracted from mixed commands
 		},
+		// Mount handling tests
+		{
+			Name: "bind mount - skip (content might depend on bound files)",
+			Content: `FROM alpine
+RUN --mount=type=bind,source=./config,target=/mnt/config echo "data" > /app/file
+`,
+			WantViolations: 0, // Skip: bind mount might affect content
+		},
+		{
+			Name: "cache mount - file target under cache path - skip",
+			Content: `FROM alpine
+RUN --mount=type=cache,target=/var/cache/apt echo "marker" > /var/cache/apt/done
+`,
+			WantViolations: 0, // Skip: file in cache won't persist
+		},
+		{
+			Name: "cache mount - file target outside cache - detect",
+			Content: `FROM alpine
+RUN --mount=type=cache,target=/var/cache/apt apt-get update && echo "done" > /app/status
+`,
+			WantViolations: 1, // Safe: file creation is outside cache mount
+		},
+		{
+			Name: "tmpfs mount - file target under tmpfs - skip",
+			Content: `FROM alpine
+RUN --mount=type=tmpfs,target=/tmp/build echo "temp" > /tmp/build/data
+`,
+			WantViolations: 0, // Skip: file in tmpfs won't persist
+		},
+		{
+			Name: "tmpfs mount - file target outside tmpfs - detect",
+			Content: `FROM alpine
+RUN --mount=type=tmpfs,target=/tmp/build compile && echo "done" > /app/status
+`,
+			WantViolations: 1, // Safe: file creation is outside tmpfs
+		},
+		{
+			Name: "secret mount - file target outside secret - detect",
+			Content: `FROM alpine
+RUN --mount=type=secret,id=npm,target=/root/.npmrc npm install && echo "installed" > /app/status
+`,
+			WantViolations: 1, // Safe: literal content, not using secret
+		},
+		{
+			Name: "ssh mount - always safe for literal content",
+			Content: `FROM alpine
+RUN --mount=type=ssh git clone git@github.com:user/repo && echo "cloned" > /app/status
+`,
+			WantViolations: 1, // Safe: SSH doesn't affect file content
+		},
 	})
 }
 
@@ -217,6 +267,22 @@ RUN echo "data" > /app/file && chmod u+x /app/file
 `,
 			wantHasFix:     true,
 			wantFixContain: "--chmod=0744",
+		},
+		{
+			name: "cache mount preserved on remaining commands",
+			content: `FROM alpine
+RUN --mount=type=cache,target=/var/cache/apt apt-get update && echo "done" > /app/status && apt-get clean
+`,
+			wantHasFix:     true,
+			wantFixContain: "--mount=type=cache,target=/var/cache/apt",
+		},
+		{
+			name: "ssh mount preserved on remaining commands",
+			content: `FROM alpine
+RUN --mount=type=ssh git clone git@github.com:user/repo && echo "cloned" > /app/status
+`,
+			wantHasFix:     true,
+			wantFixContain: "--mount=type=ssh",
 		},
 	}
 
