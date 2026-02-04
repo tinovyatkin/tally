@@ -360,7 +360,14 @@ func (r *PreferCopyHeredocRule) checkConsecutiveRuns(
 			sequence, targetPath = updateFileCreationSequence(
 				sequence, targetPath, run, info, flushSequence,
 			)
-			sequenceChmodMode, sequenceChmodRun = "", nil // Clear pending chmod
+			if sequenceChmodMode != "" {
+				// Chmod is no longer trailing once another write appears.
+				sequenceChmodRun = nil
+				// Inline chmod overrides earlier standalone chmod.
+				if info.ChmodMode != "" {
+					sequenceChmodMode = ""
+				}
+			}
 			continue
 		}
 

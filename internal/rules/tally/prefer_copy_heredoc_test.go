@@ -300,6 +300,16 @@ RUN --mount=type=ssh git clone git@github.com:user/repo && echo "cloned" > /app/
 			wantHasFix:     true,
 			wantFixContain: "--mount=type=ssh",
 		},
+		{
+			name: "chmod between writes preserved",
+			content: `FROM alpine
+RUN echo "a" > /app/file
+RUN chmod 755 /app/file
+RUN echo "b" >> /app/file
+`,
+			wantHasFix:     true,
+			wantFixContain: "--chmod=0755",
+		},
 	}
 
 	for _, tt := range tests {
