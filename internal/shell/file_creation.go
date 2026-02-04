@@ -1,0 +1,612 @@
+// Package shell provides shell script parsing utilities for Dockerfile linting.
+package shell
+
+import (
+	"path"
+	"regexp"
+	"strings"
+
+	"mvdan.cc/sh/v3/syntax"
+)
+
+// Command names for file creation detection.
+const (
+	cmdEcho   = "echo"
+	cmdCat    = "cat"
+	cmdPrintf = "printf"
+	cmdChmod  = "chmod"
+)
+
+// FileCreationInfo describes a detected file creation pattern in a shell script.
+// This is used to coordinate between prefer-copy-heredoc and prefer-run-heredoc rules.
+type FileCreationInfo struct {
+	// TargetPath is the absolute path to the target file.
+	TargetPath string
+
+	// Content is the literal content to write.
+	Content string
+
+	// ChmodMode is the octal chmod mode (e.g., "0755", "755"), or empty if no chmod.
+	ChmodMode string
+
+	// IsAppend is true if using >> (append) mode for the first write.
+	// If true, converting to COPY would lose existing file content.
+	IsAppend bool
+
+	// HasUnsafeVariables is true if the script uses variables that cannot be
+	// converted to COPY heredoc (e.g., shell variables, command substitution).
+	HasUnsafeVariables bool
+
+	// PrecedingCommands contains commands before the file creation (for mixed scripts).
+	// Empty if file creation is at the start or script is pure file creation.
+	PrecedingCommands string
+
+	// RemainingCommands contains commands after the file creation (for mixed scripts).
+	// Empty if file creation is at the end or script is pure file creation.
+	RemainingCommands string
+}
+
+// fileCreationCmd represents a single file creation command in a chain.
+type fileCreationCmd struct {
+	targetPath string
+	content    string
+	isAppend   bool
+}
+
+// DetectFileCreation analyzes a shell script for file creation patterns.
+// Returns nil if the script is not primarily a file creation operation.
+//
+// Detected patterns:
+//   - echo "content" > /path/to/file
+//   - echo "content" >> /path/to/file (append)
+//   - cat <<EOF > /path/to/file ... EOF
+//   - printf "content" > /path/to/file (limited support)
+//
+// Also detects chmod chaining: echo "x" > /file && chmod 0755 /file
+//
+// The knownVars function is called to check if a variable is a known ARG/ENV.
+// If nil, all variables are considered unsafe.
+func DetectFileCreation(script string, variant Variant, knownVars func(name string) bool) *FileCreationInfo {
+	if variant.IsNonPOSIX() {
+		return nil
+	}
+
+	prog, err := parseScript(script, variant)
+	if err != nil {
+		return nil
+	}
+
+	// Must be a simple script (no complex control flow)
+	if !isSimpleScriptFromAST(prog) {
+		return nil
+	}
+
+	// Analyze the script for file creation patterns
+	return analyzeFileCreation(prog, knownVars)
+}
+
+// IsPureFileCreation checks if a shell script is PURELY for creating files.
+// Returns true only if every command in the script is for file creation (echo/cat/printf > file)
+// or chmod on the created file. Returns false if there are any other commands mixed in.
+// This is used by prefer-run-heredoc to yield to prefer-copy-heredoc.
+func IsPureFileCreation(script string, variant Variant) bool {
+	if variant.IsNonPOSIX() {
+		return false
+	}
+
+	info := DetectFileCreation(script, variant, nil)
+	if info == nil || info.HasUnsafeVariables {
+		return false
+	}
+	// Pure means no other commands before or after
+	return info.PrecedingCommands == "" && info.RemainingCommands == ""
+}
+
+// cmdType represents the type of command in a chain.
+type cmdType int
+
+const (
+	cmdTypeOther cmdType = iota
+	cmdTypeFileCreation
+	cmdTypeChmod
+)
+
+// analyzedCmd represents a command with its type and original text.
+type analyzedCmd struct {
+	cmdType    cmdType
+	text       string
+	creation   *fileCreationCmd // non-nil for cmdTypeFileCreation
+	chmodMode  string           // non-empty for cmdTypeChmod
+	chmodTarget string          // non-empty for cmdTypeChmod
+	hasUnsafe  bool
+}
+
+// analyzeFileCreation performs detailed analysis of file creation patterns.
+// Supports mixed commands by tracking preceding and remaining commands.
+func analyzeFileCreation(prog *syntax.File, knownVars func(name string) bool) *FileCreationInfo {
+	// Collect all commands with their types
+	var commands []analyzedCmd
+	collectCommands(prog, &commands, knownVars)
+
+	if len(commands) == 0 {
+		return nil
+	}
+
+	// Find contiguous file creation block (including chmod for same file)
+	startIdx, endIdx, targetPath := findFileCreationBlock(commands)
+	if startIdx == -1 {
+		return nil
+	}
+
+	// Extract file creation commands and merge content
+	var creations []fileCreationCmd
+	var chmodMode string
+	hasUnsafeVars := false
+
+	for i := startIdx; i <= endIdx; i++ {
+		cmd := commands[i]
+		if cmd.hasUnsafe {
+			hasUnsafeVars = true
+		}
+		if cmd.cmdType == cmdTypeFileCreation && cmd.creation != nil {
+			creations = append(creations, *cmd.creation)
+		} else if cmd.cmdType == cmdTypeChmod && cmd.chmodTarget == targetPath {
+			chmodMode = cmd.chmodMode
+		}
+	}
+
+	if len(creations) == 0 {
+		return nil
+	}
+
+	// Merge content from all creations
+	var content strings.Builder
+	for i, c := range creations {
+		if i > 0 && !c.isAppend {
+			content.Reset()
+		}
+		content.WriteString(c.content)
+		if i < len(creations)-1 {
+			content.WriteString("\n")
+		}
+	}
+
+	// Build preceding commands string
+	preceding := make([]string, 0, startIdx)
+	for i := range startIdx {
+		preceding = append(preceding, commands[i].text)
+	}
+
+	// Build remaining commands string
+	remainingCount := len(commands) - endIdx - 1
+	remaining := make([]string, 0, remainingCount)
+	for i := endIdx + 1; i < len(commands); i++ {
+		remaining = append(remaining, commands[i].text)
+	}
+
+	return &FileCreationInfo{
+		TargetPath:         targetPath,
+		Content:            content.String(),
+		ChmodMode:          chmodMode,
+		IsAppend:           creations[0].isAppend,
+		HasUnsafeVariables: hasUnsafeVars,
+		PrecedingCommands:  strings.Join(preceding, " && "),
+		RemainingCommands:  strings.Join(remaining, " && "),
+	}
+}
+
+// collectCommands flattens && chains and collects all commands with their types.
+func collectCommands(prog *syntax.File, commands *[]analyzedCmd, knownVars func(name string) bool) {
+	for _, stmt := range prog.Stmts {
+		collectFromStatement(stmt, commands, knownVars)
+	}
+}
+
+// collectFromStatement recursively collects commands from a statement.
+func collectFromStatement(stmt *syntax.Stmt, commands *[]analyzedCmd, knownVars func(name string) bool) {
+	if stmt == nil || stmt.Cmd == nil {
+		return
+	}
+
+	switch cmd := stmt.Cmd.(type) {
+	case *syntax.BinaryCmd:
+		if cmd.Op == syntax.AndStmt {
+			collectFromStatement(cmd.X, commands, knownVars)
+			collectFromStatement(cmd.Y, commands, knownVars)
+		} else {
+			// Other binary ops (||, |) - treat as single opaque command
+			*commands = append(*commands, analyzedCmd{
+				cmdType: cmdTypeOther,
+				text:    stmtToString(stmt),
+			})
+		}
+	case *syntax.CallExpr:
+		analyzed := analyzeCallExpr(stmt, cmd, knownVars)
+		*commands = append(*commands, analyzed)
+	default:
+		*commands = append(*commands, analyzedCmd{
+			cmdType: cmdTypeOther,
+			text:    stmtToString(stmt),
+		})
+	}
+}
+
+// analyzeCallExpr analyzes a call expression and returns its type.
+func analyzeCallExpr(stmt *syntax.Stmt, call *syntax.CallExpr, knownVars func(name string) bool) analyzedCmd {
+	if len(call.Args) == 0 {
+		return analyzedCmd{cmdType: cmdTypeOther, text: stmtToString(stmt)}
+	}
+
+	cmdName := call.Args[0].Lit()
+	text := stmtToString(stmt)
+
+	// Check for chmod
+	if cmdName == cmdChmod {
+		mode, target := parseChmod(call)
+		if mode != "" && target != "" {
+			return analyzedCmd{
+				cmdType:     cmdTypeChmod,
+				text:        text,
+				chmodMode:   mode,
+				chmodTarget: target,
+			}
+		}
+		return analyzedCmd{cmdType: cmdTypeOther, text: text}
+	}
+
+	// Check for file creation commands
+	if cmdName != cmdEcho && cmdName != cmdCat && cmdName != cmdPrintf {
+		return analyzedCmd{cmdType: cmdTypeOther, text: text}
+	}
+
+	// Look for redirects
+	for _, redir := range stmt.Redirs {
+		if redir.Op != syntax.RdrOut && redir.Op != syntax.AppOut {
+			continue
+		}
+
+		targetPath := extractRedirectTarget(redir)
+		if targetPath == "" || !path.IsAbs(targetPath) {
+			continue
+		}
+
+		content, unsafe := extractFileContent(call, redir, knownVars)
+
+		return analyzedCmd{
+			cmdType: cmdTypeFileCreation,
+			text:    text,
+			creation: &fileCreationCmd{
+				targetPath: targetPath,
+				content:    content,
+				isAppend:   redir.Op == syntax.AppOut,
+			},
+			hasUnsafe: unsafe,
+		}
+	}
+
+	// echo/cat/printf without redirect is not file creation
+	return analyzedCmd{cmdType: cmdTypeOther, text: text}
+}
+
+// findFileCreationBlock finds a contiguous block of file creation commands (+ chmod).
+// Returns start index, end index, and target path. Returns -1, -1, "" if not found.
+func findFileCreationBlock(commands []analyzedCmd) (int, int, string) {
+	// Find first file creation
+	startIdx := -1
+	var targetPath string
+
+	for i, cmd := range commands {
+		if cmd.cmdType == cmdTypeFileCreation && cmd.creation != nil {
+			startIdx = i
+			targetPath = cmd.creation.targetPath
+			break
+		}
+	}
+
+	if startIdx == -1 {
+		return -1, -1, ""
+	}
+
+	// Extend to include subsequent file creations to same file and chmod
+	endIdx := startIdx
+	for i := startIdx + 1; i < len(commands); i++ {
+		cmd := commands[i]
+		switch cmd.cmdType {
+		case cmdTypeFileCreation:
+			if cmd.creation != nil && cmd.creation.targetPath == targetPath {
+				endIdx = i
+			} else {
+				return startIdx, endIdx, targetPath // Different file, stop
+			}
+		case cmdTypeChmod:
+			if cmd.chmodTarget == targetPath {
+				endIdx = i
+			} else {
+				return startIdx, endIdx, targetPath // Different target, stop
+			}
+		case cmdTypeOther:
+			return startIdx, endIdx, targetPath // Other command, stop
+		}
+	}
+
+	return startIdx, endIdx, targetPath
+}
+
+// stmtToString converts a statement back to string form.
+func stmtToString(stmt *syntax.Stmt) string {
+	var buf strings.Builder
+	printer := syntax.NewPrinter()
+	_ = printer.Print(&buf, stmt)
+	return strings.TrimSpace(buf.String())
+}
+
+// parseChmod extracts mode and target from a chmod command.
+// Returns empty strings if the chmod cannot be converted (e.g., symbolic mode, recursive).
+func parseChmod(call *syntax.CallExpr) (string, string) {
+	if len(call.Args) < 3 {
+		return "", ""
+	}
+
+	// Skip chmod itself
+	args := call.Args[1:]
+
+	var mode, target string
+
+	// Look for mode and target, skipping flags
+	for _, arg := range args {
+		lit := arg.Lit()
+		if lit == "" {
+			continue
+		}
+
+		// Skip flags (including -R for recursive)
+		if strings.HasPrefix(lit, "-") {
+			if strings.Contains(lit, "R") {
+				// Recursive chmod - skip
+				return "", ""
+			}
+			continue
+		}
+
+		// Check if this is an octal mode
+		if isOctalMode(lit) {
+			mode = lit
+			continue
+		}
+
+		// Check if this is symbolic mode (e.g., +x, u+rwx)
+		if isSymbolicMode(lit) {
+			// Cannot convert symbolic modes to --chmod
+			return "", ""
+		}
+
+		// Must be the target
+		if mode != "" {
+			target = lit
+			break
+		}
+	}
+
+	return mode, target
+}
+
+// octalModeRegex matches octal chmod modes (3-4 digits).
+var octalModeRegex = regexp.MustCompile(`^0?[0-7]{3}$`)
+
+// isOctalMode checks if a string is a valid octal chmod mode.
+func isOctalMode(s string) bool {
+	return octalModeRegex.MatchString(s)
+}
+
+// symbolicModeRegex matches symbolic chmod modes.
+var symbolicModeRegex = regexp.MustCompile(`^[ugoa]*[\-+=][rwxXst]+$`)
+
+// isSymbolicMode checks if a string is a symbolic chmod mode.
+func isSymbolicMode(s string) bool {
+	return symbolicModeRegex.MatchString(s)
+}
+
+// extractRedirectTarget extracts the target path from a redirect.
+func extractRedirectTarget(redir *syntax.Redirect) string {
+	if redir.Word == nil {
+		return ""
+	}
+
+	// Only handle literal paths
+	return redir.Word.Lit()
+}
+
+// extractFileContent extracts the content from a file creation command.
+// Returns the content and whether unsafe variables were found.
+func extractFileContent(call *syntax.CallExpr, redir *syntax.Redirect, knownVars func(name string) bool) (string, bool) {
+	cmdName := call.Args[0].Lit()
+
+	switch cmdName {
+	case cmdEcho:
+		return extractEchoContent(call, knownVars)
+	case cmdCat:
+		return extractCatHeredocContent(redir)
+	case cmdPrintf:
+		return extractPrintfContent(call, knownVars)
+	}
+
+	return "", false
+}
+
+// extractEchoContent extracts content from an echo command.
+func extractEchoContent(call *syntax.CallExpr, knownVars func(name string) bool) (string, bool) {
+	if len(call.Args) < 2 {
+		return "", false
+	}
+
+	// Check for -e flag (escape sequences) - skip for now
+	// Check for -n flag (no newline) - handle specially
+	hasNoNewline := false
+	hasEscape := false
+	startIdx := 1
+
+	for i := 1; i < len(call.Args); i++ {
+		lit := call.Args[i].Lit()
+		if !strings.HasPrefix(lit, "-") {
+			startIdx = i
+			break
+		}
+		if strings.Contains(lit, "n") {
+			hasNoNewline = true
+		}
+		if strings.Contains(lit, "e") || strings.Contains(lit, "E") {
+			hasEscape = true
+		}
+		startIdx = i + 1
+	}
+
+	// Skip -e for now (complex escape handling)
+	if hasEscape {
+		return "", true
+	}
+
+	var content strings.Builder
+	hasUnsafe := false
+
+	for i := startIdx; i < len(call.Args); i++ {
+		if i > startIdx {
+			content.WriteString(" ")
+		}
+
+		argContent, unsafe := extractWordContent(call.Args[i], knownVars)
+		if unsafe {
+			hasUnsafe = true
+		}
+		content.WriteString(argContent)
+	}
+
+	result := content.String()
+	if !hasNoNewline {
+		result += "\n"
+	}
+
+	return result, hasUnsafe
+}
+
+// extractWordContent extracts the literal content from a word.
+func extractWordContent(word *syntax.Word, knownVars func(name string) bool) (string, bool) {
+	var content strings.Builder
+	hasUnsafe := false
+
+	for _, part := range word.Parts {
+		switch p := part.(type) {
+		case *syntax.Lit:
+			content.WriteString(p.Value)
+		case *syntax.SglQuoted:
+			content.WriteString(p.Value)
+		case *syntax.DblQuoted:
+			for _, dpart := range p.Parts {
+				switch dp := dpart.(type) {
+				case *syntax.Lit:
+					content.WriteString(dp.Value)
+				case *syntax.ParamExp:
+					// Variable expansion
+					varName := dp.Param.Value
+					if knownVars != nil && knownVars(varName) {
+						// Known ARG/ENV - can be preserved in COPY heredoc
+						content.WriteString("$")
+						if dp.Excl || dp.Length || dp.Width || dp.Index != nil ||
+							dp.Slice != nil || dp.Repl != nil || dp.Exp != nil {
+							// Complex expansion - mark unsafe
+							hasUnsafe = true
+							content.WriteString("{")
+							content.WriteString(varName)
+							content.WriteString("}")
+						} else {
+							content.WriteString(varName)
+						}
+					} else {
+						hasUnsafe = true
+						content.WriteString("$")
+						content.WriteString(varName)
+					}
+				default:
+					// Command substitution, arithmetic, etc.
+					hasUnsafe = true
+				}
+			}
+		case *syntax.ParamExp:
+			// Unquoted variable - check if known
+			varName := p.Param.Value
+			if knownVars != nil && knownVars(varName) {
+				content.WriteString("$")
+				content.WriteString(varName)
+			} else {
+				hasUnsafe = true
+				content.WriteString("$")
+				content.WriteString(varName)
+			}
+		default:
+			// Command substitution, arithmetic, etc.
+			hasUnsafe = true
+		}
+	}
+
+	return content.String(), hasUnsafe
+}
+
+// extractCatHeredocContent extracts content from a cat heredoc.
+func extractCatHeredocContent(redir *syntax.Redirect) (string, bool) {
+	if redir.Hdoc == nil {
+		return "", false
+	}
+
+	// Get heredoc content
+	var content strings.Builder
+	for _, part := range redir.Hdoc.Parts {
+		switch p := part.(type) {
+		case *syntax.Lit:
+			content.WriteString(p.Value)
+		default:
+			// Variable expansion in heredoc - mark as potentially unsafe
+			return content.String(), true
+		}
+	}
+
+	return content.String(), false
+}
+
+// extractPrintfContent extracts content from a printf command.
+// Limited support - only handles simple "%s" or literal format strings.
+func extractPrintfContent(call *syntax.CallExpr, knownVars func(name string) bool) (string, bool) {
+	if len(call.Args) < 2 {
+		return "", false
+	}
+
+	// Get format string
+	format := call.Args[1].Lit()
+	if format == "" {
+		return "", true // Complex format - unsafe
+	}
+
+	// Very limited: only handle literal strings without format specifiers
+	if strings.Contains(format, "%") && format != "%s" {
+		return "", true
+	}
+
+	if format == "%s" && len(call.Args) >= 3 {
+		// Simple %s with argument
+		return extractWordContent(call.Args[2], knownVars)
+	}
+
+	// Literal string (escape sequences would need processing)
+	if strings.ContainsAny(format, "\\") {
+		return "", true // Has escape sequences - complex
+	}
+
+	return format, false
+}
+
+// NormalizeOctalMode normalizes a chmod mode to 4-digit octal format.
+// E.g., "755" -> "0755", "0755" -> "0755"
+func NormalizeOctalMode(mode string) string {
+	if len(mode) == 3 {
+		return "0" + mode
+	}
+	return mode
+}
