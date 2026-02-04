@@ -11,7 +11,7 @@ func TestDetectFileCreation(t *testing.T) {
 		variant    Variant
 		wantNil    bool
 		wantPath   string
-		wantChmod  string
+		wantChmod  uint16
 		wantUnsafe bool
 	}{
 		{
@@ -21,18 +21,18 @@ func TestDetectFileCreation(t *testing.T) {
 			wantPath: "/app/config.txt",
 		},
 		{
-			name:     "echo with chmod",
-			script:   `echo "#!/bin/bash" > /app/script.sh && chmod 755 /app/script.sh`,
-			variant:  VariantBash,
-			wantPath: "/app/script.sh",
-			wantChmod: "755",
+			name:      "echo with chmod",
+			script:    `echo "#!/bin/bash" > /app/script.sh && chmod 755 /app/script.sh`,
+			variant:   VariantBash,
+			wantPath:  "/app/script.sh",
+			wantChmod: 0o755,
 		},
 		{
-			name:     "echo with 4-digit chmod",
-			script:   `echo "data" > /app/file && chmod 0644 /app/file`,
-			variant:  VariantBash,
-			wantPath: "/app/file",
-			wantChmod: "0644",
+			name:      "echo with 4-digit chmod",
+			script:    `echo "data" > /app/file && chmod 0644 /app/file`,
+			variant:   VariantBash,
+			wantPath:  "/app/file",
+			wantChmod: 0o644,
 		},
 		{
 			name:    "relative path - skip",
@@ -70,7 +70,7 @@ func TestDetectFileCreation(t *testing.T) {
 			script:    `echo "x" > /app/file && chmod +x /app/file`,
 			variant:   VariantBash,
 			wantPath:  "/app/file",
-			wantChmod: "0755", // +x on 0o644 base = 0755
+			wantChmod: 0o755, // +x on 0o644 base = 0755
 		},
 		{
 			name:     "cat with redirect creates empty file",
@@ -340,73 +340,101 @@ func TestSymbolicToOctal(t *testing.T) {
 	tests := []struct {
 		symbolic string
 		base     int
-		want     string
+		want     uint16
 	}{
 		// Add execute
-		{"+x", 0o644, "0755"},
-		{"a+x", 0o644, "0755"},
-		{"u+x", 0o644, "0744"},
-		{"g+x", 0o644, "0654"},
-		{"o+x", 0o644, "0645"},
-		{"ug+x", 0o644, "0754"},
+		{"+x", 0o644, 0o755},
+		{"a+x", 0o644, 0o755},
+		{"u+x", 0o644, 0o744},
+		{"g+x", 0o644, 0o654},
+		{"o+x", 0o644, 0o645},
+		{"ug+x", 0o644, 0o754},
 
 		// Add read (already has it for user)
-		{"+r", 0o644, "0644"},
-		{"o+r", 0o644, "0644"}, // other already has read
+		{"+r", 0o644, 0o644},
+		{"o+r", 0o644, 0o644}, // other already has read
 
 		// Add write
-		{"+w", 0o644, "0666"},
-		{"g+w", 0o644, "0664"},
-		{"o+w", 0o644, "0646"},
+		{"+w", 0o644, 0o666},
+		{"g+w", 0o644, 0o664},
+		{"o+w", 0o644, 0o646},
 
 		// Combined permissions
-		{"+rwx", 0o644, "0777"},
-		{"u+rwx", 0o644, "0744"}, // user already has rw, adds x
-		{"go+rx", 0o644, "0655"},
+		{"+rwx", 0o644, 0o777},
+		{"u+rwx", 0o644, 0o744}, // user already has rw, adds x
+		{"go+rx", 0o644, 0o655},
 
 		// Remove permissions
-		{"-x", 0o644, "0644"},  // no execute to remove
-		{"-w", 0o644, "0444"},  // removes write from user
-		{"o-r", 0o644, "0640"}, // removes read from other
+		{"-x", 0o644, 0o644},  // no execute to remove
+		{"-w", 0o644, 0o444},  // removes write from user
+		{"o-r", 0o644, 0o640}, // removes read from other
 
 		// Set exactly
-		{"=rwx", 0o644, "0777"},  // sets all to rwx
-		{"u=rwx", 0o644, "0744"}, // sets user to rwx exactly
-		{"go=rx", 0o644, "0655"}, // sets group/other to rx exactly
+		{"=rwx", 0o644, 0o777},  // sets all to rwx
+		{"u=rwx", 0o644, 0o744}, // sets user to rwx exactly
+		{"go=rx", 0o644, 0o655}, // sets group/other to rx exactly
 
-		// Unsupported modes (return empty)
-		{"+X", 0o644, ""},
-		{"+s", 0o644, ""},
-		{"+t", 0o644, ""},
-		{"", 0o644, ""},
+		// Unsupported modes (return 0)
+		{"+X", 0o644, 0},
+		{"+s", 0o644, 0},
+		{"+t", 0o644, 0},
+		{"", 0o644, 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.symbolic, func(t *testing.T) {
 			got := symbolicToOctal(tt.symbolic, tt.base)
 			if got != tt.want {
-				t.Errorf("symbolicToOctal(%q, %04o) = %q, want %q", tt.symbolic, tt.base, got, tt.want)
+				t.Errorf("symbolicToOctal(%q, %04o) = %04o, want %04o", tt.symbolic, tt.base, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestNormalizeOctalMode(t *testing.T) {
+func TestParseOctalMode(t *testing.T) {
 	tests := []struct {
 		input string
-		want  string
+		want  uint16
 	}{
-		{"755", "0755"},
-		{"0755", "0755"},
-		{"644", "0644"},
-		{"0644", "0644"},
+		{"755", 0o755},
+		{"0755", 0o755},
+		{"644", 0o644},
+		{"0644", 0o644},
+		{"4755", 0o4755}, // setuid
+		{"2755", 0o2755}, // setgid
+		{"1755", 0o1755}, // sticky
+		{"", 0},
+		{"invalid", 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := NormalizeOctalMode(tt.input)
+			got := ParseOctalMode(tt.input)
 			if got != tt.want {
-				t.Errorf("NormalizeOctalMode(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("ParseOctalMode(%q) = %04o, want %04o", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatOctalMode(t *testing.T) {
+	tests := []struct {
+		input uint16
+		want  string
+	}{
+		{0o755, "0755"},
+		{0o644, "0644"},
+		{0o4755, "4755"}, // setuid
+		{0o2755, "2755"}, // setgid
+		{0o1755, "1755"}, // sticky
+		{0, ""},          // no mode
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			got := FormatOctalMode(tt.input)
+			if got != tt.want {
+				t.Errorf("FormatOctalMode(%04o) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -473,28 +501,28 @@ func TestDetectStandaloneChmod(t *testing.T) {
 		script   string
 		variant  Variant
 		wantNil  bool
-		wantMode string
+		wantMode uint16
 		wantPath string
 	}{
 		{
 			name:     "simple chmod 755",
 			script:   `chmod 755 /app/script.sh`,
 			variant:  VariantBash,
-			wantMode: "755",
+			wantMode: 0o755,
 			wantPath: "/app/script.sh",
 		},
 		{
 			name:     "chmod 0644",
 			script:   `chmod 0644 /app/config`,
 			variant:  VariantBash,
-			wantMode: "0644",
+			wantMode: 0o644,
 			wantPath: "/app/config",
 		},
 		{
 			name:     "chmod +x (converted to octal)",
 			script:   `chmod +x /app/run.sh`,
 			variant:  VariantBash,
-			wantMode: "0755", // +x on base 0644 = 0755
+			wantMode: 0o755, // +x on base 0644 = 0755
 			wantPath: "/app/run.sh",
 		},
 		{
@@ -536,7 +564,7 @@ func TestDetectStandaloneChmod(t *testing.T) {
 				t.Fatal("expected non-nil result")
 			}
 			if result.Mode != tt.wantMode {
-				t.Errorf("Mode = %q, want %q", result.Mode, tt.wantMode)
+				t.Errorf("Mode = %04o, want %04o", result.Mode, tt.wantMode)
 			}
 			if result.Target != tt.wantPath {
 				t.Errorf("Target = %q, want %q", result.Target, tt.wantPath)

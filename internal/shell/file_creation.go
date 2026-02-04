@@ -27,8 +27,8 @@ type FileCreationInfo struct {
 	// Content is the literal content to write.
 	Content string
 
-	// ChmodMode is the octal chmod mode (e.g., "0755", "755"), or empty if no chmod.
-	ChmodMode string
+	// ChmodMode is the octal chmod mode (e.g., 0o755, 0o644), or 0 if no chmod.
+	ChmodMode uint16
 
 	// IsAppend is true if using >> (append) mode for the first write.
 	// If true, converting to COPY would lose existing file content.
@@ -88,8 +88,8 @@ func DetectFileCreation(script string, variant Variant, knownVars func(name stri
 
 // ChmodInfo describes a standalone chmod command.
 type ChmodInfo struct {
-	// Mode is the octal mode (e.g., "755", "0o644").
-	Mode string
+	// Mode is the octal mode (e.g., 0o755, 0o644, 0o4755).
+	Mode uint16
 	// Target is the file path being chmod'd.
 	Target string
 }
@@ -128,7 +128,7 @@ func DetectStandaloneChmod(script string, variant Variant) *ChmodInfo {
 	}
 
 	mode, target := parseChmod(call)
-	if mode == "" || target == "" {
+	if mode == 0 || target == "" {
 		return nil
 	}
 
@@ -163,12 +163,12 @@ const (
 
 // analyzedCmd represents a command with its type and original text.
 type analyzedCmd struct {
-	cmdType    cmdType
-	text       string
-	creation   *fileCreationCmd // non-nil for cmdTypeFileCreation
-	chmodMode  string           // non-empty for cmdTypeChmod
-	chmodTarget string          // non-empty for cmdTypeChmod
-	hasUnsafe  bool
+	cmdType     cmdType
+	text        string
+	creation    *fileCreationCmd // non-nil for cmdTypeFileCreation
+	chmodMode   uint16           // non-zero for cmdTypeChmod
+	chmodTarget string           // non-empty for cmdTypeChmod
+	hasUnsafe   bool
 }
 
 // analyzeFileCreation performs detailed analysis of file creation patterns.
@@ -197,7 +197,7 @@ func analyzeFileCreation(prog *syntax.File, knownVars func(name string) bool) *F
 
 	// Extract file creation commands and merge content
 	var creations []fileCreationCmd
-	var chmodMode string
+	var chmodMode uint16
 	hasUnsafeVars := false
 
 	for i := startIdx; i <= endIdx; i++ {
@@ -297,7 +297,7 @@ func analyzeCallExpr(stmt *syntax.Stmt, call *syntax.CallExpr, knownVars func(na
 	// Check for chmod
 	if cmdName == cmdChmod {
 		mode, target := parseChmod(call)
-		if mode != "" && target != "" {
+		if mode != 0 && target != "" {
 			return analyzedCmd{
 				cmdType:     cmdTypeChmod,
 				text:        text,
@@ -412,16 +412,17 @@ func stmtToString(stmt *syntax.Stmt) string {
 }
 
 // parseChmod extracts mode and target from a chmod command.
-// Returns empty strings if the chmod cannot be converted (e.g., symbolic mode, recursive, multiple targets).
-func parseChmod(call *syntax.CallExpr) (string, string) {
+// Returns 0 and empty string if the chmod cannot be converted (e.g., recursive, multiple targets).
+func parseChmod(call *syntax.CallExpr) (uint16, string) {
 	if len(call.Args) < 3 {
-		return "", ""
+		return 0, ""
 	}
 
 	// Skip chmod itself
 	args := call.Args[1:]
 
-	var mode, target string
+	var mode uint16
+	var target string
 	seenTarget := false
 
 	// Look for mode and target, skipping flags
@@ -435,14 +436,14 @@ func parseChmod(call *syntax.CallExpr) (string, string) {
 		if strings.HasPrefix(lit, "-") {
 			if strings.Contains(lit, "R") {
 				// Recursive chmod - skip
-				return "", ""
+				return 0, ""
 			}
 			continue
 		}
 
 		// Check if this is an octal mode
 		if isOctalMode(lit) {
-			mode = lit
+			mode = ParseOctalMode(lit)
 			continue
 		}
 
@@ -450,19 +451,19 @@ func parseChmod(call *syntax.CallExpr) (string, string) {
 		if isSymbolicMode(lit) {
 			// Convert symbolic to octal (assuming default file mode 0o644)
 			converted := symbolicToOctal(lit, defaultFileMode)
-			if converted == "" {
+			if converted == 0 {
 				// Unsupported symbolic mode (e.g., +X, +s, +t)
-				return "", ""
+				return 0, ""
 			}
 			mode = converted
 			continue
 		}
 
 		// Must be a target path
-		if mode != "" {
+		if mode != 0 {
 			if seenTarget {
 				// Multiple targets (e.g., "chmod 755 /a /b") - not supported
-				return "", ""
+				return 0, ""
 			}
 			target = lit
 			seenTarget = true
@@ -489,17 +490,17 @@ var symbolicModeRegex = regexp.MustCompile(`^[ugoa]*[\-+=][rwxXst]+$`)
 const defaultFileMode = 0o644
 
 // symbolicToOctal converts a symbolic chmod mode to octal, given a base mode.
-// Returns empty string if the mode cannot be converted.
+// Returns 0 if the mode cannot be converted.
 // Supports: [ugoa]*[+-=][rwx]+ (not X, s, t which are complex/rare).
-func symbolicToOctal(symbolic string, baseMode int) string {
+func symbolicToOctal(symbolic string, baseMode int) uint16 {
 	if len(symbolic) < 2 {
-		return ""
+		return 0
 	}
 
 	// Find the operator position
 	opIdx := strings.IndexAny(symbolic, "+-=")
 	if opIdx == -1 {
-		return ""
+		return 0
 	}
 
 	who := symbolic[:opIdx]
@@ -534,7 +535,7 @@ func symbolicToOctal(symbolic string, baseMode int) string {
 			permBits |= 0o111
 		case 'X', 's', 't':
 			// Not supported - these have complex semantics
-			return ""
+			return 0
 		}
 	}
 
@@ -552,10 +553,14 @@ func symbolicToOctal(symbolic string, baseMode int) string {
 		// Clear the who bits first, then set
 		result = (baseMode &^ whoMask) | permBits
 	default:
-		return ""
+		return 0
 	}
 
-	return fmt.Sprintf("%04o", result)
+	// Ensure result is within valid chmod mode range (0o0000 to 0o7777)
+	if result < 0 || result > 0o7777 {
+		return 0
+	}
+	return uint16(result)
 }
 
 // isSymbolicMode checks if a string is a symbolic chmod mode.
@@ -824,12 +829,26 @@ func extractPrintfContent(call *syntax.CallExpr, knownVars func(name string) boo
 	return format, false
 }
 
-// NormalizeOctalMode normalizes a chmod mode to 4-digit octal format.
-// E.g., "755" -> "0755", "0755" -> "0755"
-// Other inputs (empty, 2-digit, 5+ digit) are returned unchanged.
-func NormalizeOctalMode(mode string) string {
-	if len(mode) == 3 {
-		return "0" + mode
+// ParseOctalMode parses an octal mode string (e.g., "755", "0755") to uint16.
+// Returns 0 for invalid input.
+func ParseOctalMode(s string) uint16 {
+	if s == "" {
+		return 0
 	}
-	return mode
+	var mode uint64
+	_, err := fmt.Sscanf(s, "%o", &mode)
+	if err != nil || mode > 0o7777 {
+		return 0
+	}
+	return uint16(mode)
+}
+
+// FormatOctalMode formats a chmod mode as a 4-digit octal string.
+// E.g., 0o755 -> "0755", 0o644 -> "0644"
+// Returns empty string for 0 (no mode).
+func FormatOctalMode(mode uint16) string {
+	if mode == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%04o", mode)
 }

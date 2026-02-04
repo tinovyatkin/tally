@@ -310,7 +310,7 @@ func (r *PreferCopyHeredocRule) checkConsecutiveRuns(
 	var violations []rules.Violation
 	var sequence []fileCreationRun
 	var targetPath string
-	var sequenceChmodMode string       // chmod mode from trailing RUN chmod
+	var sequenceChmodMode uint16                   // chmod mode from trailing RUN chmod
 	var sequenceChmodRun *instructions.RunCommand // the RUN chmod instruction
 
 	flushSequence := func() {
@@ -319,7 +319,7 @@ func (r *PreferCopyHeredocRule) checkConsecutiveRuns(
 		}
 		sequence = nil
 		targetPath = ""
-		sequenceChmodMode = ""
+		sequenceChmodMode = 0
 		sequenceChmodRun = nil
 	}
 
@@ -368,19 +368,19 @@ func (r *PreferCopyHeredocRule) checkConsecutiveRuns(
 			sequence, targetPath = updateFileCreationSequence(
 				sequence, targetPath, run, info, flushSequence,
 			)
-			if sequenceChmodMode != "" {
+			if sequenceChmodMode != 0 {
 				// Chmod is no longer trailing once another write appears.
 				sequenceChmodRun = nil
 				// Inline chmod overrides earlier standalone chmod.
-				if info.ChmodMode != "" {
-					sequenceChmodMode = ""
+				if info.ChmodMode != 0 {
+					sequenceChmodMode = 0
 				}
 			}
 			continue
 		}
 
 		// Check for standalone chmod that can extend the sequence
-		if len(sequence) > 0 && sequenceChmodMode == "" {
+		if len(sequence) > 0 && sequenceChmodMode == 0 {
 			chmodInfo := shell.DetectStandaloneChmod(script, shellVariant)
 			if chmodInfo != nil && chmodInfo.Target == targetPath {
 				// This chmod targets our sequence's file - absorb it
@@ -425,7 +425,7 @@ func updateFileCreationSequence(
 func (r *PreferCopyHeredocRule) createSequenceViolation(
 	sequence []fileCreationRun,
 	targetPath string,
-	chmodMode string,
+	chmodMode uint16,
 	chmodRun *instructions.RunCommand,
 	file string,
 	sm *sourcemap.SourceMap,
@@ -553,7 +553,7 @@ func (r *PreferCopyHeredocRule) generateFix(
 func (r *PreferCopyHeredocRule) generateSequenceFix(
 	sequence []fileCreationRun,
 	targetPath string,
-	trailingChmodMode string,
+	trailingChmodMode uint16,
 	trailingChmodRun *instructions.RunCommand,
 	file string,
 	_ *sourcemap.SourceMap,
@@ -565,7 +565,7 @@ func (r *PreferCopyHeredocRule) generateSequenceFix(
 
 	// Merge content from all RUNs
 	var content strings.Builder
-	var chmodMode string
+	var chmodMode uint16
 
 	for i, fcr := range sequence {
 		if i > 0 && !fcr.info.IsAppend {
@@ -575,13 +575,13 @@ func (r *PreferCopyHeredocRule) generateSequenceFix(
 		content.WriteString(fcr.info.Content)
 
 		// Use last chmod mode from file creation commands
-		if fcr.info.ChmodMode != "" {
+		if fcr.info.ChmodMode != 0 {
 			chmodMode = fcr.info.ChmodMode
 		}
 	}
 
 	// Trailing RUN chmod overrides any inline chmod
-	if trailingChmodMode != "" {
+	if trailingChmodMode != 0 {
 		chmodMode = trailingChmodMode
 	}
 
@@ -651,13 +651,13 @@ func (r *PreferCopyHeredocRule) generateSequenceFix(
 }
 
 // buildCopyHeredoc builds a COPY heredoc instruction.
-func buildCopyHeredoc(targetPath, content, chmodMode string) string {
+func buildCopyHeredoc(targetPath, content string, chmodMode uint16) string {
 	var sb strings.Builder
 	sb.WriteString("COPY ")
 
-	if chmodMode != "" {
+	if chmodMode != 0 {
 		sb.WriteString("--chmod=")
-		sb.WriteString(shell.NormalizeOctalMode(chmodMode))
+		sb.WriteString(shell.FormatOctalMode(chmodMode))
 		sb.WriteString(" ")
 	}
 
