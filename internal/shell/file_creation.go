@@ -685,16 +685,14 @@ func extractWordContent(word *syntax.Word, knownVars func(name string) bool) (st
 					varName := dp.Param.Value
 					if knownVars != nil && knownVars(varName) {
 						// Known ARG/ENV - can be preserved in COPY heredoc
-						content.WriteString("$")
+						// Always brace to avoid $VARsuffix ambiguity
+						content.WriteString("${")
+						content.WriteString(varName)
+						content.WriteString("}")
 						if dp.Excl || dp.Length || dp.Width || dp.Index != nil ||
 							dp.Slice != nil || dp.Repl != nil || dp.Exp != nil {
 							// Complex expansion - mark unsafe
 							hasUnsafe = true
-							content.WriteString("{")
-							content.WriteString(varName)
-							content.WriteString("}")
-						} else {
-							content.WriteString(varName)
 						}
 					} else {
 						hasUnsafe = true
@@ -710,8 +708,10 @@ func extractWordContent(word *syntax.Word, knownVars func(name string) bool) (st
 			// Unquoted variable - check if known
 			varName := p.Param.Value
 			if knownVars != nil && knownVars(varName) {
-				content.WriteString("$")
+				// Always brace to avoid $VARsuffix ambiguity
+				content.WriteString("${")
 				content.WriteString(varName)
+				content.WriteString("}")
 			} else {
 				hasUnsafe = true
 				content.WriteString("$")

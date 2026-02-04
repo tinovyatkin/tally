@@ -169,7 +169,7 @@ apt-get install -y --no-install-recommends gnupg2 curl ca-certificates
 curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${NVARCH}/3bf863cc.pub | apt-key add -
 EOF
 COPY <<EOF /etc/apt/sources.list.d/cuda.list
-deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/$NVARCH /
+deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${NVARCH} /
 EOF
 RUN apt-get purge --autoremove -y curl && rm -rf /var/lib/apt/lists/*
 
