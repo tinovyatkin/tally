@@ -85,4 +85,7 @@ DATA
 	if !files["DATA"] {
 		t.Fatalf("expected DATA to be detected as heredoc file name")
 	}
+	if len(files) != 2 {
+		t.Fatalf("expected exactly 2 heredoc file names, got %d (%v)", len(files), files)
+	}
 }
