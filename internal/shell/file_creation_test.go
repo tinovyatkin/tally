@@ -97,6 +97,13 @@ func TestDetectFileCreation(t *testing.T) {
 			variant: VariantNonPOSIX,
 			wantNil: true,
 		},
+		{
+			name:     "chmod with multiple targets - no chmod extracted",
+			script:   `echo "x" > /app/file && chmod 755 /app/file /app/other`,
+			variant:  VariantBash,
+			wantPath: "/app/file",
+			// chmodMode should be empty since multiple targets are not supported
+		},
 	}
 
 	for _, tt := range tests {

@@ -388,7 +388,7 @@ func stmtToString(stmt *syntax.Stmt) string {
 }
 
 // parseChmod extracts mode and target from a chmod command.
-// Returns empty strings if the chmod cannot be converted (e.g., symbolic mode, recursive).
+// Returns empty strings if the chmod cannot be converted (e.g., symbolic mode, recursive, multiple targets).
 func parseChmod(call *syntax.CallExpr) (string, string) {
 	if len(call.Args) < 3 {
 		return "", ""
@@ -398,6 +398,7 @@ func parseChmod(call *syntax.CallExpr) (string, string) {
 	args := call.Args[1:]
 
 	var mode, target string
+	seenTarget := false
 
 	// Look for mode and target, skipping flags
 	for _, arg := range args {
@@ -433,10 +434,15 @@ func parseChmod(call *syntax.CallExpr) (string, string) {
 			continue
 		}
 
-		// Must be the target
+		// Must be a target path
 		if mode != "" {
+			if seenTarget {
+				// Multiple targets (e.g., "chmod 755 /a /b") - not supported
+				return "", ""
+			}
 			target = lit
-			break
+			seenTarget = true
+			continue
 		}
 	}
 
