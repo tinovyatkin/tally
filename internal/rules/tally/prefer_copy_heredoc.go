@@ -591,7 +591,15 @@ func (r *PreferCopyHeredocRule) generateSequenceFix(
 		endLine == lastRunLoc[0].Start.Line && endCol == lastRunLoc[0].Start.Character {
 		cmdStr := getRunScriptFromCmd(lastRun)
 		fullInstr := "RUN " + cmdStr
-		endCol = lastRunLoc[0].Start.Character + len(fullInstr)
+
+		// Handle multi-line RUN instructions with continuations
+		lines := strings.Split(fullInstr, "\n")
+		if len(lines) > 1 {
+			endLine = lastRunLoc[0].Start.Line + len(lines) - 1
+			endCol = len(lines[len(lines)-1])
+		} else {
+			endCol = lastRunLoc[0].Start.Character + len(fullInstr)
+		}
 	}
 
 	runCount := len(sequence)
