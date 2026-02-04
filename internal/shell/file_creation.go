@@ -174,6 +174,13 @@ type analyzedCmd struct {
 // analyzeFileCreation performs detailed analysis of file creation patterns.
 // Supports mixed commands by tracking preceding and remaining commands.
 func analyzeFileCreation(prog *syntax.File, knownVars func(name string) bool) *FileCreationInfo {
+	// Require exactly one top-level statement to avoid ambiguity with separators.
+	// Scripts with semicolons (cmd1; cmd2) would be incorrectly rebuilt as && chains.
+	// Only && chains within a single statement are supported.
+	if len(prog.Stmts) != 1 {
+		return nil
+	}
+
 	// Collect all commands with their types
 	var commands []analyzedCmd
 	collectCommands(prog, &commands, knownVars)
