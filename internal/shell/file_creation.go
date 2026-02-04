@@ -306,37 +306,50 @@ func analyzeCallExpr(stmt *syntax.Stmt, call *syntax.CallExpr, knownVars func(na
 		return analyzedCmd{cmdType: cmdTypeOther, text: text}
 	}
 
-	// Look for redirects
+	// Validate redirects: allow exactly one stdout output redirect and
+	// (for cat) an optional heredoc input.
+	var outRedir *syntax.Redirect
 	for _, redir := range stmt.Redirs {
-		if redir.Op != syntax.RdrOut && redir.Op != syntax.AppOut {
-			continue
-		}
-		// Only process stdout redirects; skip stderr (2>), etc.
-		if redir.N != nil && redir.N.Value != "1" {
-			continue
-		}
-
-		targetPath := extractRedirectTarget(redir)
-		if targetPath == "" || !path.IsAbs(targetPath) {
-			continue
-		}
-
-		content, unsafe := extractFileContent(stmt, call, knownVars)
-
-		return analyzedCmd{
-			cmdType: cmdTypeFileCreation,
-			text:    text,
-			creation: &fileCreationCmd{
-				targetPath: targetPath,
-				content:    content,
-				isAppend:   redir.Op == syntax.AppOut,
-			},
-			hasUnsafe: unsafe,
+		switch redir.Op {
+		case syntax.RdrOut, syntax.AppOut:
+			if redir.N != nil && redir.N.Value != "1" {
+				return analyzedCmd{cmdType: cmdTypeOther, text: text}
+			}
+			if outRedir != nil {
+				return analyzedCmd{cmdType: cmdTypeOther, text: text}
+			}
+			outRedir = redir
+		case syntax.Hdoc, syntax.DashHdoc:
+			if cmdName != cmdCat {
+				return analyzedCmd{cmdType: cmdTypeOther, text: text}
+			}
+		case syntax.RdrIn, syntax.RdrInOut, syntax.DplIn, syntax.DplOut,
+			syntax.ClbOut, syntax.WordHdoc, syntax.RdrAll, syntax.AppAll:
+			// Input redirects and other unsupported redirect types
+			return analyzedCmd{cmdType: cmdTypeOther, text: text}
 		}
 	}
+	if outRedir == nil {
+		return analyzedCmd{cmdType: cmdTypeOther, text: text}
+	}
 
-	// echo/cat/printf without redirect is not file creation
-	return analyzedCmd{cmdType: cmdTypeOther, text: text}
+	targetPath := extractRedirectTarget(outRedir)
+	if targetPath == "" || !path.IsAbs(targetPath) {
+		return analyzedCmd{cmdType: cmdTypeOther, text: text}
+	}
+
+	content, unsafe := extractFileContent(stmt, call, knownVars)
+
+	return analyzedCmd{
+		cmdType: cmdTypeFileCreation,
+		text:    text,
+		creation: &fileCreationCmd{
+			targetPath: targetPath,
+			content:    content,
+			isAppend:   outRedir.Op == syntax.AppOut,
+		},
+		hasUnsafe: unsafe,
+	}
 }
 
 // findFileCreationBlock finds a contiguous block of file creation commands (+ chmod).
