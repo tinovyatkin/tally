@@ -1,6 +1,9 @@
 package shell
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestSplitSimpleCommand(t *testing.T) {
 	tests := []struct {
@@ -38,13 +41,8 @@ func TestSplitSimpleCommand(t *testing.T) {
 			if !tt.wantOK {
 				return
 			}
-			if len(got) != len(tt.wantArg) {
-				t.Fatalf("len(args) = %d, want %d (args=%v)", len(got), len(tt.wantArg), got)
-			}
-			for i := range got {
-				if got[i] != tt.wantArg[i] {
-					t.Fatalf("args[%d] = %q, want %q (args=%v)", i, got[i], tt.wantArg[i], got)
-				}
+			if !slices.Equal(got, tt.wantArg) {
+				t.Fatalf("args = %v, want %v", got, tt.wantArg)
 			}
 		})
 	}
