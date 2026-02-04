@@ -609,8 +609,9 @@ func extractCatHeredocContentFromStmt(stmt *syntax.Stmt) (string, bool) {
 
 // extractEchoContent extracts content from an echo command.
 func extractEchoContent(call *syntax.CallExpr, knownVars func(name string) bool) (string, bool) {
-	if len(call.Args) < 2 {
-		return "", false
+	if len(call.Args) == 1 {
+		// echo with no args prints a newline
+		return "\n", false
 	}
 
 	// Check for -e flag (escape sequences) - skip for now
