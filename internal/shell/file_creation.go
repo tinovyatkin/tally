@@ -216,9 +216,6 @@ func analyzeFileCreation(prog *syntax.File, knownVars func(name string) bool) *F
 			content.Reset()
 		}
 		content.WriteString(c.content)
-		if i < len(creations)-1 {
-			content.WriteString("\n")
-		}
 	}
 
 	// Build preceding commands string
