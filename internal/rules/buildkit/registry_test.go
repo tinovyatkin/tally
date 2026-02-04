@@ -1,6 +1,7 @@
 package buildkit
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/tinovyatkin/tally/internal/rules"
@@ -113,14 +114,7 @@ func TestAll(t *testing.T) {
 	}
 
 	// Basic sanity: a known rule should be present.
-	found := false
-	for _, info := range all {
-		if info.Name == "StageNameCasing" {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.ContainsFunc(all, func(info RuleInfo) bool { return info.Name == "StageNameCasing" }) {
 		t.Fatalf("All() missing StageNameCasing")
 	}
 }
