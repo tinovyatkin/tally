@@ -67,6 +67,12 @@ func TestDetectFileCreation(t *testing.T) {
 			wantPath: "/app/file", // cat > file creates empty file
 		},
 		{
+			name:     "cat heredoc to file",
+			script:   "cat <<EOF > /app/config.txt\nhello world\nEOF",
+			variant:  VariantBash,
+			wantPath: "/app/config.txt",
+		},
+		{
 			name:     "single quoted content",
 			script:   `echo 'no $expansion' > /app/file`,
 			variant:  VariantBash,
