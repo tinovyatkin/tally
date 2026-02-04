@@ -100,6 +100,20 @@ func TestDetectFileCreation(t *testing.T) {
 			wantUnsafe: true,
 		},
 		{
+			name:       "echo -n - unsafe (no trailing newline)",
+			script:     `echo -n "data" > /app/file`,
+			variant:    VariantBash,
+			wantPath:   "/app/file",
+			wantUnsafe: true, // COPY heredoc always adds newline
+		},
+		{
+			name:       "printf without newline - unsafe",
+			script:     `printf "data" > /app/file`,
+			variant:    VariantBash,
+			wantPath:   "/app/file",
+			wantUnsafe: true, // printf doesn't add newline, COPY heredoc does
+		},
+		{
 			name:    "non-file-creation command",
 			script:  `apt-get update && apt-get install -y curl`,
 			variant: VariantBash,

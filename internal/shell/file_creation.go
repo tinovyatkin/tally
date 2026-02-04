@@ -615,6 +615,11 @@ func extractEchoContent(call *syntax.CallExpr, knownVars func(name string) bool)
 		return "", true
 	}
 
+	// echo -n produces no trailing newline; COPY heredoc can't represent that
+	if hasNoNewline {
+		return "", true
+	}
+
 	var content strings.Builder
 	hasUnsafe := false
 
@@ -630,10 +635,7 @@ func extractEchoContent(call *syntax.CallExpr, knownVars func(name string) bool)
 		content.WriteString(argContent)
 	}
 
-	result := content.String()
-	if !hasNoNewline {
-		result += "\n"
-	}
+	result := content.String() + "\n"
 
 	return result, hasUnsafe
 }
@@ -741,12 +743,22 @@ func extractPrintfContent(call *syntax.CallExpr, knownVars func(name string) boo
 
 	if format == "%s" && len(call.Args) >= 3 {
 		// Simple %s with argument
-		return extractWordContent(call.Args[2], knownVars)
+		content, unsafe := extractWordContent(call.Args[2], knownVars)
+		// printf doesn't add trailing newline; mark unsafe unless content has one
+		if unsafe || !strings.HasSuffix(content, "\n") {
+			return "", true
+		}
+		return content, false
 	}
 
 	// Literal string (escape sequences would need processing)
 	if strings.ContainsAny(format, "\\") {
 		return "", true // Has escape sequences - complex
+	}
+
+	// printf doesn't add trailing newline; mark unsafe unless content has one
+	if !strings.HasSuffix(format, "\n") {
+		return "", true
 	}
 
 	return format, false
