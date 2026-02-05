@@ -54,6 +54,7 @@ post-merge:
     delete-merged-branches:
       run: git branch --merged | grep -Ev '\*|master|main|dev|develop|development|stag|staging|prod|production' | xargs git branch -d; git fetch --prune;
 pre-push:
+  parallel: true
   jobs:
     - name: build
       run: make build
