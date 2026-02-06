@@ -616,7 +616,7 @@ WORKDIR /app
 RUN make build
 RUN apt-get install curl
 `,
-			args:        []string{"--fix", "--fix-unsafe"},
+			args:        []string{"--fix", "--fix-unsafe", "--ignore", "tally/prefer-run-heredoc"},
 			wantApplied: 2, // DL3003 + DL3027
 		},
 		// MaintainerDeprecated: Replace MAINTAINER with LABEL
@@ -879,8 +879,7 @@ severity = "style"
 			}
 
 			// Run tally check --fix
-			// Ignore experimental style rules to avoid them triggering on minimal test cases
-			args := append([]string{"check", "--config", configPath, "--ignore", "tally/prefer-run-heredoc"}, tc.args...)
+			args := append([]string{"check", "--config", configPath}, tc.args...)
 			args = append(args, dockerfilePath)
 			cmd := exec.Command(binaryPath, args...)
 			cmd.Env = append(os.Environ(),
