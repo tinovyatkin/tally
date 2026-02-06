@@ -783,7 +783,12 @@ func resolveRunEndPosition(loc []parser.Range, sm *sourcemap.SourceMap, run *ins
 	// Fallback: when end position equals start (point location), compute from command text
 	if endLine == loc[0].Start.Line && endCol == loc[0].Start.Character {
 		cmdStr := getRunScriptFromCmd(run)
-		fullInstr := "RUN " + cmdStr
+		mountFlags := runmount.FormatMounts(runmount.GetMounts(run))
+		fullInstr := "RUN "
+		if mountFlags != "" {
+			fullInstr += mountFlags + " "
+		}
+		fullInstr += cmdStr
 
 		lines := strings.Split(fullInstr, "\n")
 		if len(lines) > 1 {
