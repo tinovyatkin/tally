@@ -416,14 +416,17 @@ type columnShift struct {
 // Uses the original (pre-adjustment) coordinate space: for each shift, positions at or
 // past the shift's afterCol get shifted by delta.
 func adjustEditColumns(edit *rules.TextEdit, shifts []columnShift) {
+	startDelta, endDelta := 0, 0
 	for _, s := range shifts {
 		if s.line == edit.Location.Start.Line && edit.Location.Start.Column >= s.afterCol {
-			edit.Location.Start.Column += s.delta
+			startDelta += s.delta
 		}
 		if s.line == edit.Location.End.Line && edit.Location.End.Column >= s.afterCol {
-			edit.Location.End.Column += s.delta
+			endDelta += s.delta
 		}
 	}
+	edit.Location.Start.Column += startDelta
+	edit.Location.End.Column += endDelta
 }
 
 // recordColumnShift records a column shift from a single-line edit that doesn't introduce newlines.
