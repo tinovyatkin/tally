@@ -14,6 +14,8 @@ type TestConfig struct {
 	SliceField   []string `json:"slicefield"`
 	PtrIntField  *int     `json:"ptrintfield"`
 	PtrBoolField *bool    `json:"ptrboolfield"`
+	UintField    uint     `json:"uintfield"`
+	FloatField   float64  `json:"floatfield"`
 }
 
 func TestResolve_EmptyOpts(t *testing.T) {
@@ -256,6 +258,63 @@ func TestResolve_TrustedRegistries(t *testing.T) {
 	}
 	if result.TrustedRegistries[0] != "docker.io" {
 		t.Errorf("expected docker.io, got %s", result.TrustedRegistries[0])
+	}
+}
+
+func TestResolve_UintAndFloatDefaults(t *testing.T) {
+	defaults := TestConfig{
+		UintField:  10,
+		FloatField: 3.14,
+	}
+
+	// Omitted fields should get defaults via isZero → mergeDefaults
+	opts := map[string]any{"intfield": 1}
+	result := Resolve(opts, defaults)
+
+	if result.UintField != 10 {
+		t.Errorf("expected UintField=10, got %d", result.UintField)
+	}
+	if result.FloatField != 3.14 {
+		t.Errorf("expected FloatField=3.14, got %f", result.FloatField)
+	}
+
+	// Non-zero uint/float should be preserved
+	opts2 := map[string]any{"uintfield": 42, "floatfield": 2.71}
+	result2 := Resolve(opts2, defaults)
+
+	if result2.UintField != 42 {
+		t.Errorf("expected UintField=42, got %d", result2.UintField)
+	}
+	if result2.FloatField != 2.71 {
+		t.Errorf("expected FloatField=2.71, got %f", result2.FloatField)
+	}
+}
+
+func TestMergeDefaults_NonStruct(t *testing.T) {
+	// mergeDefaults with a non-struct type should return result unchanged
+	got := mergeDefaults(42, 100)
+	if got != 42 {
+		t.Errorf("expected 42, got %d", got)
+	}
+
+	got2 := mergeDefaults("user", "default")
+	if got2 != "user" {
+		t.Errorf("expected %q, got %q", "user", got2)
+	}
+}
+
+func TestMergeDefaults_UnexportedFields(t *testing.T) {
+	type config struct {
+		Public  int
+		private int
+	}
+	result := mergeDefaults(config{Public: 0}, config{Public: 5, private: 9})
+	if result.Public != 5 {
+		t.Errorf("expected Public=5, got %d", result.Public)
+	}
+	// private field should remain zero (CanSet returns false)
+	if result.private != 0 {
+		t.Errorf("expected private=0, got %d", result.private)
 	}
 }
 
