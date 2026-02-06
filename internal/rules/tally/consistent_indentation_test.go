@@ -28,48 +28,6 @@ func TestConsistentIndentationMetadata(t *testing.T) {
 	}
 }
 
-func TestConsistentIndentationDefaultConfig(t *testing.T) {
-	r := NewConsistentIndentationRule()
-	cfg, ok := r.DefaultConfig().(ConsistentIndentationConfig)
-	if !ok {
-		t.Fatal("DefaultConfig() is not ConsistentIndentationConfig")
-	}
-
-	if cfg.Indent == nil || *cfg.Indent != "tab" {
-		t.Errorf("Indent = %v, want %q", cfg.Indent, "tab")
-	}
-	if cfg.IndentWidth == nil || *cfg.IndentWidth != 1 {
-		t.Errorf("IndentWidth = %v, want 1", cfg.IndentWidth)
-	}
-}
-
-func TestConsistentIndentationValidateConfig(t *testing.T) {
-	r := NewConsistentIndentationRule()
-
-	tests := []struct {
-		name    string
-		config  any
-		wantErr bool
-	}{
-		{name: "nil config", config: nil, wantErr: false},
-		{name: "valid tab config", config: map[string]any{"indent": "tab"}, wantErr: false},
-		{name: "valid space config", config: map[string]any{"indent": "space", "indent-width": 4}, wantErr: false},
-		{name: "invalid indent value", config: map[string]any{"indent": "comma"}, wantErr: true},
-		{name: "invalid width zero", config: map[string]any{"indent-width": 0}, wantErr: true},
-		{name: "invalid width too large", config: map[string]any{"indent-width": 9}, wantErr: true},
-		{name: "unknown property", config: map[string]any{"foo": "bar"}, wantErr: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := r.ValidateConfig(tt.config)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateConfig() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestConsistentIndentationCheck(t *testing.T) {
 	testutil.RunRuleTests(t, NewConsistentIndentationRule(), []testutil.RuleTestCase{
 		// === Single-stage Dockerfiles: no indentation expected ===
@@ -79,13 +37,13 @@ func TestConsistentIndentationCheck(t *testing.T) {
 			WantViolations: 0,
 		},
 		{
-			Name:           "single stage with unwanted indent",
+			Name:           "single stage with unwanted tab indent",
 			Content:        "FROM alpine\n\tRUN echo hello\n\tCOPY . /app\n",
 			WantViolations: 2,
 			WantMessages:   []string{"unexpected indentation", "unexpected indentation"},
 		},
 		{
-			Name:           "single stage with space indent",
+			Name:           "single stage with unwanted space indent",
 			Content:        "FROM alpine\n  RUN echo hello\n",
 			WantViolations: 1,
 			WantMessages:   []string{"unexpected indentation"},
@@ -97,7 +55,7 @@ func TestConsistentIndentationCheck(t *testing.T) {
 			WantMessages:   []string{"unexpected indentation"},
 		},
 
-		// === Multi-stage Dockerfiles: commands should be indented ===
+		// === Multi-stage Dockerfiles: commands should be indented with 1 tab ===
 		{
 			Name:           "multi-stage properly indented with tabs",
 			Content:        "FROM alpine AS builder\n\tRUN echo build\nFROM scratch\n\tCOPY --from=builder /app /app\n",
@@ -126,27 +84,6 @@ func TestConsistentIndentationCheck(t *testing.T) {
 			Content:        "FROM alpine AS builder\n\tRUN echo build\nRUN echo test\nFROM scratch\nCOPY --from=builder /app /app\n",
 			WantViolations: 2, // RUN test and COPY missing indent
 			WantMessages:   []string{"missing indentation", "missing indentation"},
-		},
-
-		// === Configuration: spaces ===
-		{
-			Name:    "multi-stage spaces config",
-			Content: "FROM alpine AS builder\n    RUN echo build\nFROM scratch\n    COPY --from=builder /app /app\n",
-			Config: ConsistentIndentationConfig{
-				Indent:      strPtr("space"),
-				IndentWidth: intPtr(4),
-			},
-			WantViolations: 0,
-		},
-		{
-			Name:    "multi-stage wrong width with spaces",
-			Content: "FROM alpine AS builder\n  RUN echo build\nFROM scratch\n  COPY --from=builder /app /app\n",
-			Config: ConsistentIndentationConfig{
-				Indent:      strPtr("space"),
-				IndentWidth: intPtr(4),
-			},
-			WantViolations: 2,
-			WantMessages:   []string{"wrong indentation width", "wrong indentation width"},
 		},
 
 		// === Edge cases ===
@@ -182,7 +119,6 @@ func TestConsistentIndentationCheckWithFixes(t *testing.T) {
 	tests := []struct {
 		name      string
 		content   string
-		config    any
 		wantEdits int // total text edits across all violations
 	}{
 		{
@@ -201,24 +137,15 @@ func TestConsistentIndentationCheckWithFixes(t *testing.T) {
 			wantEdits: 2,
 		},
 		{
-			name:      "multi-stage fix indent style",
+			name:      "multi-stage fix indent style (spaces to tab)",
 			content:   "FROM alpine AS builder\n  RUN echo build\nFROM scratch\n",
-			wantEdits: 1,
-		},
-		{
-			name:    "multi-stage fix indent width with spaces",
-			content: "FROM alpine AS builder\n  RUN echo build\nFROM scratch\n",
-			config: ConsistentIndentationConfig{
-				Indent:      strPtr("space"),
-				IndentWidth: intPtr(4),
-			},
 			wantEdits: 1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := testutil.MakeLintInputWithConfig(t, "Dockerfile", tt.content, tt.config)
+			input := testutil.MakeLintInputWithConfig(t, "Dockerfile", tt.content, nil)
 			violations := r.Check(input)
 
 			totalEdits := 0
@@ -237,39 +164,6 @@ func TestConsistentIndentationCheckWithFixes(t *testing.T) {
 				t.Errorf("total edits = %d, want %d", totalEdits, tt.wantEdits)
 			}
 		})
-	}
-}
-
-func TestConsistentIndentationResolveConfig(t *testing.T) {
-	r := NewConsistentIndentationRule()
-
-	// Test map[string]any config resolution
-	cfg := r.resolveConfig(map[string]any{"indent": "space", "indent-width": 2})
-	if cfg.Indent == nil || *cfg.Indent != "space" {
-		t.Errorf("Indent = %v, want %q", cfg.Indent, "space")
-	}
-	if cfg.IndentWidth == nil || *cfg.IndentWidth != 2 {
-		t.Errorf("IndentWidth = %v, want 2", cfg.IndentWidth)
-	}
-
-	// Test nil pointer
-	cfg = r.resolveConfig((*ConsistentIndentationConfig)(nil))
-	if cfg.Indent == nil || *cfg.Indent != "tab" {
-		t.Errorf("nil pointer should return defaults, got Indent = %v", cfg.Indent)
-	}
-
-	// Test struct directly
-	space := "space"
-	w := 3
-	cfg = r.resolveConfig(ConsistentIndentationConfig{Indent: &space, IndentWidth: &w})
-	if *cfg.Indent != "space" || *cfg.IndentWidth != 3 {
-		t.Errorf("direct struct: got Indent=%v Width=%v", cfg.Indent, cfg.IndentWidth)
-	}
-
-	// Test unknown type falls back to defaults
-	cfg = r.resolveConfig(42)
-	if cfg.Indent == nil || *cfg.Indent != "tab" {
-		t.Errorf("unknown type should return defaults, got Indent = %v", cfg.Indent)
 	}
 }
 
@@ -319,6 +213,3 @@ func TestLeadingWhitespace(t *testing.T) {
 		})
 	}
 }
-
-// strPtr creates a pointer to a string for test configs.
-func strPtr(s string) *string { return &s }

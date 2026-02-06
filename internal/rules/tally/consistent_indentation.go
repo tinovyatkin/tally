@@ -7,35 +7,14 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 
 	"github.com/tinovyatkin/tally/internal/rules"
-	"github.com/tinovyatkin/tally/internal/rules/configutil"
 	"github.com/tinovyatkin/tally/internal/sourcemap"
 )
 
-const (
-	indentTab   = "tab"
-	indentSpace = "space"
-)
-
-// ConsistentIndentationConfig is the configuration for the consistent-indentation rule.
-type ConsistentIndentationConfig struct {
-	// Indent is the indentation character: "tab" or "space" (nil = use default "tab").
-	Indent *string `json:"indent,omitempty" koanf:"indent"`
-
-	// IndentWidth is the number of indent characters per level (nil = use default 1).
-	// For tabs, 1 is typical. For spaces, 2 or 4 are common.
-	IndentWidth *int `json:"indent-width,omitempty" koanf:"indent-width"`
-}
-
-// DefaultConsistentIndentationConfig returns the default configuration.
-// Tabs are preferred because they play well with heredoc <<- stripping.
-func DefaultConsistentIndentationConfig() ConsistentIndentationConfig {
-	indent := indentTab
-	width := 1
-	return ConsistentIndentationConfig{
-		Indent:      &indent,
-		IndentWidth: &width,
-	}
-}
+// expectedIndent is the indentation string used by this rule: a single tab.
+// Tabs are the only supported indent because Docker heredoc syntax (<<-)
+// strips leading tabs from body lines. Spaces have no equivalent shell
+// whitespace treatment, so using them would corrupt heredoc content.
+const expectedIndent = "\t"
 
 // ConsistentIndentationRule implements the consistent-indentation linting rule.
 // For multi-stage Dockerfiles, it enforces indentation of commands within each stage.
@@ -64,44 +43,24 @@ func (r *ConsistentIndentationRule) Metadata() rules.RuleMetadata {
 // Schema returns the JSON Schema for this rule's configuration.
 func (r *ConsistentIndentationRule) Schema() map[string]any {
 	return map[string]any{
-		"$schema": "https://json-schema.org/draft/2020-12/schema",
-		"type":    "object",
-		"properties": map[string]any{
-			"indent": map[string]any{
-				"type":        "string",
-				"enum":        []any{indentTab, indentSpace},
-				"default":     indentTab,
-				"description": "Indentation character: tab (recommended for heredoc <<- compatibility) or space",
-			},
-			"indent-width": map[string]any{
-				"type":        "integer",
-				"minimum":     1,
-				"maximum":     8,
-				"default":     1,
-				"description": "Number of indent characters per level (1 tab or 2/4 spaces typical)",
-			},
-		},
+		"$schema":              "https://json-schema.org/draft/2020-12/schema",
+		"type":                 "object",
 		"additionalProperties": false,
 	}
 }
 
 // DefaultConfig returns the default configuration for this rule.
 func (r *ConsistentIndentationRule) DefaultConfig() any {
-	return DefaultConsistentIndentationConfig()
+	return nil
 }
 
 // ValidateConfig validates the configuration against the rule's JSON Schema.
 func (r *ConsistentIndentationRule) ValidateConfig(config any) error {
-	return configutil.ValidateWithSchema(config, r.Schema())
+	return nil
 }
 
 // Check runs the consistent-indentation rule.
 func (r *ConsistentIndentationRule) Check(input rules.LintInput) []rules.Violation {
-	cfg := r.resolveConfig(input.Config)
-
-	indentChar, indentWidth := r.indentSettings(cfg)
-	expectedIndent := strings.Repeat(indentChar, indentWidth)
-
 	isMultiStage := len(input.Stages) > 1
 	sm := input.SourceMap()
 	meta := r.Metadata()
@@ -123,7 +82,7 @@ func (r *ConsistentIndentationRule) Check(input rules.LintInput) []rules.Violati
 			if isMultiStage {
 				// Multi-stage: commands within each stage should be indented
 				violations = append(violations,
-					r.checkCommandIndented(input.File, sm, cmd.Location(), expectedIndent, indentChar, meta)...)
+					r.checkCommandIndented(input.File, sm, cmd.Location(), meta)...)
 			} else {
 				// Single-stage: no indentation expected
 				violations = append(violations,
@@ -171,13 +130,11 @@ func (r *ConsistentIndentationRule) checkNodeNoIndent(
 	return []rules.Violation{v}
 }
 
-// checkCommandIndented checks that a command's lines are indented with the expected indent.
+// checkCommandIndented checks that a command's lines are indented with the expected indent (1 tab).
 func (r *ConsistentIndentationRule) checkCommandIndented(
 	file string,
 	sm *sourcemap.SourceMap,
 	location []parser.Range,
-	expectedIndent string,
-	indentChar string,
 	meta rules.RuleMetadata,
 ) []rules.Violation {
 	if len(location) == 0 {
@@ -194,15 +151,14 @@ func (r *ConsistentIndentationRule) checkCommandIndented(
 	}
 
 	// Determine the issue
-	expectedDesc := describeIndent(expectedIndent)
 	var message string
 	switch {
 	case currentIndent == "":
-		message = "missing indentation; expected " + expectedDesc
-	case consistsOf(currentIndent, indentChar):
-		message = "wrong indentation width; expected " + expectedDesc + ", got " + describeIndent(currentIndent)
+		message = "missing indentation; expected 1 tab"
+	case consistsOf(currentIndent, "\t"):
+		message = "wrong indentation width; expected 1 tab, got " + describeIndent(currentIndent)
 	default:
-		message = "wrong indentation style; expected " + expectedDesc + ", got " + describeIndent(currentIndent)
+		message = "wrong indentation style; expected 1 tab, got " + describeIndent(currentIndent)
 	}
 
 	loc := rules.NewRangeLocation(file, startLine, 0, startLine, len(currentIndent))
@@ -212,7 +168,7 @@ func (r *ConsistentIndentationRule) checkCommandIndented(
 		message,
 		meta.DefaultSeverity,
 	).WithDocURL(meta.DocURL).WithSuggestedFix(&rules.SuggestedFix{
-		Description: "Fix indentation to " + expectedDesc,
+		Description: "Fix indentation to 1 tab",
 		Safety:      rules.FixSafe,
 		Priority:    meta.FixPriority,
 		Edits:       r.setIndentEdits(file, sm, location, expectedIndent),
@@ -261,8 +217,6 @@ func (r *ConsistentIndentationRule) setIndentEdits(
 		endLine = min(l+1, sm.LineCount()) // next line is a continuation; clamp to last line
 	}
 
-	tabIndent := strings.Contains(indent, "\t")
-
 	var edits []rules.TextEdit
 	for lineNum := startLine; lineNum <= endLine; lineNum++ {
 		line := sm.Line(lineNum - 1) // 0-based
@@ -277,9 +231,9 @@ func (r *ConsistentIndentationRule) setIndentEdits(
 		}
 	}
 
-	// When using tab indent, convert << to <<- on the first line so that
-	// BuildKit strips leading tabs from heredoc body lines.
-	if tabIndent {
+	// Convert << to <<- on the first line so that BuildKit strips
+	// leading tabs from heredoc body lines.
+	if indent != "" {
 		firstLine := sm.Line(startLine - 1)
 		if edit := heredocDashEdit(file, startLine, firstLine); edit != nil {
 			edits = append(edits, *edit)
@@ -364,36 +318,6 @@ func describeIndent(indent string) string {
 	default:
 		return fmt.Sprintf("%d mixed characters", len(indent))
 	}
-}
-
-// indentSettings extracts the indent character and width from config.
-func (r *ConsistentIndentationRule) indentSettings(cfg ConsistentIndentationConfig) (string, int) {
-	indentChar := "\t"
-	if cfg.Indent != nil && *cfg.Indent == indentSpace {
-		indentChar = " "
-	}
-
-	width := 1
-	if cfg.IndentWidth != nil && *cfg.IndentWidth > 0 {
-		width = *cfg.IndentWidth
-	}
-
-	return indentChar, width
-}
-
-// resolveConfig extracts the ConsistentIndentationConfig from input, falling back to defaults.
-func (r *ConsistentIndentationRule) resolveConfig(config any) ConsistentIndentationConfig {
-	switch v := config.(type) {
-	case ConsistentIndentationConfig:
-		return v
-	case *ConsistentIndentationConfig:
-		if v != nil {
-			return *v
-		}
-	case map[string]any:
-		return configutil.Resolve(v, DefaultConsistentIndentationConfig())
-	}
-	return DefaultConsistentIndentationConfig()
 }
 
 // init registers the rule with the default registry.

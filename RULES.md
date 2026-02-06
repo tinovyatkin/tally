@@ -175,12 +175,7 @@ Enforces consistent indentation for Dockerfile build stages. **Experimental** - 
 - **Multi-stage Dockerfiles**: Commands within each stage should be indented; FROM lines stay at column 0
 - **Single-stage Dockerfiles**: No indentation (flat style)
 
-Tabs are the default because heredoc `<<-` strips leading tabs.
-
-**Options:**
-
-- `indent`: Indentation character — `"tab"` (default) or `"space"`
-- `indent-width`: Number of indent characters per level (default: 1, range: 1-8)
+This rule always uses **tabs** because heredoc `<<-` strips leading tabs — spaces have no equivalent shell whitespace treatment, so using them would corrupt heredoc content.
 
 **Example (multi-stage with tabs):**
 

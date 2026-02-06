@@ -1,4 +1,2 @@
 [rules.tally.consistent-indentation]
 severity = "style"
-indent = "tab"
-indent-width = 1
