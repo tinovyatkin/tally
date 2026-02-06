@@ -125,19 +125,49 @@ func ValidateWithSchema(config any, schema map[string]any) error {
 	}
 
 	if err := sch.Validate(configValue); err != nil {
-		// Strip the schema URI prefix line from ValidationError output
-		// so users see only the meaningful details (e.g., "additional properties 'x' not allowed").
+		// Use BasicOutput to get a flat list of validation errors,
+		// then extract clean messages without schema URIs.
 		var verr *jsonschema.ValidationError
 		if errors.As(err, &verr) {
-			full := verr.Error()
-			if _, after, ok := strings.Cut(full, "\n"); ok {
-				clean := strings.TrimSpace(after)
-				// Simplify root-level errors: "- at '': msg" → "msg"
-				clean = strings.TrimPrefix(clean, "- at '': ")
-				return errors.New(clean)
+			if msg := formatBasicOutput(verr); msg != "" {
+				return errors.New(msg)
 			}
 		}
 		return err
 	}
 	return nil
+}
+
+// formatBasicOutput extracts clean error messages from a ValidationError
+// using the JSON Schema "Basic" output format (flat list of leaf errors).
+func formatBasicOutput(verr *jsonschema.ValidationError) string {
+	basic := verr.BasicOutput()
+	if basic == nil || len(basic.Errors) == 0 {
+		return ""
+	}
+
+	var msgs []string
+	for _, unit := range basic.Errors {
+		if unit.Error == nil {
+			continue
+		}
+		// Marshal the error to get the localized message string
+		b, err := unit.Error.MarshalJSON()
+		if err != nil {
+			continue
+		}
+		var detail string
+		if json.Unmarshal(b, &detail) != nil {
+			continue
+		}
+		if unit.InstanceLocation == "" || unit.InstanceLocation == "/" {
+			msgs = append(msgs, detail)
+		} else {
+			msgs = append(msgs, "at '"+unit.InstanceLocation+"': "+detail)
+		}
+	}
+	if len(msgs) == 0 {
+		return ""
+	}
+	return strings.Join(msgs, "; ")
 }

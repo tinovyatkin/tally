@@ -1,6 +1,7 @@
 package configutil
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -255,5 +256,80 @@ func TestResolve_TrustedRegistries(t *testing.T) {
 	}
 	if result.TrustedRegistries[0] != "docker.io" {
 		t.Errorf("expected docker.io, got %s", result.TrustedRegistries[0])
+	}
+}
+
+func TestValidateWithSchema_ErrorMessages(t *testing.T) {
+	tests := []struct {
+		name       string
+		schema     map[string]any
+		config     map[string]any
+		wantSubstr string // expected substring in error message
+	}{
+		{
+			name: "additional properties",
+			schema: map[string]any{
+				"type":                 "object",
+				"additionalProperties": false,
+			},
+			config:     map[string]any{"indent": "tab", "indent-width": 1},
+			wantSubstr: "additional properties", // property order is non-deterministic
+		},
+		{
+			name: "wrong type",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"max": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			config:     map[string]any{"max": "not-a-number"},
+			wantSubstr: "got string, want integer",
+		},
+		{
+			name: "multiple errors",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"max": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			config:     map[string]any{"max": "bad", "extra": true},
+			wantSubstr: "not allowed",
+		},
+		{
+			name: "minimum violation",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"max": map[string]any{"type": "integer", "minimum": 0},
+				},
+			},
+			config:     map[string]any{"max": -1},
+			wantSubstr: "minimum",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateWithSchema(tt.config, tt.schema)
+			if err == nil {
+				t.Fatal("expected validation error, got nil")
+			}
+			msg := err.Error()
+			// Must not contain schema URI
+			if strings.Contains(msg, "urn:tally") {
+				t.Errorf("error message should not contain schema URI, got: %s", msg)
+			}
+			if strings.Contains(msg, "file://") {
+				t.Errorf("error message should not contain file:// path, got: %s", msg)
+			}
+			// Must contain the expected human-readable detail
+			if !strings.Contains(msg, tt.wantSubstr) {
+				t.Errorf("error message should contain %q, got: %s", tt.wantSubstr, msg)
+			}
+		})
 	}
 }
