@@ -55,6 +55,18 @@ func TestEditsOverlap(t *testing.T) {
 			b:    rules.TextEdit{Location: rules.NewRangeLocation("f", 1, 5, 1, 10)},
 			want: true,
 		},
+		{
+			name: "zero-width insert at start of range - not overlapping",
+			a:    rules.TextEdit{Location: rules.NewRangeLocation("f", 1, 0, 1, 0)},
+			b:    rules.TextEdit{Location: rules.NewRangeLocation("f", 1, 0, 1, 10)},
+			want: false, // Zero-width [0,0) is before [0,10); position drift handled by column adjustment
+		},
+		{
+			name: "zero-width insert at end of range - not overlapping",
+			a:    rules.TextEdit{Location: rules.NewRangeLocation("f", 1, 10, 1, 10)},
+			b:    rules.TextEdit{Location: rules.NewRangeLocation("f", 1, 0, 1, 10)},
+			want: false, // Zero-width [10,10) is after [0,10)
+		},
 	}
 
 	for _, tt := range tests {

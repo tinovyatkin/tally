@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
 
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/rules/configutil"
@@ -470,7 +471,7 @@ func (r *PreferCopyHeredocRule) generateFix(
 	run *instructions.RunCommand,
 	info *shell.FileCreationInfo,
 	file string,
-	_ *sourcemap.SourceMap,
+	sm *sourcemap.SourceMap,
 	meta rules.RuleMetadata,
 ) *rules.SuggestedFix {
 	runLoc := run.Location()
@@ -504,28 +505,7 @@ func (r *PreferCopyHeredocRule) generateFix(
 
 	newText := strings.Join(parts, "\n")
 
-	// Calculate edit range - handle invalid end positions
-	lastRange := runLoc[len(runLoc)-1]
-	endLine := lastRange.End.Line
-	endCol := lastRange.End.Character
-
-	// When end position equals start position (invalid), calculate from command length
-	if endLine == runLoc[0].Start.Line && endCol == runLoc[0].Start.Character {
-		cmdStr := getRunScriptFromCmd(run)
-		fullInstr := "RUN " + cmdStr
-
-		// For multi-line instructions, count lines and find last line length
-		lines := strings.Split(fullInstr, "\n")
-		if len(lines) > 1 {
-			// Multi-line: endLine is start + number of additional lines
-			// endCol is the length of the last line
-			endLine = runLoc[0].Start.Line + len(lines) - 1
-			endCol = len(lines[len(lines)-1])
-		} else {
-			// Single line: endCol is start + instruction length
-			endCol = runLoc[0].Start.Character + len(fullInstr)
-		}
-	}
+	endLine, endCol := resolveRunEndPosition(runLoc, sm, run)
 
 	description := "Replace RUN with COPY <<EOF to " + info.TargetPath
 	if info.PrecedingCommands != "" || info.RemainingCommands != "" {
@@ -556,7 +536,7 @@ func (r *PreferCopyHeredocRule) generateSequenceFix(
 	trailingChmodMode uint16,
 	trailingChmodRun *instructions.RunCommand,
 	file string,
-	_ *sourcemap.SourceMap,
+	sm *sourcemap.SourceMap,
 	meta rules.RuleMetadata,
 ) *rules.SuggestedFix {
 	if len(sequence) == 0 {
@@ -607,26 +587,7 @@ func (r *PreferCopyHeredocRule) generateSequenceFix(
 		return nil
 	}
 
-	lastRange := lastLoc[len(lastLoc)-1]
-	endLine := lastRange.End.Line
-	endCol := lastRange.End.Character
-
-	// When end position equals start position (invalid), calculate from command length
-	lastRunLoc := lastRun.Location()
-	if len(lastRunLoc) > 0 &&
-		endLine == lastRunLoc[0].Start.Line && endCol == lastRunLoc[0].Start.Character {
-		cmdStr := getRunScriptFromCmd(lastRun)
-		fullInstr := "RUN " + cmdStr
-
-		// Handle multi-line RUN instructions with continuations
-		lines := strings.Split(fullInstr, "\n")
-		if len(lines) > 1 {
-			endLine = lastRunLoc[0].Start.Line + len(lines) - 1
-			endCol = len(lines[len(lines)-1])
-		} else {
-			endCol = lastRunLoc[0].Start.Character + len(fullInstr)
-		}
-	}
+	endLine, endCol := resolveRunEndPosition(lastLoc, sm, lastRun)
 
 	runCount := len(sequence)
 	if trailingChmodRun != nil {
@@ -670,7 +631,6 @@ func buildCopyHeredoc(targetPath, content string, chmodMode uint16) string {
 	sb.WriteString(targetPath)
 	sb.WriteString("\n")
 
-	// Write content (ensure no trailing newline duplication)
 	if content == "" {
 		// Empty file: delimiter immediately after header newline (0-byte file)
 		sb.WriteString(delimiter)
@@ -679,7 +639,6 @@ func buildCopyHeredoc(targetPath, content string, chmodMode uint16) string {
 	contentStr := strings.TrimSuffix(content, "\n")
 	sb.WriteString(contentStr)
 	sb.WriteString("\n")
-
 	sb.WriteString(delimiter)
 
 	return sb.String()
@@ -809,6 +768,66 @@ func getRunCmdLine(run *instructions.RunCommand) string {
 	}
 
 	return cmdLine
+}
+
+// resolveRunEndPosition computes the end position for a RUN instruction using
+// resolveEndPosition, with a fallback for point locations (End == Start) where
+// the end is computed from the command text.
+func resolveRunEndPosition(loc []parser.Range, sm *sourcemap.SourceMap, run *instructions.RunCommand) (int, int) {
+	if len(loc) == 0 {
+		return 0, 0
+	}
+
+	endLine, endCol := resolveEndPosition(loc, sm)
+
+	// Fallback: when end position equals start (point location), compute from command text
+	if endLine == loc[0].Start.Line && endCol == loc[0].Start.Character {
+		cmdStr := getRunScriptFromCmd(run)
+		mountFlags := runmount.FormatMounts(runmount.GetMounts(run))
+		fullInstr := "RUN "
+		if mountFlags != "" {
+			fullInstr += mountFlags + " "
+		}
+		fullInstr += cmdStr
+
+		lines := strings.Split(fullInstr, "\n")
+		if len(lines) > 1 {
+			endLine = loc[0].Start.Line + len(lines) - 1
+			endCol = len(lines[len(lines)-1])
+		} else {
+			endCol = loc[0].Start.Character + len(fullInstr)
+		}
+	}
+
+	return endLine, endCol
+}
+
+// resolveEndPosition computes the correct end position for a RUN instruction's edit range.
+// It handles a BuildKit parser edge case where heredoc instructions report
+// End={delimiterLine, 0}, which in half-open semantics covers up to—but not
+// including—the delimiter text. We extend to cover the full delimiter line.
+func resolveEndPosition(loc []parser.Range, sm *sourcemap.SourceMap) (int, int) {
+	if len(loc) == 0 {
+		return 0, 0
+	}
+
+	lastRange := loc[len(loc)-1]
+	endLine := lastRange.End.Line
+	endCol := lastRange.End.Character
+
+	startLine := loc[0].Start.Line
+
+	// Heredoc delimiter case: BuildKit reports End={delimiterLine, 0} for
+	// heredoc instructions. In half-open interval semantics, column 0 means
+	// the range ends at the START of that line, not covering the delimiter text.
+	// Extend to cover the full line using the SourceMap's line content.
+	if endCol == 0 && endLine > startLine && sm != nil {
+		// SourceMap uses 0-based lines; BuildKit uses 1-based
+		lineText := sm.Line(endLine - 1)
+		endCol = len(lineText)
+	}
+
+	return endLine, endCol
 }
 
 // init registers the rule with the default registry.

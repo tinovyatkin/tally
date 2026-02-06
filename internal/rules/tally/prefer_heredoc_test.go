@@ -296,12 +296,7 @@ func TestFormatHeredocWithMounts(t *testing.T) {
 	t.Run("without mounts", func(t *testing.T) {
 		result := heredoc.FormatWithMounts(commands, nil, shell.VariantBash)
 
-		expected := `RUN <<EOF
-set -e
-apt-get update
-apt-get install -y vim
-apt-get clean
-EOF`
+		expected := "RUN <<EOF\nset -e\napt-get update\napt-get install -y vim\napt-get clean\nEOF"
 
 		if result != expected {
 			t.Errorf("heredoc.FormatWithMounts() =\n%s\nwant:\n%s", result, expected)
@@ -315,12 +310,7 @@ EOF`
 		}}
 		result := heredoc.FormatWithMounts(commands, mounts, shell.VariantBash)
 
-		expected := `RUN --mount=type=cache,target=/var/cache/apt <<EOF
-set -e
-apt-get update
-apt-get install -y vim
-apt-get clean
-EOF`
+		expected := "RUN --mount=type=cache,target=/var/cache/apt <<EOF\nset -e\napt-get update\napt-get install -y vim\napt-get clean\nEOF"
 
 		if result != expected {
 			t.Errorf("heredoc.FormatWithMounts() =\n%s\nwant:\n%s", result, expected)
@@ -334,12 +324,9 @@ EOF`
 		}
 		result := heredoc.FormatWithMounts(commands, mounts, shell.VariantBash)
 
-		expected := `RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/root/.cache <<EOF
-set -e
-apt-get update
-apt-get install -y vim
-apt-get clean
-EOF`
+		expected := "RUN --mount=type=cache,target=/var/cache/apt " +
+			"--mount=type=cache,target=/root/.cache " +
+			"<<EOF\nset -e\napt-get update\napt-get install -y vim\napt-get clean\nEOF"
 
 		if result != expected {
 			t.Errorf("heredoc.FormatWithMounts() =\n%s\nwant:\n%s", result, expected)

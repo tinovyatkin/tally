@@ -1,0 +1,284 @@
+{
+  "files": [
+    {
+      "file": "testdata/heredoc-combined/Dockerfile",
+      "violations": [
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 6,
+              "column": 0
+            },
+            "end": {
+              "line": 6,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-copy-heredoc",
+          "message": "use COPY \u003c\u003cEOF instead of RUN for file creation",
+          "detail": "Creating /etc/nginx/conf.d/default.conf with RUN can be replaced with COPY heredoc for better performance",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-copy-heredoc.md",
+          "sourceCode": "RUN echo \"server { listen 80; }\" \u003e /etc/nginx/conf.d/default.conf",
+          "suggestedFix": {
+            "description": "Replace RUN with COPY \u003c\u003cEOF to /etc/nginx/conf.d/default.conf",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/heredoc-combined/Dockerfile",
+                  "start": {
+                    "line": 6,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": 65
+                  }
+                },
+                "newText": "COPY \u003c\u003cEOF /etc/nginx/conf.d/default.conf\nserver { listen 80; }\nEOF"
+              }
+            ],
+            "safety": 1,
+            "priority": 99
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 6,
+              "column": 0
+            },
+            "end": {
+              "line": 6,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-run-heredoc",
+          "message": "consecutive RUN instructions can be combined using heredoc syntax",
+          "detail": "12 consecutive RUN instructions with 15 total commands can be combined into a single heredoc RUN",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-run-heredoc.md",
+          "sourceCode": "RUN echo \"server { listen 80; }\" \u003e /etc/nginx/conf.d/default.conf",
+          "suggestedFix": {
+            "description": "Combine 15 commands into heredoc",
+            "safety": 1,
+            "needsResolve": true,
+            "resolverId": "prefer-run-heredoc",
+            "priority": 100
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 14,
+              "column": 0
+            },
+            "end": {
+              "line": 14,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-run-heredoc",
+          "message": "RUN instruction with chained commands can use heredoc syntax",
+          "detail": "RUN has 3 chained commands; consider using heredoc syntax for better readability",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-run-heredoc.md",
+          "sourceCode": "RUN echo step1 \u0026\u0026 echo step2 \u0026\u0026 echo step3",
+          "suggestedFix": {
+            "description": "Convert chained commands to heredoc (3 commands)",
+            "safety": 1,
+            "needsResolve": true,
+            "resolverId": "prefer-run-heredoc",
+            "priority": 100
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 17,
+              "column": 0
+            },
+            "end": {
+              "line": 17,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-copy-heredoc",
+          "message": "consecutive RUN file creations can use a single COPY heredoc",
+          "detail": "2 consecutive RUN instructions write to /app/data.txt; combine into single COPY \u003c\u003cEOF",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-copy-heredoc.md",
+          "sourceCode": "RUN echo \"line1\" \u003e /app/data.txt",
+          "suggestedFix": {
+            "description": "Combine 2 RUNs into single COPY \u003c\u003cEOF to /app/data.txt",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/heredoc-combined/Dockerfile",
+                  "start": {
+                    "line": 17,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 18,
+                    "column": 33
+                  }
+                },
+                "newText": "COPY \u003c\u003cEOF /app/data.txt\nline1\nline2\nEOF"
+              }
+            ],
+            "safety": 1,
+            "priority": 99
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 24,
+              "column": 0
+            },
+            "end": {
+              "line": 24,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-copy-heredoc",
+          "message": "use COPY \u003c\u003cEOF instead of RUN for file creation",
+          "detail": "Creating /etc/motd with RUN can be replaced with COPY heredoc for better performance",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-copy-heredoc.md",
+          "sourceCode": "RUN cat \u003c\u003cINNEREOF \u003e /etc/motd",
+          "suggestedFix": {
+            "description": "Replace RUN with COPY \u003c\u003cEOF to /etc/motd",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/heredoc-combined/Dockerfile",
+                  "start": {
+                    "line": 24,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 26,
+                    "column": 8
+                  }
+                },
+                "newText": "COPY \u003c\u003cEOF /etc/motd\nWelcome to the build container\nEOF"
+              }
+            ],
+            "safety": 1,
+            "priority": 99
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 43,
+              "column": 0
+            },
+            "end": {
+              "line": 43,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-copy-heredoc",
+          "message": "use COPY \u003c\u003cEOF instead of RUN for file creation",
+          "detail": "Creating /entrypoint.sh with RUN can be replaced with COPY heredoc for better performance",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-copy-heredoc.md",
+          "sourceCode": "RUN echo '#!/bin/sh' \u003e /entrypoint.sh \u0026\u0026 chmod +x /entrypoint.sh",
+          "suggestedFix": {
+            "description": "Replace RUN with COPY \u003c\u003cEOF to /entrypoint.sh",
+            "edits": [
+              {
+                "location": {
+                  "file": "testdata/heredoc-combined/Dockerfile",
+                  "start": {
+                    "line": 43,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 43,
+                    "column": 64
+                  }
+                },
+                "newText": "COPY --chmod=0755 \u003c\u003cEOF /entrypoint.sh\n#!/bin/sh\nEOF"
+              }
+            ],
+            "safety": 1,
+            "priority": 99
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 43,
+              "column": 0
+            },
+            "end": {
+              "line": 43,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-run-heredoc",
+          "message": "consecutive RUN instructions can be combined using heredoc syntax",
+          "detail": "2 consecutive RUN instructions with 5 total commands can be combined into a single heredoc RUN",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-run-heredoc.md",
+          "sourceCode": "RUN echo '#!/bin/sh' \u003e /entrypoint.sh \u0026\u0026 chmod +x /entrypoint.sh",
+          "suggestedFix": {
+            "description": "Combine 5 commands into heredoc",
+            "safety": 1,
+            "needsResolve": true,
+            "resolverId": "prefer-run-heredoc",
+            "priority": 100
+          }
+        },
+        {
+          "location": {
+            "file": "testdata/heredoc-combined/Dockerfile",
+            "start": {
+              "line": 46,
+              "column": 0
+            },
+            "end": {
+              "line": 46,
+              "column": 0
+            }
+          },
+          "rule": "tally/prefer-run-heredoc",
+          "message": "RUN instruction with chained commands can use heredoc syntax",
+          "detail": "RUN has 3 chained commands; consider using heredoc syntax for better readability",
+          "severity": "style",
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/prefer-run-heredoc.md",
+          "sourceCode": "RUN apk update \u0026\u0026 apk add --no-cache curl \u0026\u0026 apk add --no-cache jq",
+          "suggestedFix": {
+            "description": "Convert chained commands to heredoc (3 commands)",
+            "safety": 1,
+            "needsResolve": true,
+            "resolverId": "prefer-run-heredoc",
+            "priority": 100
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "errors": 0,
+    "warnings": 0,
+    "info": 0,
+    "style": 8,
+    "files": 1
+  },
+  "files_scanned": 1,
+  "rules_enabled": 2
+}
+

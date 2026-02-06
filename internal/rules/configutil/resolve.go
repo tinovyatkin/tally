@@ -3,7 +3,9 @@ package configutil
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
+	"strings"
 
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
@@ -98,13 +100,15 @@ func ValidateWithSchema(config any, schema map[string]any) error {
 		return nil
 	}
 
-	// AddResource expects an unmarshaled JSON value (map[string]any), not bytes
+	// Use an absolute URI so the library doesn't resolve against cwd
+	// (which would leak the build machine's path into error messages).
+	const schemaURI = "urn:tally:rule-config"
 	compiler := jsonschema.NewCompiler()
-	if err := compiler.AddResource("schema.json", schema); err != nil {
+	if err := compiler.AddResource(schemaURI, schema); err != nil {
 		return err
 	}
 
-	sch, err := compiler.Compile("schema.json")
+	sch, err := compiler.Compile(schemaURI)
 	if err != nil {
 		return err
 	}
@@ -120,5 +124,50 @@ func ValidateWithSchema(config any, schema map[string]any) error {
 		return err
 	}
 
-	return sch.Validate(configValue)
+	if err := sch.Validate(configValue); err != nil {
+		// Use BasicOutput to get a flat list of validation errors,
+		// then extract clean messages without schema URIs.
+		var verr *jsonschema.ValidationError
+		if errors.As(err, &verr) {
+			if msg := formatBasicOutput(verr); msg != "" {
+				return errors.New(msg)
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+// formatBasicOutput extracts clean error messages from a ValidationError
+// using the JSON Schema "Basic" output format (flat list of leaf errors).
+func formatBasicOutput(verr *jsonschema.ValidationError) string {
+	basic := verr.BasicOutput()
+	if basic == nil || len(basic.Errors) == 0 {
+		return ""
+	}
+
+	var msgs []string
+	for _, unit := range basic.Errors {
+		if unit.Error == nil {
+			continue
+		}
+		// Marshal the error to get the localized message string
+		b, err := unit.Error.MarshalJSON()
+		if err != nil {
+			continue
+		}
+		var detail string
+		if json.Unmarshal(b, &detail) != nil {
+			continue
+		}
+		if unit.InstanceLocation == "" || unit.InstanceLocation == "/" {
+			msgs = append(msgs, detail)
+		} else {
+			msgs = append(msgs, "at '"+unit.InstanceLocation+"': "+detail)
+		}
+	}
+	if len(msgs) == 0 {
+		return ""
+	}
+	return strings.Join(msgs, "; ")
 }

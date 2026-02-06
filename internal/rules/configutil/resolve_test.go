@@ -1,6 +1,7 @@
 package configutil
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -13,6 +14,8 @@ type TestConfig struct {
 	SliceField   []string `json:"slicefield"`
 	PtrIntField  *int     `json:"ptrintfield"`
 	PtrBoolField *bool    `json:"ptrboolfield"`
+	UintField    uint     `json:"uintfield"`
+	FloatField   float64  `json:"floatfield"`
 }
 
 func TestResolve_EmptyOpts(t *testing.T) {
@@ -255,5 +258,139 @@ func TestResolve_TrustedRegistries(t *testing.T) {
 	}
 	if result.TrustedRegistries[0] != "docker.io" {
 		t.Errorf("expected docker.io, got %s", result.TrustedRegistries[0])
+	}
+}
+
+func TestResolve_UintAndFloatDefaults(t *testing.T) {
+	defaults := TestConfig{
+		UintField:  10,
+		FloatField: 3.14,
+	}
+
+	// Omitted fields should get defaults via isZero → mergeDefaults
+	opts := map[string]any{"intfield": 1}
+	result := Resolve(opts, defaults)
+
+	if result.UintField != 10 {
+		t.Errorf("expected UintField=10, got %d", result.UintField)
+	}
+	if result.FloatField != 3.14 {
+		t.Errorf("expected FloatField=3.14, got %f", result.FloatField)
+	}
+
+	// Non-zero uint/float should be preserved
+	opts2 := map[string]any{"uintfield": 42, "floatfield": 2.71}
+	result2 := Resolve(opts2, defaults)
+
+	if result2.UintField != 42 {
+		t.Errorf("expected UintField=42, got %d", result2.UintField)
+	}
+	if result2.FloatField != 2.71 {
+		t.Errorf("expected FloatField=2.71, got %f", result2.FloatField)
+	}
+}
+
+func TestMergeDefaults_NonStruct(t *testing.T) {
+	// mergeDefaults with a non-struct type should return result unchanged
+	got := mergeDefaults(42, 100)
+	if got != 42 {
+		t.Errorf("expected 42, got %d", got)
+	}
+
+	got2 := mergeDefaults("user", "default")
+	if got2 != "user" {
+		t.Errorf("expected %q, got %q", "user", got2)
+	}
+}
+
+func TestMergeDefaults_UnexportedFields(t *testing.T) {
+	type config struct {
+		Public  int
+		private int
+	}
+	result := mergeDefaults(config{Public: 0}, config{Public: 5, private: 9})
+	if result.Public != 5 {
+		t.Errorf("expected Public=5, got %d", result.Public)
+	}
+	// private field should remain zero (CanSet returns false)
+	if result.private != 0 {
+		t.Errorf("expected private=0, got %d", result.private)
+	}
+}
+
+func TestValidateWithSchema_ErrorMessages(t *testing.T) {
+	tests := []struct {
+		name        string
+		schema      map[string]any
+		config      map[string]any
+		wantSubstrs []string // all must appear in error message
+	}{
+		{
+			name: "additional properties",
+			schema: map[string]any{
+				"type":                 "object",
+				"additionalProperties": false,
+			},
+			config:      map[string]any{"indent": "tab", "indent-width": 1},
+			wantSubstrs: []string{"additional properties"}, // property order is non-deterministic
+		},
+		{
+			name: "wrong type",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"max": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			config:      map[string]any{"max": "not-a-number"},
+			wantSubstrs: []string{"got string, want integer"},
+		},
+		{
+			name: "multiple errors",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"max": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			config:      map[string]any{"max": "bad", "extra": true},
+			wantSubstrs: []string{"not allowed", "got string, want integer"},
+		},
+		{
+			name: "minimum violation",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"max": map[string]any{"type": "integer", "minimum": 0},
+				},
+			},
+			config:      map[string]any{"max": -1},
+			wantSubstrs: []string{"minimum"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateWithSchema(tt.config, tt.schema)
+			if err == nil {
+				t.Fatal("expected validation error, got nil")
+			}
+			msg := err.Error()
+			// Must not contain schema URI
+			if strings.Contains(msg, "urn:tally") {
+				t.Errorf("error message should not contain schema URI, got: %s", msg)
+			}
+			if strings.Contains(msg, "file://") {
+				t.Errorf("error message should not contain file:// path, got: %s", msg)
+			}
+			// Must contain all expected human-readable details
+			for _, want := range tt.wantSubstrs {
+				if !strings.Contains(msg, want) {
+					t.Errorf("error message should contain %q, got: %s", want, msg)
+				}
+			}
+		})
 	}
 }

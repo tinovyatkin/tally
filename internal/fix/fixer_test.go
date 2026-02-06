@@ -357,6 +357,154 @@ func TestFixer_Apply_InterleavingConflict(t *testing.T) {
 	}
 }
 
+func TestFixer_Apply_CrossPriorityColumnDrift(t *testing.T) {
+	// Test that when edits from different priority groups modify the same line,
+	// the later-priority edit's column positions are adjusted to account for
+	// content changes from the earlier-priority edit.
+	//
+	// Scenario (indentation + copy-heredoc on same line):
+	// - Priority 50 (indentation): insert "\t" at [2, 0, 2, 0] (zero-width insert)
+	// - Priority 99 (copy-heredoc): replace [2, 0, 2, 24] with "COPY <<EOF /out\ncontent\nEOF"
+	//
+	// Without adjustment, the copy-heredoc endCol=24 misses the last char because
+	// the tab insertion shifted content right by 1. Result: corruption ("EOFl").
+	// With adjustment, endCol becomes 25, covering the full line.
+
+	sources := map[string][]byte{
+		"Dockerfile": []byte("FROM alpine AS builder\nRUN echo hello > /out/f\nFROM scratch"),
+	}
+
+	violations := []rules.Violation{
+		// Indentation fix (lower priority = applied first)
+		{
+			Location: rules.NewLineLocation("Dockerfile", 2),
+			RuleCode: "indentation",
+			Message:  "missing indentation",
+			SuggestedFix: &rules.SuggestedFix{
+				Description: "Add tab indentation",
+				Safety:      rules.FixSafe,
+				Priority:    50,
+				Edits: []rules.TextEdit{
+					{
+						Location: rules.NewRangeLocation("Dockerfile", 2, 0, 2, 0),
+						NewText:  "\t",
+					},
+				},
+			},
+		},
+		// Copy-heredoc fix (higher priority = applied after indentation)
+		{
+			Location: rules.NewLineLocation("Dockerfile", 2),
+			RuleCode: "copy-heredoc",
+			Message:  "use COPY heredoc",
+			SuggestedFix: &rules.SuggestedFix{
+				Description: "Replace RUN with COPY",
+				Safety:      rules.FixSafe,
+				Priority:    99,
+				Edits: []rules.TextEdit{
+					{
+						// Covers "RUN echo hello > /out/f" (24 chars)
+						Location: rules.NewRangeLocation("Dockerfile", 2, 0, 2, 24),
+						NewText:  "COPY <<EOF /out/f\ncontent\nEOF",
+					},
+				},
+			},
+		},
+	}
+
+	fixer := &Fixer{SafetyThreshold: FixSafe}
+	result, err := fixer.Apply(context.Background(), violations, sources)
+	if err != nil {
+		t.Fatalf("Apply error: %v", err)
+	}
+
+	fc := result.Changes["Dockerfile"]
+
+	// Both fixes should be applied
+	if result.TotalApplied() != 2 {
+		t.Errorf("TotalApplied() = %d, want 2", result.TotalApplied())
+	}
+
+	// The tab should be preserved before COPY (indentation applied first, then
+	// copy-heredoc starts after the tab due to column adjustment)
+	want := "\tCOPY <<EOF /out/f\ncontent\nEOF"
+	if !bytes.Contains(fc.ModifiedContent, []byte(want)) {
+		t.Errorf("Expected content to contain %q\ngot: %s", want, fc.ModifiedContent)
+	}
+
+	// Verify no corruption (no trailing characters after EOF)
+	if bytes.Contains(fc.ModifiedContent, []byte("EOFl")) ||
+		bytes.Contains(fc.ModifiedContent, []byte("EOFf")) {
+		t.Errorf("Content is corrupted (trailing char after EOF):\n%s", fc.ModifiedContent)
+	}
+}
+
+func TestFixer_Apply_CrossPrioritySameLengthReplace(t *testing.T) {
+	// Test that same-length replacements (like casing fixes) don't interfere
+	// with subsequent edits on the same line, since they produce zero column drift.
+	//
+	// Scenario (casing + indentation on same line):
+	// - Priority 0 (casing): replace [2, 0, 2, 3] "run" with "RUN" (same length)
+	// - Priority 50 (indentation): insert "\t" at [2, 0, 2, 0]
+
+	sources := map[string][]byte{
+		"Dockerfile": []byte("FROM alpine AS builder\nrun echo hello\nFROM scratch"),
+	}
+
+	violations := []rules.Violation{
+		{
+			Location: rules.NewLineLocation("Dockerfile", 2),
+			RuleCode: "casing",
+			Message:  "fix casing",
+			SuggestedFix: &rules.SuggestedFix{
+				Description: "Fix casing",
+				Safety:      rules.FixSafe,
+				Priority:    0,
+				Edits: []rules.TextEdit{
+					{
+						Location: rules.NewRangeLocation("Dockerfile", 2, 0, 2, 3),
+						NewText:  "RUN",
+					},
+				},
+			},
+		},
+		{
+			Location: rules.NewLineLocation("Dockerfile", 2),
+			RuleCode: "indentation",
+			Message:  "add indent",
+			SuggestedFix: &rules.SuggestedFix{
+				Description: "Add indent",
+				Safety:      rules.FixSafe,
+				Priority:    50,
+				Edits: []rules.TextEdit{
+					{
+						Location: rules.NewRangeLocation("Dockerfile", 2, 0, 2, 0),
+						NewText:  "\t",
+					},
+				},
+			},
+		},
+	}
+
+	fixer := &Fixer{SafetyThreshold: FixSafe}
+	result, err := fixer.Apply(context.Background(), violations, sources)
+	if err != nil {
+		t.Fatalf("Apply error: %v", err)
+	}
+
+	fc := result.Changes["Dockerfile"]
+
+	if result.TotalApplied() != 2 {
+		t.Errorf("TotalApplied() = %d, want 2", result.TotalApplied())
+	}
+
+	// Casing applied first (priority 0), then indentation (priority 50)
+	want := "\tRUN echo hello"
+	if !bytes.Contains(fc.ModifiedContent, []byte(want)) {
+		t.Errorf("Expected content to contain %q\ngot: %s", want, fc.ModifiedContent)
+	}
+}
+
 func TestFixer_Apply_MultipleFixes(t *testing.T) {
 	sources := map[string][]byte{
 		"Dockerfile": []byte("FROM alpine\nRUN apt install curl\nRUN apt update"),

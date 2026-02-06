@@ -74,30 +74,30 @@ type runSequence struct {
 	commands []string
 }
 
-// detectAndFixConsecutive finds consecutive RUN sequences and returns a fix for the first one found.
+// detectAndFixConsecutive finds all consecutive RUN sequences and returns edits for all of them.
+// After sync fixes (e.g., prefer-copy-heredoc) may split a large consecutive group into
+// multiple sub-groups, this ensures all qualifying sub-groups are fixed in one pass.
 func (r *heredocResolver) detectAndFixConsecutive(
 	stage instructions.Stage,
 	data *rules.HeredocResolveData,
 	file string,
 	sm *sourcemap.SourceMap,
 ) []rules.TextEdit {
+	var allEdits []rules.TextEdit
 	var sequence runSequence
 	var sequenceMounts []*instructions.Mount
 
-	flushAndCheck := func() []rules.TextEdit {
+	flush := func() {
 		if edit := r.createSequenceEdit(sequence, data, file, sm); edit != nil {
-			return []rules.TextEdit{*edit}
+			allEdits = append(allEdits, *edit)
 		}
 		sequence = runSequence{}
-		return nil
 	}
 
 	for _, cmd := range stage.Commands {
 		run, ok := cmd.(*instructions.RunCommand)
 		if !ok || !run.PrependShell {
-			if edits := flushAndCheck(); edits != nil {
-				return edits
-			}
+			flush()
 			sequenceMounts = nil
 			continue
 		}
@@ -105,18 +105,14 @@ func (r *heredocResolver) detectAndFixConsecutive(
 		// Check mount compatibility
 		runMounts := runmount.GetMounts(run)
 		if len(sequence.runs) > 0 && !runmount.MountsEqual(sequenceMounts, runMounts) {
-			if edits := flushAndCheck(); edits != nil {
-				return edits
-			}
+			flush()
 			sequenceMounts = nil
 		}
 
 		// Extract commands
 		commands := r.extractCommands(run, data.ShellVariant)
 		if len(commands) == 0 {
-			if edits := flushAndCheck(); edits != nil {
-				return edits
-			}
+			flush()
 			sequenceMounts = nil
 			continue
 		}
@@ -124,9 +120,7 @@ func (r *heredocResolver) detectAndFixConsecutive(
 		// Check for exit command (breaks sequence)
 		script := r.getRunScript(run)
 		if shell.HasExitCommand(script, data.ShellVariant) {
-			if edits := flushAndCheck(); edits != nil {
-				return edits
-			}
+			flush()
 			sequenceMounts = nil
 			continue
 		}
@@ -140,11 +134,12 @@ func (r *heredocResolver) detectAndFixConsecutive(
 	}
 
 	// Check final sequence
-	if edits := flushAndCheck(); edits != nil {
-		return edits
-	}
+	flush()
 
-	return nil
+	if len(allEdits) == 0 {
+		return nil
+	}
+	return allEdits
 }
 
 // createSequenceEdit creates an edit for a sequence of consecutive RUNs.
@@ -313,11 +308,32 @@ func extractIndent(sm *sourcemap.SourceMap, line int) string {
 // applyIndent applies leading indentation to all lines except the first.
 // This preserves the visual hierarchy when Dockerfiles use indentation
 // for multi-stage builds or readability.
+//
+// When indent contains tabs, the heredoc operator is converted from << to <<-
+// so that BuildKit strips the leading tabs at execution time. Body lines get
+// an extra tab for visual nesting under the instruction.
 func applyIndent(heredocText, indent string) string {
+	if indent == "" {
+		return heredocText
+	}
+
 	lines := strings.Split(heredocText, "\n")
+
+	bodyPrefix := indent
+	if strings.Contains(indent, "\t") {
+		// Convert << to <<- so tabs are stripped at execution time.
+		if idx := strings.Index(lines[0], "<<"); idx >= 0 {
+			if idx+2 >= len(lines[0]) || lines[0][idx+2] != '-' {
+				lines[0] = lines[0][:idx+2] + "-" + lines[0][idx+2:]
+			}
+		}
+		// Body lines get an extra tab for visual nesting under the instruction.
+		bodyPrefix = indent + "\t"
+	}
+
 	for i := 1; i < len(lines); i++ {
 		if lines[i] != "" {
-			lines[i] = indent + lines[i]
+			lines[i] = bodyPrefix + lines[i]
 		}
 	}
 	return strings.Join(lines, "\n")

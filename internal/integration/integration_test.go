@@ -419,6 +419,23 @@ func TestCheck(t *testing.T) {
 			args:     append([]string{"--format", "json"}, selectRules("tally/prefer-run-heredoc")...),
 			wantExit: 1,
 		},
+
+		// Combined heredoc tests: both prefer-copy-heredoc and prefer-run-heredoc enabled
+		{
+			name: "heredoc-combined",
+			dir:  "heredoc-combined",
+			args: append([]string{"--format", "json"},
+				selectRules("tally/prefer-copy-heredoc", "tally/prefer-run-heredoc")...),
+			wantExit: 1,
+		},
+
+		// Consistent indentation tests (isolated to consistent-indentation rule)
+		{
+			name:     "consistent-indentation",
+			dir:      "consistent-indentation",
+			args:     append([]string{"--format", "json"}, selectRules("tally/consistent-indentation")...),
+			wantExit: 1,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -599,7 +616,7 @@ WORKDIR /app
 RUN make build
 RUN apt-get install curl
 `,
-			args:        []string{"--fix", "--fix-unsafe"},
+			args:        []string{"--fix", "--fix-unsafe", "--ignore", "tally/prefer-run-heredoc"},
 			wantApplied: 2, // DL3003 + DL3027
 		},
 		// MaintainerDeprecated: Replace MAINTAINER with LABEL
@@ -648,6 +665,84 @@ ARG baz=quux
 			args:        []string{"--fix", "--select", "buildkit/InvalidDefinitionDescription"},
 			wantApplied: 4, // Four violations: lines 3, 5, 7, 9
 		},
+		// Consistent indentation: add indentation to multi-stage commands
+		{
+			name:        "consistent-indentation-multi-stage",
+			input:       "FROM alpine:3.20 AS builder\nRUN echo build\nFROM scratch\nCOPY --from=builder /app /app\n",
+			want:        "FROM alpine:3.20 AS builder\n\tRUN echo build\nFROM scratch\n\tCOPY --from=builder /app /app\n",
+			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
+			wantApplied: 2,
+			config: `[rules.tally.consistent-indentation]
+severity = "style"
+`,
+		},
+		// Consistent indentation: remove indentation from single-stage
+		{
+			name:        "consistent-indentation-single-stage",
+			input:       "FROM alpine:3.20\n\tRUN echo hello\n\tCOPY . /app\n",
+			want:        "FROM alpine:3.20\nRUN echo hello\nCOPY . /app\n",
+			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
+			wantApplied: 2,
+			config: `[rules.tally.consistent-indentation]
+severity = "style"
+`,
+		},
+		// Consistent indentation: remove space indentation from single-stage
+		{
+			name:        "consistent-indentation-single-stage-spaces",
+			input:       "FROM alpine:3.20\n    RUN echo hello\n    COPY . /app\n",
+			want:        "FROM alpine:3.20\nRUN echo hello\nCOPY . /app\n",
+			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
+			wantApplied: 2,
+			config: `[rules.tally.consistent-indentation]
+severity = "style"
+`,
+		},
+		// Consistent indentation: multi-line continuation lines get aligned to 1 tab
+		{
+			name: "consistent-indentation-multi-line-continuation",
+			input: "FROM ubuntu:22.04 AS builder\n" +
+				"RUN --mount=type=secret,id=pipconf,target=/root/.config/pip/pip.conf \\\n" +
+				"         --mount=type=cache,target=/root/.cache/pip \\\n" +
+				"--mount=type=secret,id=uvtoml,target=/root/.config/uv/uv.toml \\\n" +
+				"--mount=type=bind,source=requirements.txt,target=${LAMBDA_TASK_ROOT}/requirements.txt \\\n" +
+				"     --mount=type=cache,target=/root/.cache/uv \\\n" +
+				"  pip install uv==0.9.24 && \\\n" +
+				"      uv pip install --system -r requirements.txt\n" +
+				"FROM scratch\n" +
+				"COPY --from=builder /app /app\n",
+			want: "FROM ubuntu:22.04 AS builder\n" +
+				"\tRUN --mount=type=secret,id=pipconf,target=/root/.config/pip/pip.conf \\\n" +
+				"\t--mount=type=cache,target=/root/.cache/pip \\\n" +
+				"\t--mount=type=secret,id=uvtoml,target=/root/.config/uv/uv.toml \\\n" +
+				"\t--mount=type=bind,source=requirements.txt,target=${LAMBDA_TASK_ROOT}/requirements.txt \\\n" +
+				"\t--mount=type=cache,target=/root/.cache/uv \\\n" +
+				"\tpip install uv==0.9.24 && \\\n" +
+				"\tuv pip install --system -r requirements.txt\n" +
+				"FROM scratch\n" +
+				"\tCOPY --from=builder /app /app\n",
+			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
+			wantApplied: 2, // RUN (multi-line) + COPY
+			config: `[rules.tally.consistent-indentation]
+severity = "style"
+`,
+		},
+		// Consistent indentation + ConsistentInstructionCasing: both fix the same line
+		// Indentation adds a tab, casing fixes "run" -> "RUN" on the same line
+		{
+			name:  "consistent-indentation-with-casing-fix",
+			input: "FROM alpine:3.20 AS builder\nrun echo build\nFROM scratch\ncopy --from=builder /app /app\n",
+			want:  "FROM alpine:3.20 AS builder\n\tRUN echo build\nFROM scratch\n\tCOPY --from=builder /app /app\n",
+			args: []string{
+				"--fix",
+				"--select", "tally/consistent-indentation",
+				"--select", "buildkit/ConsistentInstructionCasing",
+			},
+			wantApplied: 3, // 2 indentation + 1 casing (2 commands fixed)
+			config: `[rules.tally.consistent-indentation]
+severity = "style"
+`,
+		},
 		// InvalidDefinitionDescription enabled via config file instead of Dockerfile directive
 		// Verifies that experimental rules can be enabled by setting severity in tally.toml
 		{
@@ -670,6 +765,131 @@ FROM scratch AS base
 severity = "error"
 `,
 		},
+
+		// === Heredoc fix tests ===
+
+		// prefer-copy-heredoc: single RUN echo redirect → COPY heredoc
+		{
+			name:  "prefer-copy-heredoc-single-echo",
+			input: "FROM ubuntu:22.04\nRUN echo 'hello world' > /app/greeting.txt\n",
+			want:  "FROM ubuntu:22.04\nCOPY <<EOF /app/greeting.txt\nhello world\nEOF\n",
+			args: []string{
+				"--fix-unsafe",
+				"--fix",
+				"--select", "tally/prefer-copy-heredoc",
+			},
+			wantApplied: 1,
+		},
+
+		// prefer-copy-heredoc: consecutive RUNs writing to same file → single COPY heredoc
+		{
+			name: "prefer-copy-heredoc-consecutive-writes",
+			input: "FROM ubuntu:22.04\n" +
+				"RUN echo 'line1' > /app/data.txt\n" +
+				"RUN echo 'line2' >> /app/data.txt\n",
+			want: "FROM ubuntu:22.04\n" +
+				"COPY <<EOF /app/data.txt\nline1\nline2\nEOF\n",
+			args: []string{
+				"--fix-unsafe",
+				"--fix",
+				"--select", "tally/prefer-copy-heredoc",
+			},
+			wantApplied: 1,
+		},
+
+		// prefer-run-heredoc: 3 consecutive RUNs → heredoc RUN
+		{
+			name: "prefer-run-heredoc-consecutive",
+			input: "FROM ubuntu:22.04\n" +
+				"RUN apt-get update\n" +
+				"RUN apt-get install -y curl\n" +
+				"RUN apt-get install -y git\n",
+			want: "FROM ubuntu:22.04\n" +
+				"RUN <<EOF\nset -e\napt-get update\napt-get install -y curl\napt-get install -y git\nEOF\n",
+			args: []string{
+				"--fix-unsafe",
+				"--fix",
+				"--select", "tally/prefer-run-heredoc",
+			},
+			wantApplied: 1,
+		},
+
+		// prefer-run-heredoc: chained commands → heredoc RUN
+		{
+			name:  "prefer-run-heredoc-chained",
+			input: "FROM ubuntu:22.04\nRUN echo step1 && echo step2 && echo step3\n",
+			want:  "FROM ubuntu:22.04\nRUN <<EOF\nset -e\necho step1\necho step2\necho step3\nEOF\n",
+			args: []string{
+				"--fix-unsafe",
+				"--fix",
+				"--select", "tally/prefer-run-heredoc",
+			},
+			wantApplied: 1,
+		},
+
+		// Both heredoc rules enabled together: prefer-copy-heredoc takes priority (99) over prefer-run-heredoc (100).
+		// The file-creation RUN is handled by prefer-copy-heredoc; the consecutive RUNs by prefer-run-heredoc.
+		{
+			name: "heredoc-both-rules-combined",
+			input: "FROM ubuntu:22.04\n" +
+				"RUN echo 'server {}' > /etc/nginx.conf\n" +
+				"RUN apt-get update\n" +
+				"RUN apt-get install -y curl\n" +
+				"RUN apt-get install -y git\n",
+			want: "FROM ubuntu:22.04\n" +
+				"COPY <<EOF /etc/nginx.conf\nserver {}\nEOF\n" +
+				"RUN <<EOF\nset -e\napt-get update\napt-get install -y curl\napt-get install -y git\nEOF\n",
+			args: []string{
+				"--fix-unsafe",
+				"--fix",
+				"--select", "tally/prefer-copy-heredoc",
+				"--select", "tally/prefer-run-heredoc",
+			},
+			wantApplied: 2,
+		},
+
+		// Heredoc + indentation: multi-stage with both heredoc rules + indentation.
+		// The indentation fix (priority 50) applies first, then run-heredoc (100).
+		// After indentation adds tabs, the heredoc resolver should preserve them.
+		{
+			name: "heredoc-with-indentation-multi-stage",
+			input: "FROM ubuntu:22.04 AS builder\n" +
+				"RUN apt-get update\n" +
+				"RUN apt-get install -y curl\n" +
+				"RUN apt-get install -y git\n" +
+				"FROM alpine:3.20\n" +
+				"COPY --from=builder /usr/bin/curl /usr/bin/curl\n" +
+				"RUN echo 'done'\n",
+			want: "FROM ubuntu:22.04 AS builder\n" +
+				"\tRUN <<-EOF\n\t\tset -e\n\t\tapt-get update\n\t\tapt-get install -y curl\n\t\tapt-get install -y git\n\t\tEOF\n" +
+				"FROM alpine:3.20\n" +
+				"\tCOPY --from=builder /usr/bin/curl /usr/bin/curl\n" +
+				"\tRUN echo 'done'\n",
+			args: []string{
+				"--fix-unsafe",
+				"--fix",
+				"--ignore", "*",
+				"--select", "tally/consistent-indentation",
+				"--select", "tally/prefer-run-heredoc",
+			},
+			wantApplied: 6, // 5 indentation fixes + 1 heredoc
+			config: `[rules.tally.consistent-indentation]
+severity = "style"
+`,
+		},
+
+		// prefer-copy-heredoc: echo with chmod → COPY --chmod heredoc
+		{
+			name:  "prefer-copy-heredoc-with-chmod",
+			input: "FROM ubuntu:22.04\nRUN echo '#!/bin/sh' > /entrypoint.sh && chmod +x /entrypoint.sh\n",
+			want:  "FROM ubuntu:22.04\nCOPY --chmod=0755 <<EOF /entrypoint.sh\n#!/bin/sh\nEOF\n",
+			args: []string{
+				"--fix-unsafe",
+				"--fix",
+				"--select", "tally/prefer-copy-heredoc",
+			},
+			wantApplied: 1,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -688,8 +908,7 @@ severity = "error"
 			}
 
 			// Run tally check --fix
-			// Ignore prefer-run-heredoc to avoid it triggering on minimal test cases
-			args := append([]string{"check", "--config", configPath, "--ignore", "tally/prefer-run-heredoc"}, tc.args...)
+			args := append([]string{"check", "--config", configPath}, tc.args...)
 			args = append(args, dockerfilePath)
 			cmd := exec.Command(binaryPath, args...)
 			cmd.Env = append(os.Environ(),
@@ -781,5 +1000,132 @@ func TestFixRealWorld(t *testing.T) {
 	outputStr := string(output)
 	if !strings.Contains(outputStr, "Fixed") {
 		t.Errorf("expected 'Fixed' in output, got: %s", outputStr)
+	}
+}
+
+// TestFixHeredocCombined tests auto-fix with both prefer-copy-heredoc and prefer-run-heredoc
+// enabled together on a multi-stage Dockerfile that also has consistent-indentation enabled.
+// The snapshot makes it easy to review the final fixed Dockerfile.
+func TestFixHeredocCombined(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "heredoc-combined")
+
+	// Read the original Dockerfile
+	originalContent, err := os.ReadFile(filepath.Join(testdataDir, "Dockerfile"))
+	if err != nil {
+		t.Fatalf("failed to read original Dockerfile: %v", err)
+	}
+
+	// Create a temp directory and copy the Dockerfile
+	tmpDir := t.TempDir()
+	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+	if err := os.WriteFile(dockerfilePath, originalContent, 0o644); err != nil {
+		t.Fatalf("failed to write Dockerfile: %v", err)
+	}
+
+	// Config: enable consistent-indentation (off by default)
+	configPath := filepath.Join(tmpDir, ".tally.toml")
+	configContent := `[rules.tally.consistent-indentation]
+severity = "style"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	// Run with all three rules: consistent-indentation (50), prefer-copy-heredoc (99), prefer-run-heredoc (100)
+	args := []string{
+		"check", "--config", configPath,
+		"--fix", "--fix-unsafe",
+		"--ignore", "*",
+		"--select", "tally/consistent-indentation",
+		"--select", "tally/prefer-copy-heredoc",
+		"--select", "tally/prefer-run-heredoc",
+		dockerfilePath,
+	}
+	cmd := exec.Command(binaryPath, args...)
+	cmd.Env = append(os.Environ(),
+		"GOCOVERDIR="+coverageDir,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("command failed to run: %v", err)
+		}
+		if exitErr.ExitCode() != 1 {
+			t.Fatalf("unexpected exit code %d: %v\noutput:\n%s", exitErr.ExitCode(), err, output)
+		}
+	}
+
+	// Read the fixed Dockerfile and snapshot it
+	fixedContent, err := os.ReadFile(dockerfilePath)
+	if err != nil {
+		t.Fatalf("failed to read fixed Dockerfile: %v", err)
+	}
+
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, string(fixedContent))
+
+	// Verify fixes were applied
+	if !strings.Contains(string(output), "Fixed") {
+		t.Errorf("expected 'Fixed' in output, got: %s", output)
+	}
+}
+
+// TestFixConsistentIndentation tests auto-fix for the consistent-indentation rule
+// on a multi-stage Dockerfile with multi-line continuation instructions.
+// The snapshot makes it easy to verify all continuation lines get aligned.
+func TestFixConsistentIndentation(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "consistent-indentation")
+
+	originalContent, err := os.ReadFile(filepath.Join(testdataDir, "Dockerfile"))
+	if err != nil {
+		t.Fatalf("failed to read original Dockerfile: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+	if err := os.WriteFile(dockerfilePath, originalContent, 0o644); err != nil {
+		t.Fatalf("failed to write Dockerfile: %v", err)
+	}
+
+	// Copy the config that enables consistent-indentation
+	configContent, err := os.ReadFile(filepath.Join(testdataDir, ".tally.toml"))
+	if err != nil {
+		t.Fatalf("failed to read config: %v", err)
+	}
+	configPath := filepath.Join(tmpDir, ".tally.toml")
+	if err := os.WriteFile(configPath, configContent, 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	args := []string{
+		"check", "--config", configPath,
+		"--fix",
+		"--select", "tally/consistent-indentation",
+		dockerfilePath,
+	}
+	cmd := exec.Command(binaryPath, args...)
+	cmd.Env = append(os.Environ(),
+		"GOCOVERDIR="+coverageDir,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("command failed to run: %v", err)
+		}
+		if exitErr.ExitCode() != 1 {
+			t.Fatalf("unexpected exit code %d: %v\noutput:\n%s", exitErr.ExitCode(), err, output)
+		}
+	}
+
+	fixedContent, err := os.ReadFile(dockerfilePath)
+	if err != nil {
+		t.Fatalf("failed to read fixed Dockerfile: %v", err)
+	}
+
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, string(fixedContent))
+
+	if !strings.Contains(string(output), "Fixed") {
+		t.Errorf("expected 'Fixed' in output, got: %s", output)
 	}
 }
