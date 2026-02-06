@@ -1,0 +1,24 @@
+{
+ "diagnostics": [
+  {
+   "code": "buildkit/MaintainerDeprecated",
+   "codeDescription": {
+    "href": "https://docs.docker.com/go/dockerfile/rule/maintainer-deprecated/"
+   },
+   "message": "Maintainer instruction is deprecated in favor of using label",
+   "range": {
+    "end": {
+     "character": 1000,
+     "line": 1
+    },
+    "start": {
+     "character": 0,
+     "line": 1
+    }
+   },
+   "severity": 2,
+   "source": "tally"
+  }
+ ],
+ "uri": "file:///tmp/test-didopen/Dockerfile"
+}

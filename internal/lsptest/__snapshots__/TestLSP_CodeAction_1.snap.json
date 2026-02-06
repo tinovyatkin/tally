@@ -1,0 +1,47 @@
+[
+ {
+  "diagnostics": [
+   {
+    "code": "buildkit/MaintainerDeprecated",
+    "codeDescription": {
+     "href": "https://docs.docker.com/go/dockerfile/rule/maintainer-deprecated/"
+    },
+    "message": "Maintainer instruction is deprecated in favor of using label",
+    "range": {
+     "end": {
+      "character": 1000,
+      "line": 1
+     },
+     "start": {
+      "character": 0,
+      "line": 1
+     }
+    },
+    "severity": 2,
+    "source": "tally"
+   }
+  ],
+  "edit": {
+   "changes": {
+    "file:///tmp/test-codeaction/Dockerfile": [
+     {
+      "newText": "LABEL org.opencontainers.image.authors=\"test@example.com\"",
+      "range": {
+       "end": {
+        "character": 27,
+        "line": 1
+       },
+       "start": {
+        "character": 0,
+        "line": 1
+       }
+      }
+     }
+    ]
+   }
+  },
+  "isPreferred": true,
+  "kind": "quickfix",
+  "title": "Replace MAINTAINER with org.opencontainers.image.authors label"
+ }
+]

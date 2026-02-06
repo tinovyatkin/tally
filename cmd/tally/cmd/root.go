@@ -26,6 +26,7 @@ Examples:
   tally check .`,
 		Commands: []*cli.Command{
 			checkCommand(),
+			lspCommand(),
 			versionCommand(),
 		},
 	}

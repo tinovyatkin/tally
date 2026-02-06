@@ -1,5 +1,6 @@
 [global]
 exclude = ["**/__snapshots__/*.snap.md"]
+disable = ["MD036"]
 
 [MD013]
 line_length = 150
