@@ -440,7 +440,7 @@ func recordColumnShift(shifts *[]columnShift, edit rules.TextEdit) {
 	}
 
 	oldLen := edit.Location.End.Column - edit.Location.Start.Column
-	newLen := len(edit.NewText)
+	newLen := len(edit.NewText) // byte length — columns are byte offsets in this codebase
 	delta := newLen - oldLen
 	if delta == 0 {
 		return // Same-length replacement (e.g., casing fix): no shift
