@@ -1,0 +1,385 @@
+package tally
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
+
+	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/rules/configutil"
+	"github.com/tinovyatkin/tally/internal/sourcemap"
+)
+
+const (
+	indentTab   = "tab"
+	indentSpace = "space"
+)
+
+// ConsistentIndentationConfig is the configuration for the consistent-indentation rule.
+type ConsistentIndentationConfig struct {
+	// Indent is the indentation character: "tab" or "space" (nil = use default "tab").
+	Indent *string `json:"indent,omitempty" koanf:"indent"`
+
+	// IndentWidth is the number of indent characters per level (nil = use default 1).
+	// For tabs, 1 is typical. For spaces, 2 or 4 are common.
+	IndentWidth *int `json:"indent-width,omitempty" koanf:"indent-width"`
+}
+
+// DefaultConsistentIndentationConfig returns the default configuration.
+// Tabs are preferred because they play well with heredoc <<- stripping.
+func DefaultConsistentIndentationConfig() ConsistentIndentationConfig {
+	indent := indentTab
+	width := 1
+	return ConsistentIndentationConfig{
+		Indent:      &indent,
+		IndentWidth: &width,
+	}
+}
+
+// ConsistentIndentationRule implements the consistent-indentation linting rule.
+// For multi-stage Dockerfiles, it enforces indentation of commands within each stage.
+// For single-stage Dockerfiles, it enforces no indentation (flat style).
+type ConsistentIndentationRule struct{}
+
+// NewConsistentIndentationRule creates a new consistent-indentation rule instance.
+func NewConsistentIndentationRule() *ConsistentIndentationRule {
+	return &ConsistentIndentationRule{}
+}
+
+// Metadata returns the rule metadata.
+func (r *ConsistentIndentationRule) Metadata() rules.RuleMetadata {
+	return rules.RuleMetadata{
+		Code:            rules.TallyRulePrefix + "consistent-indentation",
+		Name:            "Consistent Indentation",
+		Description:     "Enforces consistent indentation for Dockerfile build stages",
+		DocURL:          "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
+		DefaultSeverity: rules.SeverityOff,
+		Category:        "style",
+		IsExperimental:  true,
+		FixPriority:     50, // After content fixes (casing at 0) but before structural (heredoc at 100+)
+	}
+}
+
+// Schema returns the JSON Schema for this rule's configuration.
+func (r *ConsistentIndentationRule) Schema() map[string]any {
+	return map[string]any{
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type":    "object",
+		"properties": map[string]any{
+			"indent": map[string]any{
+				"type":        "string",
+				"enum":        []any{indentTab, indentSpace},
+				"default":     indentTab,
+				"description": "Indentation character: tab (recommended for heredoc <<- compatibility) or space",
+			},
+			"indent-width": map[string]any{
+				"type":        "integer",
+				"minimum":     1,
+				"maximum":     8,
+				"default":     1,
+				"description": "Number of indent characters per level (1 tab or 2/4 spaces typical)",
+			},
+		},
+		"additionalProperties": false,
+	}
+}
+
+// DefaultConfig returns the default configuration for this rule.
+func (r *ConsistentIndentationRule) DefaultConfig() any {
+	return DefaultConsistentIndentationConfig()
+}
+
+// ValidateConfig validates the configuration against the rule's JSON Schema.
+func (r *ConsistentIndentationRule) ValidateConfig(config any) error {
+	return configutil.ValidateWithSchema(config, r.Schema())
+}
+
+// Check runs the consistent-indentation rule.
+func (r *ConsistentIndentationRule) Check(input rules.LintInput) []rules.Violation {
+	cfg := r.resolveConfig(input.Config)
+
+	indentChar, indentWidth := r.indentSettings(cfg)
+	expectedIndent := strings.Repeat(indentChar, indentWidth)
+
+	isMultiStage := len(input.Stages) > 1
+	sm := input.SourceMap()
+	meta := r.Metadata()
+
+	var violations []rules.Violation
+
+	// Global ARGs before first FROM should never be indented
+	for _, arg := range input.MetaArgs {
+		violations = append(violations,
+			r.checkNodeNoIndent(input.File, sm, arg.Location(), meta)...)
+	}
+
+	for _, stage := range input.Stages {
+		// FROM lines should never be indented
+		violations = append(violations,
+			r.checkNodeNoIndent(input.File, sm, stage.Location, meta)...)
+
+		for _, cmd := range stage.Commands {
+			if isMultiStage {
+				// Multi-stage: commands within each stage should be indented
+				violations = append(violations,
+					r.checkCommandIndented(input.File, sm, cmd.Location(), expectedIndent, indentChar, meta)...)
+			} else {
+				// Single-stage: no indentation expected
+				violations = append(violations,
+					r.checkNodeNoIndent(input.File, sm, cmd.Location(), meta)...)
+			}
+		}
+	}
+
+	return violations
+}
+
+// checkNodeNoIndent checks that an instruction's lines have no leading whitespace.
+func (r *ConsistentIndentationRule) checkNodeNoIndent(
+	file string,
+	sm *sourcemap.SourceMap,
+	location []parser.Range,
+	meta rules.RuleMetadata,
+) []rules.Violation {
+	if len(location) == 0 {
+		return nil
+	}
+
+	startLine := location[0].Start.Line // 1-based
+	line := sm.Line(startLine - 1)      // 0-based
+
+	indent := leadingWhitespace(line)
+	if indent == "" {
+		return nil
+	}
+
+	loc := rules.NewRangeLocation(file, startLine, 0, startLine, len(indent))
+	v := rules.NewViolation(
+		loc,
+		meta.Code,
+		"unexpected indentation; this line should not be indented",
+		meta.DefaultSeverity,
+	).WithDocURL(meta.DocURL).WithSuggestedFix(&rules.SuggestedFix{
+		Description: "Remove indentation",
+		Safety:      rules.FixSafe,
+		Priority:    meta.FixPriority,
+		Edits:       r.removeIndentEdits(file, sm, location),
+		IsPreferred: true,
+	})
+
+	return []rules.Violation{v}
+}
+
+// checkCommandIndented checks that a command's lines are indented with the expected indent.
+func (r *ConsistentIndentationRule) checkCommandIndented(
+	file string,
+	sm *sourcemap.SourceMap,
+	location []parser.Range,
+	expectedIndent string,
+	indentChar string,
+	meta rules.RuleMetadata,
+) []rules.Violation {
+	if len(location) == 0 {
+		return nil
+	}
+
+	startLine := location[0].Start.Line // 1-based
+	line := sm.Line(startLine - 1)      // 0-based
+
+	currentIndent := leadingWhitespace(line)
+
+	if currentIndent == expectedIndent {
+		return nil
+	}
+
+	// Determine the issue
+	expectedDesc := describeIndent(expectedIndent)
+	var message string
+	switch {
+	case currentIndent == "":
+		message = "missing indentation; expected " + expectedDesc
+	case currentIndent != expectedIndent && containsChar(currentIndent, indentChar):
+		message = "wrong indentation width; expected " + expectedDesc + ", got " + describeIndent(currentIndent)
+	default:
+		message = "wrong indentation style; expected " + expectedDesc + ", got " + describeIndent(currentIndent)
+	}
+
+	loc := rules.NewRangeLocation(file, startLine, 0, startLine, len(currentIndent))
+	v := rules.NewViolation(
+		loc,
+		meta.Code,
+		message,
+		meta.DefaultSeverity,
+	).WithDocURL(meta.DocURL).WithSuggestedFix(&rules.SuggestedFix{
+		Description: "Fix indentation to " + expectedDesc,
+		Safety:      rules.FixSafe,
+		Priority:    meta.FixPriority,
+		Edits:       r.setIndentEdits(file, sm, location, expectedIndent),
+		IsPreferred: true,
+	})
+
+	return []rules.Violation{v}
+}
+
+// removeIndentEdits generates TextEdits to remove leading whitespace from all lines of a node.
+func (r *ConsistentIndentationRule) removeIndentEdits(
+	file string,
+	sm *sourcemap.SourceMap,
+	location []parser.Range,
+) []rules.TextEdit {
+	if len(location) == 0 {
+		return nil
+	}
+
+	return r.setIndentEdits(file, sm, location, "")
+}
+
+// setIndentEdits generates TextEdits to set indentation on all lines of a node.
+func (r *ConsistentIndentationRule) setIndentEdits(
+	file string,
+	sm *sourcemap.SourceMap,
+	location []parser.Range,
+	indent string,
+) []rules.TextEdit {
+	if len(location) == 0 {
+		return nil
+	}
+
+	startLine := location[0].Start.Line
+	endLine := location[0].End.Line
+
+	tabIndent := strings.Contains(indent, "\t")
+
+	var edits []rules.TextEdit
+	for lineNum := startLine; lineNum <= endLine; lineNum++ {
+		line := sm.Line(lineNum - 1) // 0-based
+		currentIndent := leadingWhitespace(line)
+
+		if currentIndent != indent {
+			// Replace current indentation with expected
+			edits = append(edits, rules.TextEdit{
+				Location: rules.NewRangeLocation(file, lineNum, 0, lineNum, len(currentIndent)),
+				NewText:  indent,
+			})
+		}
+	}
+
+	// When using tab indent, convert << to <<- on the first line so that
+	// BuildKit strips leading tabs from heredoc body lines.
+	if tabIndent {
+		firstLine := sm.Line(startLine - 1)
+		if edit := heredocDashEdit(file, startLine, firstLine); edit != nil {
+			edits = append(edits, *edit)
+		}
+	}
+
+	return edits
+}
+
+// heredocDashEdit returns a TextEdit to convert << to <<- on a line that
+// contains a heredoc operator, or nil if no conversion is needed.
+// This is necessary when tab indentation is applied to heredoc instructions,
+// because <<- tells BuildKit to strip leading tabs from the body.
+func heredocDashEdit(file string, lineNum int, line string) *rules.TextEdit {
+	idx := strings.Index(line, "<<")
+	if idx < 0 {
+		return nil
+	}
+	// Already <<-
+	if idx+2 < len(line) && line[idx+2] == '-' {
+		return nil
+	}
+	// Must be followed by an alpha character (delimiter name like EOF, CONTENT)
+	if idx+2 >= len(line) {
+		return nil
+	}
+	ch := line[idx+2]
+	if (ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') {
+		return nil
+	}
+	// Insert "-" between << and the delimiter
+	return &rules.TextEdit{
+		Location: rules.NewRangeLocation(file, lineNum, idx+2, lineNum, idx+2),
+		NewText:  "-",
+	}
+}
+
+// leadingWhitespace returns the leading whitespace of a line.
+func leadingWhitespace(line string) string {
+	trimmed := strings.TrimLeft(line, " \t")
+	return line[:len(line)-len(trimmed)]
+}
+
+// containsChar checks if s contains only the given character (or characters from it).
+func containsChar(s, char string) bool {
+	if char == "" || s == "" {
+		return false
+	}
+	for _, c := range s {
+		if !strings.ContainsRune(char, c) {
+			return false
+		}
+	}
+	return true
+}
+
+// describeIndent returns a human-readable description of an indentation string.
+func describeIndent(indent string) string {
+	if indent == "" {
+		return "no indentation"
+	}
+
+	tabs := strings.Count(indent, "\t")
+	spaces := strings.Count(indent, " ")
+
+	switch {
+	case tabs > 0 && spaces == 0:
+		if tabs == 1 {
+			return "1 tab"
+		}
+		return fmt.Sprintf("%d tabs", tabs)
+	case spaces > 0 && tabs == 0:
+		if spaces == 1 {
+			return "1 space"
+		}
+		return fmt.Sprintf("%d spaces", spaces)
+	default:
+		return fmt.Sprintf("%d mixed characters", len(indent))
+	}
+}
+
+// indentSettings extracts the indent character and width from config.
+func (r *ConsistentIndentationRule) indentSettings(cfg ConsistentIndentationConfig) (string, int) {
+	indentChar := "\t"
+	if cfg.Indent != nil && *cfg.Indent == indentSpace {
+		indentChar = " "
+	}
+
+	width := 1
+	if cfg.IndentWidth != nil && *cfg.IndentWidth > 0 {
+		width = *cfg.IndentWidth
+	}
+
+	return indentChar, width
+}
+
+// resolveConfig extracts the ConsistentIndentationConfig from input, falling back to defaults.
+func (r *ConsistentIndentationRule) resolveConfig(config any) ConsistentIndentationConfig {
+	switch v := config.(type) {
+	case ConsistentIndentationConfig:
+		return v
+	case *ConsistentIndentationConfig:
+		if v != nil {
+			return *v
+		}
+	case map[string]any:
+		return configutil.Resolve(v, DefaultConsistentIndentationConfig())
+	}
+	return DefaultConsistentIndentationConfig()
+}
+
+// init registers the rule with the default registry.
+func init() {
+	rules.Register(NewConsistentIndentationRule())
+}

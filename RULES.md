@@ -15,7 +15,7 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 <!-- BEGIN RULES_SUMMARY -->
 | Namespace | Implemented | Covered by BuildKit | Total |
 |-----------|-------------|---------------------|-------|
-| tally | 5 | - | 5 |
+| tally | 6 | - | 6 |
 | buildkit | 7 + 5 captured | - | 22 |
 | hadolint | 18 | 9 | 66 |
 <!-- END RULES_SUMMARY -->
@@ -33,6 +33,7 @@ Custom rules implemented by tally that go beyond BuildKit's checks.
 | `tally/no-unreachable-stages` | Warns about build stages that don't contribute to the final image | Warning | Best Practice | Enabled |
 | `tally/prefer-copy-heredoc` | Suggests using COPY heredoc for file creation instead of RUN echo/cat | Style | Style | Off (experimental) |
 | `tally/prefer-run-heredoc` | Suggests using heredoc syntax for multi-command RUN instructions | Style | Style | Off (experimental) |
+| `tally/consistent-indentation` | Enforces consistent indentation for Dockerfile build stages | Style | Style | Off (experimental) |
 
 ### tally/secrets-in-code
 
@@ -166,6 +167,34 @@ EOF
 - `check-chained-commands`: Check for `&&` chains in single RUN (default: true)
 
 **Rule coordination:** When this rule is enabled, `hadolint/DL3003` (cd → WORKDIR) will skip generating fixes for commands that are heredoc candidates, allowing heredoc conversion to handle `cd` correctly within the script.
+
+### tally/consistent-indentation
+
+Enforces consistent indentation for Dockerfile build stages. **Experimental** - disabled by default.
+
+- **Multi-stage Dockerfiles**: Commands within each stage should be indented; FROM lines stay at column 0
+- **Single-stage Dockerfiles**: No indentation (flat style)
+
+Tabs are the default because heredoc `<<-` strips leading tabs.
+
+**Options:**
+
+- `indent`: Indentation character — `"tab"` (default) or `"space"`
+- `indent-width`: Number of indent characters per level (default: 1, range: 1-8)
+
+**Example (multi-stage with tabs):**
+
+```dockerfile
+FROM golang:1.23 AS builder
+	WORKDIR /src
+	RUN go build -o /app
+
+FROM alpine:3.20
+	COPY --from=builder /app /app
+	ENTRYPOINT ["app"]
+```
+
+**Auto-fix:** Safe fixes that add, remove, or correct indentation. Use `tally check --fix`.
 
 ---
 

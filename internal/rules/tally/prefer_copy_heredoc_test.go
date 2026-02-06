@@ -413,36 +413,28 @@ func TestBuildCopyHeredoc(t *testing.T) {
 			targetPath: "/app/config",
 			content:    "hello world\n",
 			chmodMode:  0,
-			want: `COPY <<EOF /app/config
-hello world
-EOF`,
+			want:       "COPY <<EOF /app/config\nhello world\nEOF",
 		},
 		{
 			name:       "with chmod",
 			targetPath: "/app/script.sh",
 			content:    "#!/bin/bash\necho hello\n",
 			chmodMode:  0o755,
-			want: `COPY --chmod=0755 <<EOF /app/script.sh
-#!/bin/bash
-echo hello
-EOF`,
+			want:       "COPY --chmod=0755 <<EOF /app/script.sh\n#!/bin/bash\necho hello\nEOF",
 		},
 		{
 			name:       "content containing EOF",
 			targetPath: "/app/file",
 			content:    "Some EOF text\n",
 			chmodMode:  0,
-			want: `COPY <<CONTENT /app/file
-Some EOF text
-CONTENT`,
+			want:       "COPY <<CONTENT /app/file\nSome EOF text\nCONTENT",
 		},
 		{
 			name:       "empty content creates 0-byte file",
 			targetPath: "/app/empty",
 			content:    "",
 			chmodMode:  0,
-			want: `COPY <<EOF /app/empty
-EOF`,
+			want:       "COPY <<EOF /app/empty\nEOF",
 		},
 	}
 
