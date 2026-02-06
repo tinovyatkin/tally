@@ -126,6 +126,23 @@ func TestConsistentIndentationCheck(t *testing.T) {
 			WantViolations: 1,
 			WantMessages:   []string{"unexpected indentation"},
 		},
+
+		// === Heredoc cases ===
+		{
+			Name: "multi-stage heredoc properly indented",
+			Content: "FROM alpine AS builder\n\tRUN <<-EOF\n" +
+				"\t\techo hello\n\tEOF\n" +
+				"FROM scratch\n\tCOPY --from=builder /app /app\n",
+			WantViolations: 0,
+		},
+		{
+			Name: "multi-stage heredoc missing indent",
+			Content: "FROM alpine AS builder\nRUN <<EOF\n" +
+				"echo hello\nEOF\n" +
+				"FROM scratch\n\tCOPY --from=builder /app /app\n",
+			WantViolations: 1,
+			WantMessages:   []string{"missing indentation"},
+		},
 	})
 }
 
@@ -156,6 +173,12 @@ func TestConsistentIndentationCheckWithFixes(t *testing.T) {
 			name:      "multi-stage fix indent style (spaces to tab)",
 			content:   "FROM alpine AS builder\n  RUN echo build\nFROM scratch\n",
 			wantEdits: 1,
+		},
+		{
+			name: "multi-stage heredoc adds indent and converts to <<-",
+			content: "FROM alpine AS builder\nRUN <<EOF\n" +
+				"echo hello\nEOF\nFROM scratch\n",
+			wantEdits: 2, // 1 indent edit + 1 <<- conversion edit
 		},
 	}
 
