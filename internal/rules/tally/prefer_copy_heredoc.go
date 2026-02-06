@@ -505,21 +505,7 @@ func (r *PreferCopyHeredocRule) generateFix(
 
 	newText := strings.Join(parts, "\n")
 
-	endLine, endCol := resolveEndPosition(runLoc, sm)
-
-	// Fallback: when end position equals start (point location), compute from command text
-	if endLine == runLoc[0].Start.Line && endCol == runLoc[0].Start.Character {
-		cmdStr := getRunScriptFromCmd(run)
-		fullInstr := "RUN " + cmdStr
-
-		lines := strings.Split(fullInstr, "\n")
-		if len(lines) > 1 {
-			endLine = runLoc[0].Start.Line + len(lines) - 1
-			endCol = len(lines[len(lines)-1])
-		} else {
-			endCol = runLoc[0].Start.Character + len(fullInstr)
-		}
-	}
+	endLine, endCol := resolveRunEndPosition(runLoc, sm, run)
 
 	description := "Replace RUN with COPY <<EOF to " + info.TargetPath
 	if info.PrecedingCommands != "" || info.RemainingCommands != "" {
@@ -601,21 +587,7 @@ func (r *PreferCopyHeredocRule) generateSequenceFix(
 		return nil
 	}
 
-	endLine, endCol := resolveEndPosition(lastLoc, sm)
-
-	// Fallback: when end position equals start (point location), compute from command text
-	if endLine == lastLoc[0].Start.Line && endCol == lastLoc[0].Start.Character {
-		cmdStr := getRunScriptFromCmd(lastRun)
-		fullInstr := "RUN " + cmdStr
-
-		lines := strings.Split(fullInstr, "\n")
-		if len(lines) > 1 {
-			endLine = lastLoc[0].Start.Line + len(lines) - 1
-			endCol = len(lines[len(lines)-1])
-		} else {
-			endCol = lastLoc[0].Start.Character + len(fullInstr)
-		}
-	}
+	endLine, endCol := resolveRunEndPosition(lastLoc, sm, lastRun)
 
 	runCount := len(sequence)
 	if trailingChmodRun != nil {
@@ -796,6 +768,29 @@ func getRunCmdLine(run *instructions.RunCommand) string {
 	}
 
 	return cmdLine
+}
+
+// resolveRunEndPosition computes the end position for a RUN instruction using
+// resolveEndPosition, with a fallback for point locations (End == Start) where
+// the end is computed from the command text.
+func resolveRunEndPosition(loc []parser.Range, sm *sourcemap.SourceMap, run *instructions.RunCommand) (int, int) {
+	endLine, endCol := resolveEndPosition(loc, sm)
+
+	// Fallback: when end position equals start (point location), compute from command text
+	if endLine == loc[0].Start.Line && endCol == loc[0].Start.Character {
+		cmdStr := getRunScriptFromCmd(run)
+		fullInstr := "RUN " + cmdStr
+
+		lines := strings.Split(fullInstr, "\n")
+		if len(lines) > 1 {
+			endLine = loc[0].Start.Line + len(lines) - 1
+			endCol = len(lines[len(lines)-1])
+		} else {
+			endCol = loc[0].Start.Character + len(fullInstr)
+		}
+	}
+
+	return endLine, endCol
 }
 
 // resolveEndPosition computes the correct end position for a RUN instruction's edit range.
