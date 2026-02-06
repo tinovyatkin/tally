@@ -1069,3 +1069,63 @@ severity = "style"
 		t.Errorf("expected 'Fixed' in output, got: %s", output)
 	}
 }
+
+// TestFixConsistentIndentation tests auto-fix for the consistent-indentation rule
+// on a multi-stage Dockerfile with multi-line continuation instructions.
+// The snapshot makes it easy to verify all continuation lines get aligned.
+func TestFixConsistentIndentation(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "consistent-indentation")
+
+	originalContent, err := os.ReadFile(filepath.Join(testdataDir, "Dockerfile"))
+	if err != nil {
+		t.Fatalf("failed to read original Dockerfile: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+	if err := os.WriteFile(dockerfilePath, originalContent, 0o644); err != nil {
+		t.Fatalf("failed to write Dockerfile: %v", err)
+	}
+
+	// Copy the config that enables consistent-indentation
+	configContent, err := os.ReadFile(filepath.Join(testdataDir, ".tally.toml"))
+	if err != nil {
+		t.Fatalf("failed to read config: %v", err)
+	}
+	configPath := filepath.Join(tmpDir, ".tally.toml")
+	if err := os.WriteFile(configPath, configContent, 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	args := []string{
+		"check", "--config", configPath,
+		"--fix",
+		"--select", "tally/consistent-indentation",
+		dockerfilePath,
+	}
+	cmd := exec.Command(binaryPath, args...)
+	cmd.Env = append(os.Environ(),
+		"GOCOVERDIR="+coverageDir,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("command failed to run: %v", err)
+		}
+		if exitErr.ExitCode() != 1 {
+			t.Fatalf("unexpected exit code %d: %v\noutput:\n%s", exitErr.ExitCode(), err, output)
+		}
+	}
+
+	fixedContent, err := os.ReadFile(dockerfilePath)
+	if err != nil {
+		t.Fatalf("failed to read fixed Dockerfile: %v", err)
+	}
+
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, string(fixedContent))
+
+	if !strings.Contains(string(output), "Fixed") {
+		t.Errorf("expected 'Fixed' in output, got: %s", output)
+	}
+}
