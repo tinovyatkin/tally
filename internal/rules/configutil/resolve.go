@@ -3,7 +3,9 @@ package configutil
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
+	"strings"
 
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
@@ -98,13 +100,15 @@ func ValidateWithSchema(config any, schema map[string]any) error {
 		return nil
 	}
 
-	// AddResource expects an unmarshaled JSON value (map[string]any), not bytes
+	// Use an absolute URI so the library doesn't resolve against cwd
+	// (which would leak the build machine's path into error messages).
+	const schemaURI = "urn:tally:rule-config"
 	compiler := jsonschema.NewCompiler()
-	if err := compiler.AddResource("schema.json", schema); err != nil {
+	if err := compiler.AddResource(schemaURI, schema); err != nil {
 		return err
 	}
 
-	sch, err := compiler.Compile("schema.json")
+	sch, err := compiler.Compile(schemaURI)
 	if err != nil {
 		return err
 	}
@@ -120,5 +124,20 @@ func ValidateWithSchema(config any, schema map[string]any) error {
 		return err
 	}
 
-	return sch.Validate(configValue)
+	if err := sch.Validate(configValue); err != nil {
+		// Strip the schema URI prefix line from ValidationError output
+		// so users see only the meaningful details (e.g., "additional properties 'x' not allowed").
+		var verr *jsonschema.ValidationError
+		if errors.As(err, &verr) {
+			full := verr.Error()
+			if _, after, ok := strings.Cut(full, "\n"); ok {
+				clean := strings.TrimSpace(after)
+				// Simplify root-level errors: "- at '': msg" → "msg"
+				clean = strings.TrimPrefix(clean, "- at '': ")
+				return errors.New(clean)
+			}
+		}
+		return err
+	}
+	return nil
 }
