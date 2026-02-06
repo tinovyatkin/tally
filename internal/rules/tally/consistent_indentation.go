@@ -258,7 +258,7 @@ func (r *ConsistentIndentationRule) setIndentEdits(
 			endLine = l
 			break
 		}
-		endLine = l + 1 // next line is a continuation
+		endLine = min(l+1, sm.LineCount()) // next line is a continuation; clamp to last line
 	}
 
 	tabIndent := strings.Contains(indent, "\t")
