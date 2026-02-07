@@ -336,11 +336,8 @@ func TestLSP_FormattingConsistentCasing(t *testing.T) {
 	require.NotEmpty(t, edits, "expected formatting edits for inconsistent casing")
 
 	// Apply edits to original content to produce the fixed Dockerfile.
-	// The formatter returns a single whole-document replacement edit.
-	fixed := original
-	for _, e := range edits {
-		fixed = applyTextEdit(fixed, e)
-	}
+	// ApplyEdits also validates that edits are non-overlapping (LSP spec requirement).
+	fixed := applyEdits(t, uri, original, edits)
 
 	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
 }

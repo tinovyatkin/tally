@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	tflsp "github.com/TypeFox/go-lsp/protocol"
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/stretchr/testify/require"
 )
@@ -393,44 +394,24 @@ type unchangedDocumentDiagnosticReport struct {
 	ResultID string `json:"resultId"`
 }
 
-// applyTextEdit applies an LSP TextEdit to a string.
-// For whole-document replacement edits (as produced by the formatter),
-// this replaces the range with the new text.
-func applyTextEdit(content string, edit textEdit) string {
-	lines := splitLines(content)
-	startLine := int(edit.Range.Start.Line)
-	startChar := int(edit.Range.Start.Character)
-	endLine := int(edit.Range.End.Line)
-	endChar := int(edit.Range.End.Character)
-
-	// Clamp to valid range.
-	if startLine >= len(lines) {
-		return content
+// applyEdits applies LSP TextEdits to content using the TypeFox go-lsp library.
+// Edits must be non-overlapping (LSP spec requirement).
+func applyEdits(t *testing.T, uri, content string, edits []textEdit) string {
+	t.Helper()
+	m := tflsp.NewMapper(tflsp.DocumentURI(uri), []byte(content))
+	tfEdits := make([]tflsp.TextEdit, 0, len(edits))
+	for _, e := range edits {
+		tfEdits = append(tfEdits, tflsp.TextEdit{
+			Range: tflsp.Range{
+				Start: tflsp.Position{Line: e.Range.Start.Line, Character: e.Range.Start.Character},
+				End:   tflsp.Position{Line: e.Range.End.Line, Character: e.Range.End.Character},
+			},
+			NewText: e.NewText,
+		})
 	}
-	if endLine >= len(lines) {
-		endLine = len(lines) - 1
-		endChar = len(lines[endLine])
-	}
-
-	before := lines[startLine][:min(startChar, len(lines[startLine]))]
-	after := lines[endLine][min(endChar, len(lines[endLine])):]
-
-	return before + edit.NewText + after
-}
-
-// splitLines splits content into lines keeping the line endings.
-// Each element is a line WITHOUT its terminating newline.
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := range len(s) {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
-	}
-	lines = append(lines, s[start:])
-	return lines
+	out, _, err := tflsp.ApplyEdits(m, tfEdits)
+	require.NoError(t, err, "ApplyEdits failed — edits may be overlapping (LSP spec violation)")
+	return string(out)
 }
 
 // Formatting types (textDocument/formatting).
