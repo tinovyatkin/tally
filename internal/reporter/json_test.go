@@ -2,7 +2,7 @@ package reporter
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/tinovyatkin/tally/internal/rules"

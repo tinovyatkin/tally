@@ -15,7 +15,7 @@ import (
 	"os"
 	"strconv"
 
-	expjson "github.com/go-json-experiment/json"
+	jsonv2 "encoding/json/v2"
 	"github.com/sourcegraph/jsonrpc2"
 
 	protocol "github.com/tinovyatkin/tally/internal/lsp/protocol"
@@ -98,14 +98,14 @@ func (s *Server) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.
 	}
 }
 
-// unmarshalAndCall unmarshals request params into T using experimental json
-// and calls fn. The result is pre-marshaled with experimental json so that
+// unmarshalAndCall unmarshals request params into T using json/v2
+// and calls fn. The result is pre-marshaled with json/v2 so that
 // union types with MarshalJSONTo serialize correctly through the stdlib-based
 // jsonrpc2 transport.
 func unmarshalAndCall[T any](req *jsonrpc2.Request, fn func(*T) (any, error)) (any, error) {
 	var params T
 	if req.Params != nil {
-		if err := expjson.Unmarshal([]byte(*req.Params), &params); err != nil {
+		if err := jsonv2.Unmarshal([]byte(*req.Params), &params); err != nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams, Message: err.Error()}
 		}
 	}
@@ -113,20 +113,20 @@ func unmarshalAndCall[T any](req *jsonrpc2.Request, fn func(*T) (any, error)) (a
 	if err != nil || result == nil {
 		return result, err
 	}
-	// Pre-marshal with experimental json so union types serialize correctly.
-	raw, merr := expjson.Marshal(result)
+	// Pre-marshal with json/v2 so union types serialize correctly.
+	raw, merr := jsonv2.Marshal(result)
 	if merr != nil {
 		return nil, merr
 	}
 	return stdjson.RawMessage(raw), nil
 }
 
-// unmarshalAndNotify unmarshals request params into T using experimental json
+// unmarshalAndNotify unmarshals request params into T using json/v2
 // and calls fn (for notifications that have no return).
 func unmarshalAndNotify[T any](req *jsonrpc2.Request, fn func(*T)) error {
 	var params T
 	if req.Params != nil {
-		if err := expjson.Unmarshal([]byte(*req.Params), &params); err != nil {
+		if err := jsonv2.Unmarshal([]byte(*req.Params), &params); err != nil {
 			return &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams, Message: err.Error()}
 		}
 	}
@@ -134,9 +134,9 @@ func unmarshalAndNotify[T any](req *jsonrpc2.Request, fn func(*T)) error {
 	return nil
 }
 
-// lspNotify pre-marshals params with experimental json and sends via conn.Notify.
+// lspNotify pre-marshals params with json/v2 and sends via conn.Notify.
 func lspNotify(ctx context.Context, conn *jsonrpc2.Conn, method string, params any) error {
-	raw, err := expjson.Marshal(params)
+	raw, err := jsonv2.Marshal(params)
 	if err != nil {
 		return err
 	}

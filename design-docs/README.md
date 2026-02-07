@@ -148,6 +148,19 @@ This folder contains comprehensive architectural research and design documentati
 
 ---
 
+### 11. [VSCode Extension Architecture](11-vscode-extension-architecture.md)
+
+**Covers:** LSP-first VSCode extension architecture, binary strategy, editor integration and test strategy
+
+---
+
+### 12. [JSON v2 Migration Plan](12-json-v2-migration.md)
+
+**Covers:** Comprehensive plan to migrate from `encoding/json` to `github.com/go-json-experiment/json` (v2), including TypeScript-Go-style lint
+enforcement
+
+---
+
 ## Quick Start Guides
 
 ### For Immediate Implementation
@@ -168,7 +181,7 @@ This folder contains comprehensive architectural research and design documentati
 
 ## Implementation Roadmap
 
-**See [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) for detailed action plan**
+**See prioritized plan below for implementation sequencing.**
 
 ### Top 10 Priorities (v1.0)
 

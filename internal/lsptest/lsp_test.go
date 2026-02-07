@@ -7,7 +7,7 @@ package lsptest
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,7 +25,12 @@ func TestLSP_Initialize(t *testing.T) {
 	result := ts.initialize(t)
 
 	// Snapshot the full server capabilities; version is dynamic.
-	snaps.MatchStandaloneJSON(t, result, match.Any("serverInfo.version"))
+	snaps.WithConfig(
+		snaps.JSON(snaps.JSONConfig{
+			SortKeys: true,
+			Indent:   " ",
+		}),
+	).MatchStandaloneJSON(t, result, match.Any("serverInfo.version"))
 }
 
 func TestLSP_ShutdownExit(t *testing.T) {
@@ -59,7 +64,12 @@ func TestLSP_DiagnosticsOnDidOpen(t *testing.T) {
 	diag := ts.waitDiagnostics(t)
 
 	// Snapshot the full diagnostics response.
-	snaps.MatchStandaloneJSON(t, diag)
+	snaps.WithConfig(
+		snaps.JSON(snaps.JSONConfig{
+			SortKeys: true,
+			Indent:   " ",
+		}),
+	).MatchStandaloneJSON(t, diag)
 }
 
 func TestLSP_DiagnosticsUpdatedOnDidChange(t *testing.T) {
@@ -171,7 +181,12 @@ func TestLSP_CodeAction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Snapshot the full code actions response.
-	snaps.MatchStandaloneJSON(t, actions)
+	snaps.WithConfig(
+		snaps.JSON(snaps.JSONConfig{
+			SortKeys: true,
+			Indent:   " ",
+		}),
+	).MatchStandaloneJSON(t, actions)
 }
 
 func TestLSP_PullDiagnosticsForOpenDocument(t *testing.T) {
@@ -393,7 +408,7 @@ func TestLSP_FormattingNoChanges(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
 	defer cancel()
 
-	var raw json.RawMessage
+	var raw jsontext.Value
 	err := ts.conn.Call(ctx, "textDocument/formatting", &documentFormattingParams{
 		TextDocument: textDocumentIdentifier{URI: uri},
 		Options:      formattingOptions{TabSize: 4, InsertSpaces: true},

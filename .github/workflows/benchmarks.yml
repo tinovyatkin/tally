@@ -1,5 +1,5 @@
+---
 name: Benchmarks
-
 on:
   push:
     branches: [main]
@@ -7,11 +7,11 @@ on:
     branches: [main]
   # Allow manual triggering
   workflow_dispatch:
-
 permissions:
   contents: read
   id-token: write # Required for CodSpeed OIDC authentication
-
+env:
+  GOEXPERIMENT: jsonv2
 jobs:
   benchmarks:
     name: CodSpeed Benchmarks
@@ -19,13 +19,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
-
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v4
         with:

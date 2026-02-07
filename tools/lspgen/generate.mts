@@ -1045,8 +1045,8 @@ function generateCode() {
     writeLine(`\t"fmt"`);
     writeLine(`\t"strings"`);
     writeLine("");
-    writeLine(`\t"github.com/go-json-experiment/json"`);
-    writeLine(`\t"github.com/go-json-experiment/json/jsontext"`);
+    writeLine(`\t"encoding/json/v2"`);
+    writeLine(`\t"encoding/json/jsontext"`);
     writeLine(`)`);
     writeLine("");
     writeLine("// Meta model version " + model.metaData.version);

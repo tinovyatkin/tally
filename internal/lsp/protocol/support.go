@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 )
 
-//nolint:staticcheck // Keep LSP spec naming for generated compatibility.
 // DocumentUri is an LSP document URI.
+//
+//nolint:staticcheck // Keep LSP spec naming for generated compatibility.
 type DocumentUri string
 
 // URI is a generic LSP URI.

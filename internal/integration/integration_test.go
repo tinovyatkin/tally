@@ -55,6 +55,7 @@ func TestMain(m *testing.M) {
 
 	// Build the module's main package with coverage instrumentation
 	cmd := exec.Command("go", "build", "-cover", "-o", binaryPath, "github.com/tinovyatkin/tally")
+	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(tmpDir)
 		panic("failed to build binary: " + string(out))
@@ -500,7 +501,17 @@ func TestCheck(t *testing.T) {
 				}
 			}
 
-			snaps.WithConfig(snaps.Ext(ext)).MatchStandaloneSnapshot(t, outputStr)
+			if ext == ".json" {
+				snaps.WithConfig(
+					snaps.Ext(ext),
+					snaps.JSON(snaps.JSONConfig{
+						SortKeys: true,
+						Indent:   "  ",
+					}),
+				).MatchStandaloneJSON(t, outputStr)
+			} else {
+				snaps.WithConfig(snaps.Ext(ext)).MatchStandaloneSnapshot(t, outputStr)
+			}
 		})
 	}
 }

@@ -3,7 +3,8 @@ package lsptest
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"io"
 	"os"
 	"os/exec"
@@ -56,6 +57,7 @@ func TestMain(m *testing.M) {
 
 	// Build the binary with coverage instrumentation.
 	cmd := exec.Command("go", "build", "-cover", "-o", binaryPath, "github.com/tinovyatkin/tally")
+	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(tmpDir)
 		panic("failed to build binary: " + string(out))
@@ -163,7 +165,7 @@ func (ts *testServer) initialize(t *testing.T) initializeResult {
 	err := ts.conn.Call(ctx, "initialize", &initializeParams{
 		ProcessID:    nil,
 		RootURI:      nil,
-		Capabilities: json.RawMessage(`{}`),
+		Capabilities: jsontext.Value(`{}`),
 		ClientInfo: &clientInfo{
 			Name:    "tally-lsptest",
 			Version: "1.0.0",
@@ -263,10 +265,10 @@ func (ts *testServer) saveDocument(t *testing.T, uri, content string) {
 // using field types that match the JSON wire format.
 
 type initializeParams struct {
-	ProcessID    *int            `json:"processId"`
-	RootURI      *string         `json:"rootUri"`
-	Capabilities json.RawMessage `json:"capabilities"`
-	ClientInfo   *clientInfo     `json:"clientInfo,omitempty"`
+	ProcessID    *int           `json:"processId"`
+	RootURI      *string        `json:"rootUri"`
+	Capabilities jsontext.Value `json:"capabilities"`
+	ClientInfo   *clientInfo    `json:"clientInfo,omitempty"`
 }
 
 type clientInfo struct {
@@ -275,7 +277,7 @@ type clientInfo struct {
 }
 
 type initializeResult struct {
-	Capabilities json.RawMessage      `json:"capabilities"`
+	Capabilities jsontext.Value        `json:"capabilities"`
 	ServerInfo   *initializeServerInfo `json:"serverInfo,omitempty"`
 }
 
@@ -333,7 +335,7 @@ type didOpenTextDocumentParams struct {
 }
 
 type didChangeTextDocumentParams struct {
-	TextDocument   versionedTextDocumentIdentifier    `json:"textDocument"`
+	TextDocument   versionedTextDocumentIdentifier  `json:"textDocument"`
 	ContentChanges []textDocumentContentChangeEvent `json:"contentChanges"`
 }
 
@@ -353,7 +355,7 @@ type didSaveTextDocumentParams struct {
 type codeActionParams struct {
 	TextDocument textDocumentIdentifier `json:"textDocument"`
 	Range        lspRange               `json:"range"`
-	Context      codeActionContext       `json:"context"`
+	Context      codeActionContext      `json:"context"`
 }
 
 type codeActionContext struct {

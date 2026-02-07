@@ -9,7 +9,6 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/distribution/reference v0.6.0
 	github.com/gkampitakis/go-snaps v0.5.19
-	github.com/go-json-experiment/json v0.0.0-20251027170946-4849db3c2f7e
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.0
 	github.com/knadh/koanf/providers/confmap v1.0.0
 	github.com/knadh/koanf/providers/env/v2 v2.0.0

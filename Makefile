@@ -1,5 +1,8 @@
 .PHONY: build test test-verbose lint lint-fix deadcode cpd clean release publish-prepare publish-npm publish-pypi publish-gem publish jsonschema lsp-protocol print-gotestsum-bin
 
+GOEXPERIMENT ?= jsonv2
+export GOEXPERIMENT
+
 build:
 	GOSUMDB=sum.golang.org CGO_ENABLED=0 go build -ldflags "-s -w" -o tally
 
@@ -23,7 +26,7 @@ bin/custom-gcl: bin/golangci-lint-$(GOLANGCI_LINT_VERSION) .custom-gcl.yml _tool
 lint-fix: bin/golangci-lint-$(GOLANGCI_LINT_VERSION) bin/custom-gcl
 	bin/custom-gcl run --fix
 
-# NOTE: deadcode may panic due to go/types bug with go-json-experiment types.
+# NOTE: deadcode may panic due to go/types bug with json/v2 types.
 # The panic is in go/types.NewSignatureType (Go stdlib), not in our code.
 # Tracking issue: https://github.com/golang/go/issues/73871 (fixed in Go 1.26).
 # Remove this workaround when building with Go 1.26+.

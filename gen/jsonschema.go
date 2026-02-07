@@ -5,7 +5,8 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"strings"
@@ -45,7 +46,12 @@ func main() {
 		time.Now().Format("2006-01-02"))
 
 	// Output as pretty-printed JSON
-	data, err := json.MarshalIndent(schema, "", "  ")
+	data, err := json.Marshal(
+		schema,
+		jsontext.EscapeForHTML(true),
+		jsontext.WithIndentPrefix(""),
+		jsontext.WithIndent("  "),
+	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error marshaling schema: %v\n", err)
 		os.Exit(1)

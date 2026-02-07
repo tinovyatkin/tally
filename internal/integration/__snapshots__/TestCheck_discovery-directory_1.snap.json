@@ -1,13 +1,13 @@
 {
   "files": [],
+  "files_scanned": 3,
+  "rules_enabled": 1,
   "summary": {
-    "total": 0,
     "errors": 0,
-    "warnings": 0,
+    "files": 0,
     "info": 0,
     "style": 0,
-    "files": 0
-  },
-  "files_scanned": 3,
-  "rules_enabled": 1
+    "total": 0,
+    "warnings": 0
+  }
 }

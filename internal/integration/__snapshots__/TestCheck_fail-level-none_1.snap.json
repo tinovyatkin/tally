@@ -4,36 +4,36 @@
       "file": "testdata/buildkit-warnings/Dockerfile",
       "violations": [
         {
+          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 2
+            },
             "file": "testdata/buildkit-warnings/Dockerfile",
             "start": {
-              "line": 2,
-              "column": 0
-            },
-            "end": {
-              "line": 2,
-              "column": 0
+              "column": 0,
+              "line": 2
             }
           },
-          "rule": "buildkit/InvalidDefinitionDescription",
           "message": "Comment for FROM should follow the format: `# builder \u003cdescription\u003e`",
-          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "rule": "buildkit/InvalidDefinitionDescription",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "sourceCode": "FROM alpine:3.18 AS Builder",
           "suggestedFix": {
             "description": "Add empty line between comment and instruction",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 40,
+                    "line": 1
+                  },
                   "file": "testdata/buildkit-warnings/Dockerfile",
                   "start": {
-                    "line": 1,
-                    "column": 40
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 40
+                    "column": 40,
+                    "line": 1
                   }
                 },
                 "newText": "\n"
@@ -43,36 +43,36 @@
           }
         },
         {
+          "detail": "Stage names should be lowercase",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 2
+            },
             "file": "testdata/buildkit-warnings/Dockerfile",
             "start": {
-              "line": 2,
-              "column": 0
-            },
-            "end": {
-              "line": 2,
-              "column": 0
+              "column": 0,
+              "line": 2
             }
           },
-          "rule": "buildkit/StageNameCasing",
           "message": "Stage name 'Builder' should be lowercase",
-          "detail": "Stage names should be lowercase",
+          "rule": "buildkit/StageNameCasing",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/",
           "sourceCode": "FROM alpine:3.18 AS Builder",
           "suggestedFix": {
             "description": "Rename stage 'Builder' to 'builder'",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 27,
+                    "line": 2
+                  },
                   "file": "testdata/buildkit-warnings/Dockerfile",
                   "start": {
-                    "line": 2,
-                    "column": 20
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": 27
+                    "column": 20,
+                    "line": 2
                   }
                 },
                 "newText": "builder"
@@ -82,36 +82,36 @@
           }
         },
         {
+          "detail": "The MAINTAINER instruction is deprecated, use a label instead to define an image author",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/maintainer-deprecated/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 3
+            },
             "file": "testdata/buildkit-warnings/Dockerfile",
             "start": {
-              "line": 3,
-              "column": 0
-            },
-            "end": {
-              "line": 3,
-              "column": 0
+              "column": 0,
+              "line": 3
             }
           },
-          "rule": "buildkit/MaintainerDeprecated",
           "message": "Maintainer instruction is deprecated in favor of using label",
-          "detail": "The MAINTAINER instruction is deprecated, use a label instead to define an image author",
+          "rule": "buildkit/MaintainerDeprecated",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/maintainer-deprecated/",
           "sourceCode": "MAINTAINER test@example.com",
           "suggestedFix": {
             "description": "Replace MAINTAINER with org.opencontainers.image.authors label",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 27,
+                    "line": 3
+                  },
                   "file": "testdata/buildkit-warnings/Dockerfile",
                   "start": {
-                    "line": 3,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 3,
-                    "column": 27
+                    "column": 0,
+                    "line": 3
                   }
                 },
                 "newText": "LABEL org.opencontainers.image.authors=\"test@example.com\""
@@ -121,55 +121,55 @@
           }
         },
         {
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/json-args-recommended/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 5
+            },
             "file": "testdata/buildkit-warnings/Dockerfile",
             "start": {
-              "line": 5,
-              "column": 0
-            },
-            "end": {
-              "line": 5,
-              "column": 0
+              "column": 0,
+              "line": 5
             }
           },
-          "rule": "buildkit/JSONArgsRecommended",
           "message": "JSON arguments recommended for CMD to prevent unintended behavior related to OS signals",
+          "rule": "buildkit/JSONArgsRecommended",
           "severity": "info",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/json-args-recommended/",
           "sourceCode": "CMD echo hello",
           "suggestedFix": {
             "description": "Convert CMD to exec form JSON array",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 14,
+                    "line": 5
+                  },
                   "file": "testdata/buildkit-warnings/Dockerfile",
                   "start": {
-                    "line": 5,
-                    "column": 4
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 14
+                    "column": 4,
+                    "line": 5
                   }
                 },
                 "newText": "[\"echo\",\"hello\"]"
               }
             ],
-            "safety": 1,
-            "isPreferred": true
+            "isPreferred": true,
+            "safety": 1
           }
         }
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 12,
   "summary": {
-    "total": 4,
     "errors": 0,
-    "warnings": 3,
+    "files": 1,
     "info": 1,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 12
+    "total": 4,
+    "warnings": 3
+  }
 }

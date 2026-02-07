@@ -4,36 +4,35 @@
       "file": "testdata/context-copy-ignored/Dockerfile",
       "violations": [
         {
+          "detail": "The file or directory 'ignored.txt' matches a pattern in .dockerignore. This COPY/ADD will fail or copy unexpected files during build.",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/copy-ignored-file/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 3
+            },
             "file": "testdata/context-copy-ignored/Dockerfile",
             "start": {
-              "line": 3,
-              "column": 0
-            },
-            "end": {
-              "line": 3,
-              "column": 0
+              "column": 0,
+              "line": 3
             }
           },
-          "rule": "buildkit/CopyIgnoredFile",
           "message": "source 'ignored.txt' is excluded by .dockerignore and will not be copied",
-          "detail": "The file or directory 'ignored.txt' matches a pattern in .dockerignore. This COPY/ADD will fail or copy unexpected files during build.",
+          "rule": "buildkit/CopyIgnoredFile",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/copy-ignored-file/",
           "sourceCode": "COPY ignored.txt /app/"
         }
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 1,
   "summary": {
-    "total": 1,
     "errors": 0,
-    "warnings": 1,
+    "files": 1,
     "info": 0,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 1
+    "total": 1,
+    "warnings": 1
+  }
 }
-

@@ -2,7 +2,8 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 
@@ -23,9 +24,13 @@ func versionCommand() *cli.Command {
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Bool("json") {
-				enc := json.NewEncoder(os.Stdout)
-				enc.SetIndent("", "  ")
-				return enc.Encode(version.GetInfo())
+				return json.MarshalWrite(
+					os.Stdout,
+					version.GetInfo(),
+					jsontext.EscapeForHTML(true),
+					jsontext.WithIndentPrefix(""),
+					jsontext.WithIndent("  "),
+				)
 			}
 			fmt.Printf("tally version %s\n", version.Version())
 			return nil

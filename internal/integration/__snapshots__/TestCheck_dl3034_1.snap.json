@@ -4,36 +4,36 @@
       "file": "testdata/dl3034/Dockerfile",
       "violations": [
         {
+          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 4
+            },
             "file": "testdata/dl3034/Dockerfile",
             "start": {
-              "line": 4,
-              "column": 0
-            },
-            "end": {
-              "line": 4,
-              "column": 0
+              "column": 0,
+              "line": 4
             }
           },
-          "rule": "hadolint/DL3034",
           "message": "Non-interactive switch missing from `zypper` command: `zypper install -y`",
-          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "rule": "hadolint/DL3034",
           "severity": "warning",
-          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "sourceCode": "RUN zypper install httpd",
           "suggestedFix": {
             "description": "Add -n flag to zypper command",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 18,
+                    "line": 4
+                  },
                   "file": "testdata/dl3034/Dockerfile",
                   "start": {
-                    "line": 4,
-                    "column": 18
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": 18
+                    "column": 18,
+                    "line": 4
                   }
                 },
                 "newText": " -n"
@@ -42,36 +42,36 @@
           }
         },
         {
+          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 7
+            },
             "file": "testdata/dl3034/Dockerfile",
             "start": {
-              "line": 7,
-              "column": 0
-            },
-            "end": {
-              "line": 7,
-              "column": 0
+              "column": 0,
+              "line": 7
             }
           },
-          "rule": "hadolint/DL3034",
           "message": "Non-interactive switch missing from `zypper` command: `zypper install -y`",
-          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "rule": "hadolint/DL3034",
           "severity": "warning",
-          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "sourceCode": "RUN zypper in vim",
           "suggestedFix": {
             "description": "Add -n flag to zypper command",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 13,
+                    "line": 7
+                  },
                   "file": "testdata/dl3034/Dockerfile",
                   "start": {
-                    "line": 7,
-                    "column": 13
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": 13
+                    "column": 13,
+                    "line": 7
                   }
                 },
                 "newText": " -n"
@@ -80,36 +80,36 @@
           }
         },
         {
+          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 10
+            },
             "file": "testdata/dl3034/Dockerfile",
             "start": {
-              "line": 10,
-              "column": 0
-            },
-            "end": {
-              "line": 10,
-              "column": 0
+              "column": 0,
+              "line": 10
             }
           },
-          "rule": "hadolint/DL3034",
           "message": "Non-interactive switch missing from `zypper` command: `zypper install -y`",
-          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "rule": "hadolint/DL3034",
           "severity": "warning",
-          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "sourceCode": "RUN zypper remove nano",
           "suggestedFix": {
             "description": "Add -n flag to zypper command",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 17,
+                    "line": 10
+                  },
                   "file": "testdata/dl3034/Dockerfile",
                   "start": {
-                    "line": 10,
-                    "column": 17
-                  },
-                  "end": {
-                    "line": 10,
-                    "column": 17
+                    "column": 17,
+                    "line": 10
                   }
                 },
                 "newText": " -n"
@@ -118,36 +118,36 @@
           }
         },
         {
+          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 13
+            },
             "file": "testdata/dl3034/Dockerfile",
             "start": {
-              "line": 13,
-              "column": 0
-            },
-            "end": {
-              "line": 13,
-              "column": 0
+              "column": 0,
+              "line": 13
             }
           },
-          "rule": "hadolint/DL3034",
           "message": "Non-interactive switch missing from `zypper` command: `zypper install -y`",
-          "detail": "Running zypper install without -n will cause the command to wait for user confirmation, which will hang in Docker builds. Use -n, --non-interactive, -y, or --no-confirm to automatically confirm.",
+          "rule": "hadolint/DL3034",
           "severity": "warning",
-          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3034",
           "sourceCode": "RUN zypper patch",
           "suggestedFix": {
             "description": "Add -n flag to zypper command",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 16,
+                    "line": 13
+                  },
                   "file": "testdata/dl3034/Dockerfile",
                   "start": {
-                    "line": 13,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 13,
-                    "column": 16
+                    "column": 16,
+                    "line": 13
                   }
                 },
                 "newText": " -n"
@@ -158,15 +158,14 @@
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 1,
   "summary": {
-    "total": 4,
     "errors": 0,
-    "warnings": 4,
+    "files": 1,
     "info": 0,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 1
+    "total": 4,
+    "warnings": 4
+  }
 }
-

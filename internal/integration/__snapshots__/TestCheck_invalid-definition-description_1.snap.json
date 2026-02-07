@@ -4,36 +4,36 @@
       "file": "testdata/invalid-definition-description/Dockerfile",
       "violations": [
         {
+          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 4
+            },
             "file": "testdata/invalid-definition-description/Dockerfile",
             "start": {
-              "line": 4,
-              "column": 0
-            },
-            "end": {
-              "line": 4,
-              "column": 0
+              "column": 0,
+              "line": 4
             }
           },
-          "rule": "buildkit/InvalidDefinitionDescription",
           "message": "Comment for ARG should follow the format: `# foo \u003cdescription\u003e`",
-          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "rule": "buildkit/InvalidDefinitionDescription",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "sourceCode": "ARG foo=bar",
           "suggestedFix": {
             "description": "Add empty line between comment and instruction",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 21,
+                    "line": 3
+                  },
                   "file": "testdata/invalid-definition-description/Dockerfile",
                   "start": {
-                    "line": 3,
-                    "column": 21
-                  },
-                  "end": {
-                    "line": 3,
-                    "column": 21
+                    "column": 21,
+                    "line": 3
                   }
                 },
                 "newText": "\n"
@@ -43,36 +43,36 @@
           }
         },
         {
+          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 6
+            },
             "file": "testdata/invalid-definition-description/Dockerfile",
             "start": {
-              "line": 6,
-              "column": 0
-            },
-            "end": {
-              "line": 6,
-              "column": 0
+              "column": 0,
+              "line": 6
             }
           },
-          "rule": "buildkit/InvalidDefinitionDescription",
           "message": "Comment for FROM should follow the format: `# base \u003cdescription\u003e`",
-          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "rule": "buildkit/InvalidDefinitionDescription",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "sourceCode": "FROM scratch AS base",
           "suggestedFix": {
             "description": "Add empty line between comment and instruction",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 29,
+                    "line": 5
+                  },
                   "file": "testdata/invalid-definition-description/Dockerfile",
                   "start": {
-                    "line": 5,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 29
+                    "column": 29,
+                    "line": 5
                   }
                 },
                 "newText": "\n"
@@ -82,36 +82,36 @@
           }
         },
         {
+          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 8
+            },
             "file": "testdata/invalid-definition-description/Dockerfile",
             "start": {
-              "line": 8,
-              "column": 0
-            },
-            "end": {
-              "line": 8,
-              "column": 0
+              "column": 0,
+              "line": 8
             }
           },
-          "rule": "buildkit/InvalidDefinitionDescription",
           "message": "Comment for ARG should follow the format: `# version \u003cdescription\u003e`",
-          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "rule": "buildkit/InvalidDefinitionDescription",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "sourceCode": "ARG version=latest",
           "suggestedFix": {
             "description": "Add empty line between comment and instruction",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 26,
+                    "line": 7
+                  },
                   "file": "testdata/invalid-definition-description/Dockerfile",
                   "start": {
-                    "line": 7,
-                    "column": 26
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": 26
+                    "column": 26,
+                    "line": 7
                   }
                 },
                 "newText": "\n"
@@ -121,36 +121,36 @@
           }
         },
         {
+          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 10
+            },
             "file": "testdata/invalid-definition-description/Dockerfile",
             "start": {
-              "line": 10,
-              "column": 0
-            },
-            "end": {
-              "line": 10,
-              "column": 0
+              "column": 0,
+              "line": 10
             }
           },
-          "rule": "buildkit/InvalidDefinitionDescription",
           "message": "Comment for ARG should follow the format: `# baz \u003cdescription\u003e`",
-          "detail": "Comment for build stage or argument should follow the format: `# \u003carg/stage name\u003e \u003cdescription\u003e`. If this is not intended to be a description comment, add an empty line or comment between the instruction and the comment.",
+          "rule": "buildkit/InvalidDefinitionDescription",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/invalid-definition-description/",
           "sourceCode": "ARG baz=quux",
           "suggestedFix": {
             "description": "Add empty line between comment and instruction",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 26,
+                    "line": 9
+                  },
                   "file": "testdata/invalid-definition-description/Dockerfile",
                   "start": {
-                    "line": 9,
-                    "column": 26
-                  },
-                  "end": {
-                    "line": 9,
-                    "column": 26
+                    "column": 26,
+                    "line": 9
                   }
                 },
                 "newText": "\n"
@@ -162,15 +162,14 @@
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 1,
   "summary": {
-    "total": 4,
     "errors": 0,
-    "warnings": 4,
+    "files": 1,
     "info": 0,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 1
+    "total": 4,
+    "warnings": 4
+  }
 }
-

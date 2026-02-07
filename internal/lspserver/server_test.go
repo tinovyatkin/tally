@@ -53,7 +53,12 @@ func TestViolationRangeConversion(t *testing.T) {
 }
 
 func TestSeverityConversion(t *testing.T) {
-	snaps.MatchStandaloneJSON(t, map[string]protocol.DiagnosticSeverity{
+	snaps.WithConfig(
+		snaps.JSON(snaps.JSONConfig{
+			SortKeys: true,
+			Indent:   " ",
+		}),
+	).MatchStandaloneJSON(t, map[string]protocol.DiagnosticSeverity{
 		"error":   severityToLSP(rules.SeverityError),
 		"warning": severityToLSP(rules.SeverityWarning),
 		"info":    severityToLSP(rules.SeverityInfo),

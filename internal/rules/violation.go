@@ -48,15 +48,15 @@ type SuggestedFix struct {
 
 	// Safety indicates how reliable this fix is.
 	// Default (zero value) is FixSafe.
-	Safety FixSafety `json:"safety,omitempty"`
+	Safety FixSafety `json:"safety,omitzero"`
 
 	// IsPreferred marks this as the recommended fix when alternatives exist.
-	IsPreferred bool `json:"isPreferred,omitempty"`
+	IsPreferred bool `json:"isPreferred,omitzero"`
 
 	// NeedsResolve indicates this fix requires async resolution.
 	// When true, Edits is empty and ResolverID specifies which resolver to use.
 	// Examples: fetching image digests, computing file checksums.
-	NeedsResolve bool `json:"needsResolve,omitempty"`
+	NeedsResolve bool `json:"needsResolve,omitzero"`
 
 	// ResolverID identifies which FixResolver should compute the edits.
 	// Only used when NeedsResolve is true.
@@ -69,7 +69,7 @@ type SuggestedFix struct {
 	// Priority determines application order when multiple fixes exist.
 	// Copied from rule's FixPriority. Lower = applied first.
 	// Content fixes (priority 0) run before structural transforms (priority 100+).
-	Priority int `json:"priority,omitempty"`
+	Priority int `json:"priority,omitzero"`
 }
 
 // TextEdit represents a single text replacement in a file.

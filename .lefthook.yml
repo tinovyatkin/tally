@@ -9,7 +9,7 @@ pre-commit:
   commands:
     lint-go:
       glob: "**/*.go"
-      run: make lint-fix
+      run: GOEXPERIMENT=jsonv2 make lint-fix
       stage_fixed: true
     taplo:
       glob: "**/*.toml"
@@ -57,12 +57,12 @@ pre-push:
   parallel: true
   jobs:
     - name: build
-      run: make build
+      run: GOEXPERIMENT=jsonv2 make build
     - name: deadcode
-      run: make deadcode
+      run: GOEXPERIMENT=jsonv2 make deadcode
     - name: test
-      run: make test
+      run: GOEXPERIMENT=jsonv2 make test
     - name: validate-hadolint-status
       run: ./scripts/validate-hadolint-status.sh
     - name: validate-buildkit-rules
-      run: ./scripts/validate-buildkit-rules.sh
+      run: GOEXPERIMENT=jsonv2 ./scripts/validate-buildkit-rules.sh
