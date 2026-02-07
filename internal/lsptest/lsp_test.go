@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -235,10 +236,13 @@ func TestLSP_PullDiagnosticsFromDisk(t *testing.T) {
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 	require.NoError(t, os.WriteFile(dockerfilePath, []byte("FROM alpine:3.18\nMAINTAINER test@example.com\n"), 0o644))
 
-	uri := (&url.URL{
-		Scheme: "file",
-		Path:   filepath.ToSlash(dockerfilePath),
-	}).String()
+	// Construct a proper file:// URI. On Windows, paths like C:/... must
+	// become /C:/... in the URL path to avoid C: being parsed as the host.
+	uriPath := filepath.ToSlash(dockerfilePath)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	uri := (&url.URL{Scheme: "file", Path: uriPath}).String()
 
 	// Request pull diagnostics without opening the document.
 	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
