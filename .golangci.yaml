@@ -11,7 +11,7 @@ linters:
   enable:
     - customlint # Custom tally-specific rules
   disable:
-    - cyclop # complexity metrics - covered by gocyclo
+    # - cyclop # complexity metrics - covered by gocyclo
     - dupword # duplicate words - too noisy
     - err113 # dynamic errors - too strict for CLI tool
     - exhaustruct # requires all struct fields - too strict
@@ -39,6 +39,8 @@ linters:
     - wsl # whitespace linter - too strict
     - wsl_v5 # whitespace linter v5 - too strict
   settings:
+    cyclop:
+      max-complexity: 26
     custom:
       customlint:
         type: module
