@@ -2,12 +2,18 @@
   "prettier.enable": false,
   // https://golangci-lint.run/docs/welcome/integrations/#visual-studio-code
   "go.lintTool": "golangci-lint",
-  "go.lintFlags": ["--path-mode=abs", "--fast-only"],
+  "go.lintFlags": [
+    "--path-mode=abs",
+    "--fast-only"
+  ],
   "go.formatTool": "custom",
   "go.alternateTools": {
     "customFormatter": "golangci-lint"
   },
-  "go.formatFlags": ["fmt", "--stdin"],
+  "go.formatFlags": [
+    "fmt",
+    "--stdin"
+  ],
   "go.useLanguageServer": true,
   "[go]": {
     "editor.snippetSuggestions": "none",
@@ -37,5 +43,10 @@
   "[yaml]": {
     "editor.defaultFormatter": "JasonHeld.yamllint-ts",
     "files.insertFinalNewline": true
+  },
+  "go.toolsEnvVars": {
+    "GOEXPERIMENT": "jsonv2",
+    "GOSUMDB": "sum.golang.org",
+    "CGO_ENABLED": 0
   }
 }
