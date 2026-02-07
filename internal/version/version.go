@@ -3,6 +3,7 @@ package version
 import (
 	"runtime"
 	"runtime/debug"
+	"slices"
 )
 
 var version = "dev"
@@ -46,20 +47,19 @@ func readBuildInfo() (string, string) {
 		return "", ""
 	}
 	var bkVersion, commit string
-	for _, dep := range info.Deps {
-		if dep.Path == "github.com/moby/buildkit" {
-			bkVersion = dep.Version
-			break
-		}
+	if idx := slices.IndexFunc(info.Deps, func(dep *debug.Module) bool {
+		return dep.Path == "github.com/moby/buildkit"
+	}); idx >= 0 {
+		bkVersion = info.Deps[idx].Version
 	}
-	for _, s := range info.Settings {
-		if s.Key == "vcs.revision" {
-			if len(s.Value) > 12 {
-				commit = s.Value[:12]
-			} else {
-				commit = s.Value
-			}
-			break
+	if idx := slices.IndexFunc(info.Settings, func(s debug.BuildSetting) bool {
+		return s.Key == "vcs.revision"
+	}); idx >= 0 {
+		val := info.Settings[idx].Value
+		if len(val) > 12 {
+			commit = val[:12]
+		} else {
+			commit = val
 		}
 	}
 	return bkVersion, commit
