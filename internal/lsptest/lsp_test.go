@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -215,7 +216,7 @@ func TestLSP_PullDiagnosticsFromDisk(t *testing.T) {
 
 	// Write a Dockerfile to a temp directory so the server can read it from disk.
 	tmpDir := t.TempDir()
-	dockerfilePath := tmpDir + "/Dockerfile"
+	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 	require.NoError(t, os.WriteFile(dockerfilePath, []byte("FROM alpine:3.18\nMAINTAINER test@example.com\n"), 0o644))
 
 	uri := "file://" + dockerfilePath
@@ -338,6 +339,40 @@ func TestLSP_FormattingConsistentCasing(t *testing.T) {
 	// Apply edits to original content to produce the fixed Dockerfile.
 	// ApplyEdits also validates that edits are non-overlapping (LSP spec requirement).
 	fixed := applyEdits(t, uri, original, edits)
+
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
+}
+
+func TestLSP_FormattingRealWorld(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	// Real-world Dockerfile from internal/integration/testdata/benchmark-real-world-fix/.
+	original, err := os.ReadFile("../integration/testdata/benchmark-real-world-fix/Dockerfile")
+	require.NoError(t, err)
+
+	uri := "file:///tmp/test-formatting-realworld/Dockerfile"
+	ts.openDocument(t, uri, string(original))
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	// Request formatting.
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var edits []textEdit
+	err = ts.conn.Call(ctx, "textDocument/formatting", &documentFormattingParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Options:      formattingOptions{TabSize: 4, InsertSpaces: true},
+	}, &edits)
+	require.NoError(t, err)
+	require.NotEmpty(t, edits, "expected formatting edits for real-world Dockerfile")
+
+	// Apply edits to original content to produce the fixed Dockerfile.
+	// ApplyEdits also validates that edits are non-overlapping (LSP spec requirement).
+	fixed := applyEdits(t, uri, string(original), edits)
 
 	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
 }
