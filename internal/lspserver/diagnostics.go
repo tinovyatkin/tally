@@ -251,6 +251,8 @@ func violationRange(v rules.Violation) protocol.Range {
 }
 
 // severityToLSP converts a tally Severity to an LSP DiagnosticSeverity.
+// SeverityOff violations should be filtered by the processor chain (EnableFilter)
+// before reaching this function; it falls through to the default Warning mapping.
 func severityToLSP(s rules.Severity) protocol.DiagnosticSeverity {
 	switch s {
 	case rules.SeverityError:
@@ -262,7 +264,7 @@ func severityToLSP(s rules.Severity) protocol.DiagnosticSeverity {
 	case rules.SeverityStyle:
 		return protocol.DiagnosticSeverityHint
 	case rules.SeverityOff:
-		return protocol.DiagnosticSeverityHint
+		return protocol.DiagnosticSeverityWarning // filtered upstream; defensive fallback
 	default:
 		return protocol.DiagnosticSeverityWarning
 	}
