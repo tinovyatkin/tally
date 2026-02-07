@@ -309,6 +309,42 @@ func TestLSP_Formatting(t *testing.T) {
 	assert.True(t, found, "expected LABEL replacement in formatting edits")
 }
 
+func TestLSP_FormattingConsistentCasing(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	// Real content from internal/integration/testdata/consistent-instruction-casing/Dockerfile.
+	original := "# Test case for ConsistentInstructionCasing rule\nFROM alpine:3.18\nrun echo hello\nCOPY . /app\nworkdir /app\n"
+
+	uri := "file:///tmp/test-formatting-casing/Dockerfile"
+	ts.openDocument(t, uri, original)
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	// Request formatting.
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var edits []textEdit
+	err := ts.conn.Call(ctx, "textDocument/formatting", &documentFormattingParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Options:      formattingOptions{TabSize: 4, InsertSpaces: true},
+	}, &edits)
+	require.NoError(t, err)
+	require.NotEmpty(t, edits, "expected formatting edits for inconsistent casing")
+
+	// Apply edits to original content to produce the fixed Dockerfile.
+	// The formatter returns a single whole-document replacement edit.
+	fixed := original
+	for _, e := range edits {
+		fixed = applyTextEdit(fixed, e)
+	}
+
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
+}
+
 func TestLSP_FormattingNoChanges(t *testing.T) {
 	t.Parallel()
 	ts := startTestServer(t)
