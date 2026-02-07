@@ -57,9 +57,9 @@ func isRuleEnabled(ruleCode string, defaultSeverity rules.Severity, cfg *config.
 		return *enabled
 	}
 
-	// Check if severity is overridden to "off".
-	if sev := cfg.Rules.GetSeverity(ruleCode); sev == "off" {
-		return false
+	// Respect explicit severity overrides (on/off).
+	if sev := cfg.Rules.GetSeverity(ruleCode); sev != "" {
+		return sev != "off"
 	}
 
 	// Check if "off" rule is auto-enabled by having config options.
