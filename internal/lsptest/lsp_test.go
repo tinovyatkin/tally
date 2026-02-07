@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -322,14 +323,10 @@ func TestLSP_Formatting(t *testing.T) {
 	// MAINTAINER with LABEL.
 	require.NotEmpty(t, edits, "expected formatting edits for MAINTAINER → LABEL")
 
-	// Verify the replacement text contains the LABEL instruction.
-	found := false
-	for _, e := range edits {
-		if assert.Contains(t, e.NewText, `LABEL org.opencontainers.image.authors="test@example.com"`) {
-			found = true
-			break
-		}
-	}
+	// Verify at least one edit contains the LABEL instruction.
+	found := slices.ContainsFunc(edits, func(e textEdit) bool {
+		return strings.Contains(e.NewText, `LABEL org.opencontainers.image.authors="test@example.com"`)
+	})
 	assert.True(t, found, "expected LABEL replacement in formatting edits")
 }
 
