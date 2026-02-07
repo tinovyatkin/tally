@@ -77,7 +77,13 @@ type processIO struct {
 
 func (p *processIO) Read(data []byte) (int, error)  { return p.reader.Read(data) }
 func (p *processIO) Write(data []byte) (int, error) { return p.writer.Write(data) }
-func (p *processIO) Close() error                   { return p.writer.Close() }
+func (p *processIO) Close() error {
+	if err := p.reader.Close(); err != nil {
+		_ = p.writer.Close()
+		return err
+	}
+	return p.writer.Close()
+}
 
 // diagnosticsHandler routes server-to-client notifications and captures diagnostics.
 type diagnosticsHandler struct {
