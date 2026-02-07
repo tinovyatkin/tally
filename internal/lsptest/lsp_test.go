@@ -8,6 +8,7 @@ package lsptest
 import (
 	"context"
 	"encoding/json/jsontext"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -234,7 +235,10 @@ func TestLSP_PullDiagnosticsFromDisk(t *testing.T) {
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 	require.NoError(t, os.WriteFile(dockerfilePath, []byte("FROM alpine:3.18\nMAINTAINER test@example.com\n"), 0o644))
 
-	uri := "file://" + dockerfilePath
+	uri := (&url.URL{
+		Scheme: "file",
+		Path:   filepath.ToSlash(dockerfilePath),
+	}).String()
 
 	// Request pull diagnostics without opening the document.
 	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
