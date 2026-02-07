@@ -133,9 +133,6 @@ func startTestServer(t *testing.T) *testServer {
 	ts.conn = conn
 
 	t.Cleanup(func() {
-		if t.Failed() {
-			t.Logf("server stderr:\n%s", stderr.String())
-		}
 		if err := conn.Close(); err != nil {
 			t.Logf("lsp conn close: %v", err)
 		}
@@ -149,6 +146,10 @@ func startTestServer(t *testing.T) *testServer {
 				t.Logf("kill lsp server: %v", err)
 			}
 			<-done
+		}
+		// Log stderr after process exit to avoid data race on the buffer.
+		if t.Failed() {
+			t.Logf("server stderr:\n%s", stderr.String())
 		}
 	})
 
