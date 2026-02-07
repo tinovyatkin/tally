@@ -14,6 +14,13 @@
     "fmt",
     "--stdin"
   ],
+  "go.testTags": "testing",
+  "go.testEnvVars": {
+    "GOEXPERIMENT": "jsonv2",
+    "GOSUMDB": "sum.golang.org",
+    "CGO_ENABLED": 0
+  },
+  "go.vetOnSave": "workspace",
   "go.useLanguageServer": true,
   "[go]": {
     "editor.snippetSuggestions": "none",
