@@ -85,9 +85,10 @@ type diagnosticsHandler struct {
 func (h *diagnosticsHandler) Handle(_ context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) {
 	if req.Method == "textDocument/publishDiagnostics" && req.Params != nil {
 		var params publishDiagnosticsParams
-		if err := json.Unmarshal(*req.Params, &params); err == nil {
-			h.diagnosticsCh <- &params
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			panic("diagnosticsHandler: unmarshal failed: " + err.Error())
 		}
+		h.diagnosticsCh <- &params
 	}
 	// Notifications don't need a reply.
 }
