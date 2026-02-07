@@ -160,14 +160,11 @@ func TestLSP_CodeAction(t *testing.T) {
 	require.NotEmpty(t, diag.Diagnostics)
 
 	// Find the MaintainerDeprecated diagnostic.
-	var maintainerDiag *diagnostic
-	for i, d := range diag.Diagnostics {
-		if d.Code == "buildkit/MaintainerDeprecated" {
-			maintainerDiag = &diag.Diagnostics[i]
-			break
-		}
-	}
-	require.NotNil(t, maintainerDiag, "expected MaintainerDeprecated diagnostic for code action test")
+	idx := slices.IndexFunc(diag.Diagnostics, func(d diagnostic) bool {
+		return d.Code == "buildkit/MaintainerDeprecated"
+	})
+	require.GreaterOrEqual(t, idx, 0, "expected MaintainerDeprecated diagnostic for code action test")
+	maintainerDiag := &diag.Diagnostics[idx]
 
 	// Request code actions for the MAINTAINER line.
 	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
@@ -217,14 +214,9 @@ func TestLSP_PullDiagnosticsForOpenDocument(t *testing.T) {
 	assert.NotEmpty(t, report.ResultID)
 	assert.NotEmpty(t, report.Items, "expected diagnostics for Dockerfile with MAINTAINER")
 
-	hasMaintainer := false
-	for _, d := range report.Items {
-		if d.Code == "buildkit/MaintainerDeprecated" {
-			hasMaintainer = true
-			break
-		}
-	}
-	assert.True(t, hasMaintainer, "expected MaintainerDeprecated in pull diagnostics")
+	assert.True(t, slices.ContainsFunc(report.Items, func(d diagnostic) bool {
+		return d.Code == "buildkit/MaintainerDeprecated"
+	}), "expected MaintainerDeprecated in pull diagnostics")
 }
 
 func TestLSP_PullDiagnosticsFromDisk(t *testing.T) {
