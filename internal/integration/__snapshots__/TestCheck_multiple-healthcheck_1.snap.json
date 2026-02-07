@@ -4,35 +4,34 @@
       "file": "testdata/multiple-healthcheck/Dockerfile",
       "violations": [
         {
+          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3012",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 3
+            },
             "file": "testdata/multiple-healthcheck/Dockerfile",
             "start": {
-              "line": 3,
-              "column": 0
-            },
-            "end": {
-              "line": 3,
-              "column": 0
+              "column": 0,
+              "line": 3
             }
           },
-          "rule": "hadolint/DL3012",
           "message": "Multiple `HEALTHCHECK` instructions",
+          "rule": "hadolint/DL3012",
           "severity": "error",
-          "docUrl": "https://github.com/hadolint/hadolint/wiki/DL3012",
           "sourceCode": "HEALTHCHECK CMD echo ok"
         }
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 34,
   "summary": {
-    "total": 1,
     "errors": 1,
-    "warnings": 0,
+    "files": 1,
     "info": 0,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 34
+    "total": 1,
+    "warnings": 0
+  }
 }
-

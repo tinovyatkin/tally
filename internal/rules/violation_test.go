@@ -1,7 +1,7 @@
 package rules
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/moby/buildkit/frontend/dockerfile/parser"

@@ -4,36 +4,36 @@
       "file": "testdata/maintainer-deprecated/Dockerfile",
       "violations": [
         {
+          "detail": "The MAINTAINER instruction is deprecated, use a label instead to define an image author",
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/maintainer-deprecated/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 2
+            },
             "file": "testdata/maintainer-deprecated/Dockerfile",
             "start": {
-              "line": 2,
-              "column": 0
-            },
-            "end": {
-              "line": 2,
-              "column": 0
+              "column": 0,
+              "line": 2
             }
           },
-          "rule": "buildkit/MaintainerDeprecated",
           "message": "Maintainer instruction is deprecated in favor of using label",
-          "detail": "The MAINTAINER instruction is deprecated, use a label instead to define an image author",
+          "rule": "buildkit/MaintainerDeprecated",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/maintainer-deprecated/",
           "sourceCode": "MAINTAINER John Doe \u003cjohn@example.com\u003e",
           "suggestedFix": {
             "description": "Replace MAINTAINER with org.opencontainers.image.authors label",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 38,
+                    "line": 2
+                  },
                   "file": "testdata/maintainer-deprecated/Dockerfile",
                   "start": {
-                    "line": 2,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": 38
+                    "column": 0,
+                    "line": 2
                   }
                 },
                 "newText": "LABEL org.opencontainers.image.authors=\"John Doe \u003cjohn@example.com\u003e\""
@@ -45,15 +45,14 @@
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 1,
   "summary": {
-    "total": 1,
     "errors": 0,
-    "warnings": 1,
+    "files": 1,
     "info": 0,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 1
+    "total": 1,
+    "warnings": 1
+  }
 }
-

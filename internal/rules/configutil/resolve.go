@@ -2,7 +2,7 @@
 package configutil
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"reflect"
 	"strings"
@@ -36,6 +36,27 @@ func Resolve[T any](opts map[string]any, defaults T) T {
 
 	// Merge defaults for zero-valued fields
 	return mergeDefaults(result, defaults)
+}
+
+// Coerce converts a dynamic rule config value to a typed config with defaults.
+// Supported inputs:
+//   - T
+//   - *T
+//   - map[string]any (decoded via Resolve)
+//
+// Any unsupported value falls back to defaults.
+func Coerce[T any](config any, defaults T) T {
+	switch v := config.(type) {
+	case *T:
+		if v != nil {
+			return *v
+		}
+	case map[string]any:
+		return Resolve(v, defaults)
+	case T:
+		return v
+	}
+	return defaults
 }
 
 // mergeDefaults fills zero-valued fields in result with values from defaults.

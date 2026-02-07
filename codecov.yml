@@ -14,8 +14,11 @@ coverage:
 ignore:
   - "internal/testutil/**"
   - "internal/integration/testdata/**"
+  # Generated LSP protocol types.
+  - "internal/lsp/protocol/*_generated.go"
   - "scripts/**"
   # Go coverage profiles can use module-prefixed paths.
+  - "github.com/tinovyatkin/tally/internal/lsp/protocol/*_generated.go"
   - "github.com/tinovyatkin/tally/scripts/**"
 # Test analytics configuration
 # https://docs.codecov.com/docs/test-analytics

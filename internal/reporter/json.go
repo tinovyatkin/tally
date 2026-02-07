@@ -1,7 +1,8 @@
 package reporter
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"io"
 	"path/filepath"
 
@@ -78,9 +79,13 @@ func (r *JSONReporter) Report(violations []rules.Violation, _ map[string][]byte,
 		})
 	}
 
-	enc := json.NewEncoder(r.writer)
-	enc.SetIndent("", "  ")
-	return enc.Encode(output)
+	return json.MarshalWrite(
+		r.writer,
+		output,
+		jsontext.EscapeForHTML(true),
+		jsontext.WithIndentPrefix(""),
+		jsontext.WithIndent("  "),
+	)
 }
 
 // calculateSummary computes aggregate statistics from violations.

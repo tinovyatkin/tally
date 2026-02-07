@@ -4,35 +4,35 @@
       "file": "testdata/consistent-indentation/Dockerfile",
       "violations": [
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 3
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 3,
-              "column": 0
-            },
-            "end": {
-              "line": 3,
-              "column": 0
+              "column": 0,
+              "line": 3
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "WORKDIR /src",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 3
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 3,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 3,
-                    "column": 0
+                    "column": 0,
+                    "line": 3
                   }
                 },
                 "newText": "\t"
@@ -43,35 +43,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 4
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 4,
-              "column": 0
-            },
-            "end": {
-              "line": 4,
-              "column": 0
+              "column": 0,
+              "line": 4
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "COPY go.mod go.sum ./",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 4
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 4,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": 0
+                    "column": 0,
+                    "line": 4
                   }
                 },
                 "newText": "\t"
@@ -82,35 +82,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 5
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 5,
-              "column": 0
-            },
-            "end": {
-              "line": 5,
-              "column": 0
+              "column": 0,
+              "line": 5
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "RUN go mod download",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 5
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 5,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 0
+                    "column": 0,
+                    "line": 5
                   }
                 },
                 "newText": "\t"
@@ -121,35 +121,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 6
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 6,
-              "column": 0
-            },
-            "end": {
-              "line": 6,
-              "column": 0
+              "column": 0,
+              "line": 6
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "COPY . .",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 6
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 6,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 6,
-                    "column": 0
+                    "column": 0,
+                    "line": 6
                   }
                 },
                 "newText": "\t"
@@ -160,35 +160,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 7
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 7,
-              "column": 0
-            },
-            "end": {
-              "line": 7,
-              "column": 0
+              "column": 0,
+              "line": 7
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "RUN go build -o /app ./cmd/server",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 7
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 7,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": 0
+                    "column": 0,
+                    "line": 7
                   }
                 },
                 "newText": "\t"
@@ -199,35 +199,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 10
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 10,
-              "column": 0
-            },
-            "end": {
-              "line": 10,
-              "column": 0
+              "column": 0,
+              "line": 10
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "RUN apk --no-cache add ca-certificates tzdata",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 10
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 10,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 10,
-                    "column": 0
+                    "column": 0,
+                    "line": 10
                   }
                 },
                 "newText": "\t"
@@ -238,119 +238,119 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 11
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 11,
-              "column": 0
-            },
-            "end": {
-              "line": 11,
-              "column": 0
+              "column": 0,
+              "line": 11
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "RUN --mount=type=secret,id=pipconf,target=/root/.config/pip/pip.conf \\",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 11
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 11,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 11,
-                    "column": 0
+                    "column": 0,
+                    "line": 11
                   }
                 },
                 "newText": "\t"
               },
               {
                 "location": {
+                  "end": {
+                    "column": 9,
+                    "line": 12
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 12,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 12,
-                    "column": 9
+                    "column": 0,
+                    "line": 12
                   }
                 },
                 "newText": "\t"
               },
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 13
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 13,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 13,
-                    "column": 0
+                    "column": 0,
+                    "line": 13
                   }
                 },
                 "newText": "\t"
               },
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 14
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 14,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 14,
-                    "column": 0
+                    "column": 0,
+                    "line": 14
                   }
                 },
                 "newText": "\t"
               },
               {
                 "location": {
+                  "end": {
+                    "column": 5,
+                    "line": 15
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 15,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 15,
-                    "column": 5
+                    "column": 0,
+                    "line": 15
                   }
                 },
                 "newText": "\t"
               },
               {
                 "location": {
+                  "end": {
+                    "column": 2,
+                    "line": 16
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 16,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 16,
-                    "column": 2
+                    "column": 0,
+                    "line": 16
                   }
                 },
                 "newText": "\t"
               },
               {
                 "location": {
+                  "end": {
+                    "column": 6,
+                    "line": 17
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 17,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 17,
-                    "column": 6
+                    "column": 0,
+                    "line": 17
                   }
                 },
                 "newText": "\t"
@@ -361,35 +361,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 18
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 18,
-              "column": 0
-            },
-            "end": {
-              "line": 18,
-              "column": 0
+              "column": 0,
+              "line": 18
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "USER nobody:nobody",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 18
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 18,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 18,
-                    "column": 0
+                    "column": 0,
+                    "line": 18
                   }
                 },
                 "newText": "\t"
@@ -400,35 +400,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 21
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 21,
-              "column": 0
-            },
-            "end": {
-              "line": 21,
-              "column": 0
+              "column": 0,
+              "line": 21
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "COPY --from=builder /app /usr/local/bin/app",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 21
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 21,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 21,
-                    "column": 0
+                    "column": 0,
+                    "line": 21
                   }
                 },
                 "newText": "\t"
@@ -439,35 +439,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 22
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 22,
-              "column": 0
-            },
-            "end": {
-              "line": 22,
-              "column": 0
+              "column": 0,
+              "line": 22
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "EXPOSE 8080",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 22
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 22,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 22,
-                    "column": 0
+                    "column": 0,
+                    "line": 22
                   }
                 },
                 "newText": "\t"
@@ -478,35 +478,35 @@
           }
         },
         {
+          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 23
+            },
             "file": "testdata/consistent-indentation/Dockerfile",
             "start": {
-              "line": 23,
-              "column": 0
-            },
-            "end": {
-              "line": 23,
-              "column": 0
+              "column": 0,
+              "line": 23
             }
           },
-          "rule": "tally/consistent-indentation",
           "message": "missing indentation; expected 1 tab",
+          "rule": "tally/consistent-indentation",
           "severity": "style",
-          "docUrl": "https://github.com/tinovyatkin/tally/blob/main/docs/rules/tally/consistent-indentation.md",
           "sourceCode": "ENTRYPOINT [\"app\"]",
           "suggestedFix": {
             "description": "Fix indentation to 1 tab",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 0,
+                    "line": 23
+                  },
                   "file": "testdata/consistent-indentation/Dockerfile",
                   "start": {
-                    "line": 23,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 23,
-                    "column": 0
+                    "column": 0,
+                    "line": 23
                   }
                 },
                 "newText": "\t"
@@ -519,15 +519,14 @@
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 1,
   "summary": {
-    "total": 11,
     "errors": 0,
-    "warnings": 0,
+    "files": 1,
     "info": 0,
     "style": 11,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 1
+    "total": 11,
+    "warnings": 0
+  }
 }
-

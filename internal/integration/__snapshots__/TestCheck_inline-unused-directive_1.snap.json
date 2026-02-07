@@ -4,35 +4,34 @@
       "file": "testdata/inline-unused-directive/Dockerfile",
       "violations": [
         {
+          "detail": "Directive: # tally ignore=FAKE_UNUSED_RULE",
           "location": {
+            "end": {
+              "column": -1,
+              "line": -1
+            },
             "file": "testdata/inline-unused-directive/Dockerfile",
             "start": {
-              "line": 1,
-              "column": 0
-            },
-            "end": {
-              "line": -1,
-              "column": -1
+              "column": 0,
+              "line": 1
             }
           },
-          "rule": "unused-ignore-directive",
           "message": "ignore directive does not suppress any violations",
-          "detail": "Directive: # tally ignore=FAKE_UNUSED_RULE",
+          "rule": "unused-ignore-directive",
           "severity": "warning",
           "sourceCode": "# tally ignore=FAKE_UNUSED_RULE"
         }
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 1,
   "summary": {
-    "total": 1,
     "errors": 0,
-    "warnings": 1,
+    "files": 1,
     "info": 0,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 1
+    "total": 1,
+    "warnings": 1
+  }
 }
-

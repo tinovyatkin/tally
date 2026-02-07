@@ -1,0 +1,27 @@
+{
+ "capabilities": {
+  "codeActionProvider": {
+   "codeActionKinds": [
+    "quickfix",
+    "source.fixAll.tally"
+   ]
+  },
+  "diagnosticProvider": {
+   "identifier": "tally",
+   "interFileDependencies": false,
+   "workspaceDiagnostics": false
+  },
+  "documentFormattingProvider": true,
+  "textDocumentSync": {
+   "change": 1,
+   "openClose": true,
+   "save": {
+    "includeText": true
+   }
+  }
+ },
+ "serverInfo": {
+  "name": "tally",
+  "version": "<Any value>"
+ }
+}

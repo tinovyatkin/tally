@@ -4,35 +4,35 @@
       "file": "testdata/consistent-instruction-casing/Dockerfile",
       "violations": [
         {
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 3
+            },
             "file": "testdata/consistent-instruction-casing/Dockerfile",
             "start": {
-              "line": 3,
-              "column": 0
-            },
-            "end": {
-              "line": 3,
-              "column": 0
+              "column": 0,
+              "line": 3
             }
           },
-          "rule": "buildkit/ConsistentInstructionCasing",
           "message": "Command 'run' should match the case of the command majority (uppercase)",
+          "rule": "buildkit/ConsistentInstructionCasing",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
           "sourceCode": "run echo hello",
           "suggestedFix": {
             "description": "Change 'run' to 'RUN' to match majority casing",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 3,
+                    "line": 3
+                  },
                   "file": "testdata/consistent-instruction-casing/Dockerfile",
                   "start": {
-                    "line": 3,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 3,
-                    "column": 3
+                    "column": 0,
+                    "line": 3
                   }
                 },
                 "newText": "RUN"
@@ -42,35 +42,35 @@
           }
         },
         {
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
           "location": {
+            "end": {
+              "column": 0,
+              "line": 5
+            },
             "file": "testdata/consistent-instruction-casing/Dockerfile",
             "start": {
-              "line": 5,
-              "column": 0
-            },
-            "end": {
-              "line": 5,
-              "column": 0
+              "column": 0,
+              "line": 5
             }
           },
-          "rule": "buildkit/ConsistentInstructionCasing",
           "message": "Command 'workdir' should match the case of the command majority (uppercase)",
+          "rule": "buildkit/ConsistentInstructionCasing",
           "severity": "warning",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/consistent-instruction-casing/",
           "sourceCode": "workdir /app",
           "suggestedFix": {
             "description": "Change 'workdir' to 'WORKDIR' to match majority casing",
             "edits": [
               {
                 "location": {
+                  "end": {
+                    "column": 7,
+                    "line": 5
+                  },
                   "file": "testdata/consistent-instruction-casing/Dockerfile",
                   "start": {
-                    "line": 5,
-                    "column": 0
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 7
+                    "column": 0,
+                    "line": 5
                   }
                 },
                 "newText": "WORKDIR"
@@ -82,15 +82,14 @@
       ]
     }
   ],
+  "files_scanned": 1,
+  "rules_enabled": 1,
   "summary": {
-    "total": 2,
     "errors": 0,
-    "warnings": 2,
+    "files": 1,
     "info": 0,
     "style": 0,
-    "files": 1
-  },
-  "files_scanned": 1,
-  "rules_enabled": 1
+    "total": 2,
+    "warnings": 2
+  }
 }
-

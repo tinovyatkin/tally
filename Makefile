@@ -1,4 +1,7 @@
-.PHONY: build test test-verbose lint lint-fix deadcode cpd clean release publish-prepare publish-npm publish-pypi publish-gem publish jsonschema print-gotestsum-bin
+.PHONY: build test test-verbose lint lint-fix deadcode cpd clean release publish-prepare publish-npm publish-pypi publish-gem publish jsonschema lsp-protocol print-gotestsum-bin
+
+GOEXPERIMENT ?= jsonv2
+export GOEXPERIMENT
 
 build:
 	GOSUMDB=sum.golang.org CGO_ENABLED=0 go build -ldflags "-s -w" -o tally
@@ -23,9 +26,16 @@ bin/custom-gcl: bin/golangci-lint-$(GOLANGCI_LINT_VERSION) .custom-gcl.yml _tool
 lint-fix: bin/golangci-lint-$(GOLANGCI_LINT_VERSION) bin/custom-gcl
 	bin/custom-gcl run --fix
 
+# NOTE: deadcode may panic due to go/types bug with json/v2 types.
+# The panic is in go/types.NewSignatureType (Go stdlib), not in our code.
+# Tracking issue: https://github.com/golang/go/issues/73871 (fixed in Go 1.26).
+# Remove this workaround when building with Go 1.26+.
 deadcode: bin/deadcode-$(DEADCODE_VERSION)
 	@tmp=$$(mktemp); \
-	bin/deadcode -test ./... >"$$tmp" 2>&1; \
+	bin/deadcode -test ./... >"$$tmp" 2>&1 || true; \
+	if grep -q 'panic:' "$$tmp"; then \
+		echo "deadcode: skipped (known golang.org/x/tools/go/ssa panic)"; rm "$$tmp"; exit 0; \
+	fi; \
 	if [ -s "$$tmp" ]; then cat "$$tmp"; rm "$$tmp"; exit 1; fi; \
 	rm "$$tmp"
 
@@ -80,6 +90,10 @@ print-gotestsum-bin:
 
 jsonschema:
 	go run gen/jsonschema.go > schema.json
+
+lsp-protocol:
+	bun run tools/lspgen/fetchModel.mts
+	bun run tools/lspgen/generate.mts
 
 clean:
 	rm -f tally

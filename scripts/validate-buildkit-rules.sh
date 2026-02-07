@@ -15,4 +15,6 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$ROOT_DIR"
 
 echo "Validating BuildKit rule docs..."
+: "${GOEXPERIMENT:=jsonv2}"
+export GOEXPERIMENT
 go run ./scripts/sync-buildkit-rules --check

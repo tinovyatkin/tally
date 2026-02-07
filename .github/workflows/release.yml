@@ -1,21 +1,20 @@
+---
 name: release
-
 on:
   push:
     tags:
       - "v*"
-
   workflow_dispatch:
     inputs:
       version:
         description: "Version to release (e.g., 0.2.0)"
         required: true
         type: string
-
 permissions:
   contents: write
   id-token: write
-
+env:
+  GOEXPERIMENT: jsonv2
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,15 +23,12 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
       - name: Fetch all tags
         run: git fetch --force --tags
-
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -41,36 +37,29 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Preserve artifacts permissions with tar
         run: tar -cvf dist.tar dist/
-
       - uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist.tar
-
   sign-macos:
     needs: build
     runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Download artifacts
         uses: actions/download-artifact@v7
         with:
           name: dist
-
       - name: Extract artifacts
         run: tar -xvf dist.tar
-
       - name: Import Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v6
         with:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-
       - name: Sign macOS Binaries
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -107,7 +96,6 @@ jobs:
             # Clean up zip
             rm "${binary}.zip"
           done
-
       - name: Re-create darwin archives with signed binaries
         run: |
           # Get version from tag
@@ -135,7 +123,6 @@ jobs:
           cd dist
           shasum -a 256 "tally_${VERSION}_MacOS_arm64.tar.gz" "tally_${VERSION}_MacOS_x86_64.tar.gz" > darwin_checksums.txt
           cat darwin_checksums.txt
-
       - name: Upload signed archives to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -154,23 +141,19 @@ jobs:
           grep -v "MacOS" /tmp/tally_checksums.txt > /tmp/tally_checksums_updated.txt || true
           cat dist/darwin_checksums.txt >> /tmp/tally_checksums_updated.txt
           gh release upload "$GITHUB_REF_NAME" /tmp/tally_checksums_updated.txt --clobber
-
       - name: Re-package signed artifacts
         run: tar -cvf dist-signed.tar dist/
-
       - name: Upload signed artifacts
         uses: actions/upload-artifact@v6
         with:
           name: dist-signed
           path: dist-signed.tar
-
   publish-homebrew:
     needs: sign-macos
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Generate Homebrew formula
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -197,7 +180,6 @@ jobs:
 
           # Show generated formula
           cat tally.rb
-
       - name: Setup SSH for tap repository
         run: |
           mkdir -p ~/.ssh
@@ -211,7 +193,6 @@ jobs:
             IdentityFile ~/.ssh/homebrew_tap_key
             IdentitiesOnly yes
           EOF
-
       - name: Push to Homebrew tap
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -230,7 +211,6 @@ jobs:
           git add Formula/tally.rb
           git commit -m "tally ${VERSION}" || echo "No changes to commit"
           git push
-
   publish-npm:
     needs: sign-macos
     runs-on: ubuntu-latest
@@ -241,25 +221,20 @@ jobs:
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
-
       - uses: actions/download-artifact@v7
         with:
           name: dist-signed
       - run: tar -xvf dist-signed.tar
-
       - uses: actions/setup-node@v6
         with:
           node-version: 24.13.0
-
       - name: Update npm
         run: npm install -g npm@latest
-
       - name: Publish to NPM
         run: |
           cd packaging/
           ruby pack.rb prepare
           ruby pack.rb publish_npm
-
   publish-pypi:
     needs: sign-macos
     runs-on: ubuntu-latest
@@ -270,25 +245,21 @@ jobs:
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
-
       - uses: actions/download-artifact@v7
         with:
           name: dist-signed
       - run: tar -xvf dist-signed.tar
-
       - name: Setup uv with python
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: "3.12"
           ignore-nothing-to-cache: true
-
       - name: Publish to PyPI
         run: |
           cd packaging/
           ruby pack.rb prepare
           ruby pack.rb publish_pypi
-
   publish-gem:
     needs: sign-macos
     runs-on: ubuntu-latest
@@ -302,15 +273,12 @@ jobs:
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
-
       - uses: actions/download-artifact@v7
         with:
           name: dist-signed
       - run: tar -xvf dist-signed.tar
-
       - name: Configure RubyGems Trusted Publishing
         uses: rubygems/configure-rubygems-credentials@main
-
       - name: Publish to Rubygems
         run: |
           cd packaging/
