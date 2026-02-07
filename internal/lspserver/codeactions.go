@@ -87,11 +87,13 @@ func convertTextEdits(edits []rules.TextEdit) []*protocol.TextEdit {
 }
 
 // rangesOverlap checks if two LSP ranges overlap.
+// LSP ranges are half-open [start, end), so touching ranges (a.End == b.Start)
+// are not considered overlapping.
 func rangesOverlap(a, b protocol.Range) bool {
-	if a.End.Line < b.Start.Line || (a.End.Line == b.Start.Line && a.End.Character < b.Start.Character) {
+	if a.End.Line < b.Start.Line || (a.End.Line == b.Start.Line && a.End.Character <= b.Start.Character) {
 		return false
 	}
-	if b.End.Line < a.Start.Line || (b.End.Line == a.Start.Line && b.End.Character < a.Start.Character) {
+	if b.End.Line < a.Start.Line || (b.End.Line == a.Start.Line && b.End.Character <= a.Start.Character) {
 		return false
 	}
 	return true
