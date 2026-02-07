@@ -296,7 +296,7 @@ func uriToPath(docURI string) string {
 	return filepath.FromSlash(path)
 }
 
-// computeEnabledRules returns a sorted list of enabled rule codes.
+// computeEnabledRules returns the list of enabled rule codes.
 func computeEnabledRules(cfg *config.Config) []string {
 	var enabled []string
 	for _, rule := range rules.All() {
