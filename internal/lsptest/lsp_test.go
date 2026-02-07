@@ -7,6 +7,7 @@ package lsptest
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -269,6 +270,70 @@ func TestLSP_PullDiagnosticsCacheUnchanged(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "unchanged", report2.Kind)
 	assert.Equal(t, report1.ResultID, report2.ResultID)
+}
+
+func TestLSP_Formatting(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	uri := "file:///tmp/test-formatting/Dockerfile"
+	ts.openDocument(t, uri, "FROM alpine:3.18\nMAINTAINER test@example.com\n")
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	// Request formatting.
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var edits []textEdit
+	err := ts.conn.Call(ctx, "textDocument/formatting", &documentFormattingParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Options:      formattingOptions{TabSize: 4, InsertSpaces: true},
+	}, &edits)
+	require.NoError(t, err)
+
+	// The MaintainerDeprecated fix is FixSafe, so formatting should replace
+	// MAINTAINER with LABEL.
+	require.NotEmpty(t, edits, "expected formatting edits for MAINTAINER → LABEL")
+
+	// Verify the replacement text contains the LABEL instruction.
+	found := false
+	for _, e := range edits {
+		if assert.Contains(t, e.NewText, `LABEL org.opencontainers.image.authors="test@example.com"`) {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected LABEL replacement in formatting edits")
+}
+
+func TestLSP_FormattingNoChanges(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	uri := "file:///tmp/test-formatting-noop/Dockerfile"
+	// A clean Dockerfile with no fixable issues.
+	ts.openDocument(t, uri, "FROM alpine:3.18\nRUN echo hello\n")
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	// Request formatting.
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var raw json.RawMessage
+	err := ts.conn.Call(ctx, "textDocument/formatting", &documentFormattingParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Options:      formattingOptions{TabSize: 4, InsertSpaces: true},
+	}, &raw)
+	require.NoError(t, err)
+
+	// When there are no changes, the server should return null.
+	assert.True(t, raw == nil || string(raw) == "null", "expected null response for clean document, got: %s", string(raw))
 }
 
 func TestLSP_MethodNotFound(t *testing.T) {

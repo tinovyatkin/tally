@@ -5,24 +5,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/urfave/cli/v3"
 
 	"github.com/tinovyatkin/tally/internal/config"
 	"github.com/tinovyatkin/tally/internal/context"
-	"github.com/tinovyatkin/tally/internal/directive"
 	"github.com/tinovyatkin/tally/internal/discovery"
 	"github.com/tinovyatkin/tally/internal/dockerfile"
 	"github.com/tinovyatkin/tally/internal/fix"
+	"github.com/tinovyatkin/tally/internal/linter"
 	"github.com/tinovyatkin/tally/internal/processor"
 	"github.com/tinovyatkin/tally/internal/reporter"
 	"github.com/tinovyatkin/tally/internal/rules"
-	_ "github.com/tinovyatkin/tally/internal/rules/all" // Register all rules
-	"github.com/tinovyatkin/tally/internal/rules/buildkit"
-	"github.com/tinovyatkin/tally/internal/rules/buildkit/fixes"
-	"github.com/tinovyatkin/tally/internal/semantic"
-	"github.com/tinovyatkin/tally/internal/sourcemap"
 	"github.com/tinovyatkin/tally/internal/version"
 )
 
@@ -196,102 +190,37 @@ func checkCommand() *cli.Command {
 					firstCfg = cfg
 				}
 
-				// Parse the Dockerfile (pass config to optimize BuildKit's linter)
-				parseResult, err := dockerfile.ParseFile(ctx, file, cfg)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error: failed to parse %s: %v\n", file, err)
-					os.Exit(ExitConfigError)
-				}
-
-				// Store source for later use in text output
-				fileSources[file] = parseResult.Source
-
-				// Parse directives early to extract shell directives for the semantic model
-				sm := sourcemap.New(parseResult.Source)
-				directiveResult := directive.Parse(sm, nil)
-
-				// Build semantic model for cross-instruction analysis
-				// Note: buildArgs will be populated when --build-arg flag is implemented
-				var buildArgs map[string]string
-				sem := semantic.NewBuilder(parseResult, buildArgs, file).
-					WithShellDirectives(directiveResult.ShellDirectives).
-					Build()
-
-				// Create build context if context directory is specified
+				// Build context for context-aware rules (e.g. .dockerignore checks).
+				// This requires parsing the Dockerfile first to extract heredoc files.
 				var buildCtx rules.BuildContext
 				if df.ContextDir != "" {
-					buildCtx, err = context.New(df.ContextDir, file,
-						context.WithHeredocFiles(extractHeredocFiles(parseResult)))
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Warning: failed to create build context: %v\n", err)
-						// Continue without context - rules will skip context-aware checks
+					parseResult, parseErr := dockerfile.ParseFile(ctx, file, cfg)
+					if parseErr == nil {
+						buildCtx, err = context.New(df.ContextDir, file,
+							context.WithHeredocFiles(extractHeredocFiles(parseResult)))
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: failed to create build context: %v\n", err)
+						}
 					}
 				}
 
-				// Compute list of enabled rules for cross-rule coordination
-				enabledRules := computeEnabledRules(cfg)
-
-				// Build base LintInput (without rule-specific config)
-				baseInput := rules.LintInput{
-					File:               file,
-					AST:                parseResult.AST,
-					Stages:             parseResult.Stages,
-					MetaArgs:           parseResult.MetaArgs,
-					Source:             parseResult.Source,
-					Semantic:           sem,
-					Context:            buildCtx,
-					EnabledRules:       enabledRules,
-					HeredocMinCommands: getHeredocMinCommands(cfg),
+				// Run the shared lint pipeline.
+				result, err := linter.LintFile(linter.Input{
+					FilePath:     file,
+					Config:       cfg,
+					BuildContext: buildCtx,
+				})
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: failed to lint %s: %v\n", file, err)
+					os.Exit(ExitConfigError)
 				}
 
-				// Collect construction-time violations from semantic analysis
-				var violations []rules.Violation
-				for _, issue := range sem.ConstructionIssues() {
-					violations = append(violations, rules.NewViolation(
-						rules.NewLocationFromRange(issue.File, issue.Location),
-						issue.Code,
-						issue.Message,
-						rules.SeverityError,
-					).WithDocURL(issue.DocURL))
-				}
-				for _, rule := range rules.All() {
-					// Clone input and set rule-specific config
-					input := baseInput
-					input.Config = getRuleConfig(rule.Metadata().Code, cfg)
-					violations = append(violations, rule.Check(input)...)
-				}
-
-				// Convert BuildKit warnings to violations
-				for _, w := range parseResult.Warnings {
-					violations = append(violations, rules.NewViolationFromBuildKitWarning(
-						file,
-						w.RuleName,
-						w.Description,
-						w.URL,
-						w.Message,
-						w.Location,
-					))
-				}
-
-				// Enrich BuildKit violations with auto-fix suggestions
-				fixes.EnrichBuildKitFixes(violations, sem, parseResult.Source)
-
-				allViolations = append(allViolations, violations...)
+				fileSources[file] = result.ParseResult.Source
+				allViolations = append(allViolations, result.Violations...)
 			}
 
-			// Build processor chain for violation processing
-			// Order matters: severity first, then filter, then transform, then output preparation
-			inlineFilter := processor.NewInlineDirectiveFilter()
-			chain := processor.NewChain(
-				processor.NewPathNormalization(),   // Normalize paths for cross-platform consistency
-				processor.NewSeverityOverride(),    // Apply severity overrides (must run before EnableFilter)
-				processor.NewEnableFilter(),        // Filter rules with severity="off"
-				processor.NewPathExclusionFilter(), // Apply per-rule path exclusions
-				inlineFilter,                       // Apply inline ignore directives
-				processor.NewDeduplication(),       // Remove duplicate violations
-				processor.NewSorting(),             // Stable output ordering
-				processor.NewSnippetAttachment(),   // Attach source code snippets
-			)
+			// Build processor chain for violation processing.
+			chain, inlineFilter := linter.CLIProcessors()
 
 			// Process all violations through the chain
 			// Each file gets its own config for rule enable/disable, severity, etc.
@@ -381,7 +310,7 @@ func checkCommand() *cli.Command {
 
 			// Calculate metadata for report
 			// Count rules that are effectively enabled based on config
-			rulesEnabled := countEffectivelyEnabledRules(firstCfg)
+			rulesEnabled := len(linter.EnabledRuleCodes(firstCfg))
 			metadata := reporter.ReportMetadata{
 				FilesScanned: len(discovered),
 				RulesEnabled: rulesEnabled,
@@ -602,104 +531,6 @@ func validateRuleConfigs(cfg *config.Config, file string) {
 	}
 }
 
-// getRuleConfig returns the appropriate config for a rule based on its code.
-// This allows each rule to receive its own typed config from the global config.
-func getRuleConfig(ruleCode string, cfg *config.Config) any {
-	// Return the rule's options map from config
-	// The rule's resolveConfig method handles converting map to typed config
-	return cfg.Rules.GetOptions(ruleCode)
-}
-
-// getHeredocMinCommands extracts the min-commands setting from the prefer-run-heredoc config.
-// Returns 0 if not configured (the LintInput will use the default).
-func getHeredocMinCommands(cfg *config.Config) int {
-	if cfg == nil {
-		return 0
-	}
-	opts := cfg.Rules.GetOptions(rules.HeredocRuleCode)
-	if len(opts) == 0 {
-		return 0
-	}
-	if minCmds, ok := opts["min-commands"]; ok {
-		switch v := minCmds.(type) {
-		case int:
-			return v
-		case float64:
-			return int(v)
-		}
-	}
-	return 0
-}
-
-// computeEnabledRules returns a list of all rule codes that are enabled in the current run.
-// This allows rules to check if other rules are active and coordinate behavior.
-// For example, DL3003 can skip its fix if prefer-run-heredoc is enabled.
-func computeEnabledRules(cfg *config.Config) []string {
-	enabledSet := make(map[string]struct{})
-
-	// Collect registered rules (tally/*, hadolint/*, and implemented buildkit/* rules)
-	registry := rules.DefaultRegistry()
-	for _, rule := range registry.All() {
-		if isRuleEnabled(rule.Metadata().Code, rule.Metadata().DefaultSeverity, cfg) {
-			enabledSet[rule.Metadata().Code] = struct{}{}
-		}
-	}
-
-	// Collect BuildKit parse-time rules that can be captured by tally.
-	for _, info := range buildkit.Captured() {
-		ruleCode := rules.BuildKitRulePrefix + info.Name
-		if isRuleEnabled(ruleCode, info.DefaultSeverity, cfg) {
-			enabledSet[ruleCode] = struct{}{}
-		}
-	}
-
-	// Collect semantic construction rules (emitted outside the registry).
-	for _, ruleCode := range semantic.ConstructionRuleCodes() {
-		if isRuleEnabled(ruleCode, rules.SeverityError, cfg) {
-			enabledSet[ruleCode] = struct{}{}
-		}
-	}
-
-	enabled := make([]string, 0, len(enabledSet))
-	for ruleCode := range enabledSet {
-		enabled = append(enabled, ruleCode)
-	}
-	sort.Strings(enabled)
-	return enabled
-}
-
-// countEffectivelyEnabledRules returns the number of rules that are actually enabled
-// after applying config overrides (include/exclude patterns and severity overrides).
-func countEffectivelyEnabledRules(cfg *config.Config) int {
-	return len(computeEnabledRules(cfg))
-}
-
-// isRuleEnabled checks if a rule is effectively enabled based on config.
-func isRuleEnabled(ruleCode string, defaultSeverity rules.Severity, cfg *config.Config) bool {
-	if cfg == nil {
-		return defaultSeverity != rules.SeverityOff
-	}
-
-	// Check if explicitly disabled by exclude pattern
-	enabled := cfg.Rules.IsEnabled(ruleCode)
-	if enabled != nil {
-		return *enabled
-	}
-
-	// Check if severity is overridden to "off"
-	if sev := cfg.Rules.GetSeverity(ruleCode); sev == "off" {
-		return false
-	}
-
-	// Check if "off" rule is auto-enabled by having config options
-	if defaultSeverity == rules.SeverityOff {
-		ruleConfig := cfg.Rules.Get(ruleCode)
-		return ruleConfig != nil && len(ruleConfig.Options) > 0
-	}
-
-	// Use default severity
-	return defaultSeverity != rules.SeverityOff
-}
 
 // extractHeredocFiles extracts virtual file paths from heredoc COPY/ADD commands.
 // These are inline files created by heredoc syntax that should not be checked

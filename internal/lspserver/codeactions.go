@@ -11,10 +11,9 @@ func (s *Server) codeActionsForDocument(
 	doc *Document,
 	params *protocol.CodeActionParams,
 ) []protocol.CodeAction {
-	filePath := uriToPath(doc.URI)
 	content := []byte(doc.Content)
 
-	violations := lintFile(filePath, content)
+	violations := s.lintContent(doc.URI, content)
 
 	actions := make([]protocol.CodeAction, 0, len(violations))
 

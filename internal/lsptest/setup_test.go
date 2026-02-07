@@ -392,3 +392,18 @@ type unchangedDocumentDiagnosticReport struct {
 	Kind     string `json:"kind"`
 	ResultID string `json:"resultId"`
 }
+
+// Formatting types (textDocument/formatting).
+
+type documentFormattingParams struct {
+	TextDocument textDocumentIdentifier `json:"textDocument"`
+	Options      formattingOptions      `json:"options"`
+}
+
+type formattingOptions struct {
+	TabSize                uint32 `json:"tabSize"`
+	InsertSpaces           bool   `json:"insertSpaces"`
+	TrimTrailingWhitespace bool   `json:"trimTrailingWhitespace,omitempty"`
+	InsertFinalNewline     bool   `json:"insertFinalNewline,omitempty"`
+	TrimFinalNewlines      bool   `json:"trimFinalNewlines,omitempty"`
+}

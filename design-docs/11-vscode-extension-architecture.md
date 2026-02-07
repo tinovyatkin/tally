@@ -690,7 +690,8 @@ Add schema-specific steps to the same release workflow:
 ### Phase 3: Code actions and fix on save
 
 - Implement quick fixes and `source.fixAll.tally`.
-- Implement `textDocument/formatting` with style-safe formatting profile.
+- ~~Implement `textDocument/formatting` with style-safe formatting profile.~~ **Done** (`internal/lspserver/formatting.go`, composes
+  `internal/linter/` + `internal/fix/`)
 - Implement command-based full-file fix.
 - Add fix conflict-safe aggregation using existing fixer pipeline.
 - Add integration tests for save behavior.
@@ -756,14 +757,14 @@ Policy:
 - Optional external tooling (not required for CI):
   - `pytest-lsp` for extra cross-ecosystem protocol validation
   - `lsp-devtools` (`agent`/`record`/`inspect`) for ad-hoc trace debugging
-- ~~Assert contract-level scenarios:~~ **Done** (8 parallel tests)
+- ~~Assert contract-level scenarios:~~ **Done** (10 parallel tests)
   - ~~`initialize` + capabilities~~ **Done** (`TestLSP_Initialize`)
   - ~~`didOpen`/`didChange`/`didSave` diagnostic lifecycle~~ **Done** (`TestLSP_DiagnosticsOnDidOpen`, `TestLSP_DiagnosticsUpdatedOnDidChange`,
     `TestLSP_DiagnosticsOnDidSave`, `TestLSP_DiagnosticsClearedOnClose`)
   - ~~`textDocument/codeAction` (`quickfix`)~~ **Done** (`TestLSP_CodeAction`)
   - `textDocument/codeAction` (`source.fixAll.tally`) — blocked on server implementation
   - `workspace/executeCommand` (`tally.applyAllFixes`) — blocked on server implementation
-  - `textDocument/formatting` — blocked on server implementation
+  - ~~`textDocument/formatting`~~ **Done** (`TestLSP_Formatting`, `TestLSP_FormattingNoChanges`)
   - `workspace/didChangeConfiguration` recomputation behavior — blocked on server implementation
 - ~~Lifecycle test: shutdown + exit~~ **Done** (`TestLSP_ShutdownExit`)
 - ~~Error handling: unknown method~~ **Done** (`TestLSP_MethodNotFound`)

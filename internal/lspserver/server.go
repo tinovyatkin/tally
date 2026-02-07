@@ -83,6 +83,8 @@ func (s *Server) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.
 		return unmarshalAndCall(req, s.handleCodeAction)
 	case string(protocol.MethodTextDocumentDiagnostic):
 		return unmarshalAndCall(req, s.handleDiagnostic)
+	case string(protocol.MethodTextDocumentFormatting):
+		return unmarshalAndCall(req, s.handleFormatting)
 
 	// Workspace
 	case "workspace/didChangeConfiguration":
@@ -165,6 +167,9 @@ func (s *Server) handleInitialize(params *protocol.InitializeParams) (any, error
 						"source.fixAll.tally",
 					}),
 				},
+			},
+			DocumentFormattingProvider: &protocol.BooleanOrDocumentFormattingOptions{
+				Boolean: ptrTo(true),
 			},
 			DiagnosticProvider: &protocol.DiagnosticOptionsOrRegistrationOptions{
 				Options: &protocol.DiagnosticOptions{

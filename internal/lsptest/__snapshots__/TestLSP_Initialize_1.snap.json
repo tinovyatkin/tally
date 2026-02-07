@@ -11,6 +11,7 @@
    "interFileDependencies": false,
    "workspaceDiagnostics": false
   },
+  "documentFormattingProvider": true,
   "textDocumentSync": {
    "change": 1,
    "openClose": true,

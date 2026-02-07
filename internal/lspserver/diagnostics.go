@@ -1,7 +1,6 @@
 package lspserver
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -18,14 +17,9 @@ import (
 	protocol "github.com/tinovyatkin/tally/internal/lsp/protocol"
 
 	"github.com/tinovyatkin/tally/internal/config"
-	"github.com/tinovyatkin/tally/internal/directive"
-	"github.com/tinovyatkin/tally/internal/dockerfile"
+	"github.com/tinovyatkin/tally/internal/linter"
 	"github.com/tinovyatkin/tally/internal/processor"
 	"github.com/tinovyatkin/tally/internal/rules"
-	_ "github.com/tinovyatkin/tally/internal/rules/all" // Register all rules.
-	"github.com/tinovyatkin/tally/internal/rules/buildkit/fixes"
-	"github.com/tinovyatkin/tally/internal/semantic"
-	"github.com/tinovyatkin/tally/internal/sourcemap"
 )
 
 // publishDiagnostics lints a document and publishes diagnostics to the client.
@@ -108,7 +102,7 @@ func (s *Server) pullDiagnosticsFromDisk(filePath string, previousResultID *stri
 		}, nil
 	}
 
-	violations := lintFile(filePath, content)
+	violations := s.lintContent("file://"+filePath, content)
 	diagnostics := convertDiagnostics(violations)
 
 	return &protocol.DocumentDiagnosticResponse{
@@ -125,81 +119,41 @@ func contentHash(content []byte) string {
 	return hex.EncodeToString(h[:8])
 }
 
-// lintContent runs the full tally lint pipeline on in-memory content.
-func (s *Server) lintContent(docURI string, content []byte) []rules.Violation {
+// lintInput builds a linter.Input for the given document.
+// Config comes from s.resolveConfig() — currently disk-only,
+// but designed for future workspace/didChangeConfiguration support.
+func (s *Server) lintInput(docURI string, content []byte) linter.Input {
 	filePath := uriToPath(docURI)
-	return lintFile(filePath, content)
+	return linter.Input{
+		FilePath: filePath,
+		Content:  content,
+		Config:   s.resolveConfig(filePath),
+	}
 }
 
-// lintFile runs the full lint pipeline for a file path and content.
-func lintFile(filePath string, content []byte) []rules.Violation {
-	cfg, err := config.Load(filePath)
-	if err != nil {
-		log.Printf("lsp: config load error for %s: %v", filePath, err)
-		cfg = config.Default()
-	}
+// resolveConfig returns the effective config for a file path.
+// Currently returns nil (LintFile discovers from disk).
+// When workspace/didChangeConfiguration is implemented, this will merge
+// editor settings with filesystem config per configurationPreference.
+func (s *Server) resolveConfig(_ string) *config.Config {
+	return nil
+}
 
-	parseResult, err := dockerfile.Parse(bytes.NewReader(content), cfg)
+// lintContent runs the shared lint pipeline and applies LSP-specific processors.
+func (s *Server) lintContent(docURI string, content []byte) []rules.Violation {
+	input := s.lintInput(docURI, content)
+	result, err := linter.LintFile(input)
 	if err != nil {
-		log.Printf("lsp: parse error for %s: %v", filePath, err)
+		log.Printf("lsp: lint error for %s: %v", input.FilePath, err)
 		return nil
 	}
-
-	sm := sourcemap.New(content)
-	directiveResult := directive.Parse(sm, nil)
-
-	sem := semantic.NewBuilder(parseResult, nil, filePath).
-		WithShellDirectives(directiveResult.ShellDirectives).
-		Build()
-
-	enabledRules := computeEnabledRules(cfg)
-
-	baseInput := rules.LintInput{
-		File:               filePath,
-		AST:                parseResult.AST,
-		Stages:             parseResult.Stages,
-		MetaArgs:           parseResult.MetaArgs,
-		Source:             content,
-		Semantic:           sem,
-		EnabledRules:       enabledRules,
-		HeredocMinCommands: getHeredocMinCommands(cfg),
-	}
-
-	violations := make([]rules.Violation, 0, len(sem.ConstructionIssues())+len(rules.All())+len(parseResult.Warnings))
-	for _, issue := range sem.ConstructionIssues() {
-		violations = append(violations, rules.NewViolation(
-			rules.NewLocationFromRange(issue.File, issue.Location),
-			issue.Code, issue.Message, rules.SeverityError,
-		).WithDocURL(issue.DocURL))
-	}
-
-	for _, rule := range rules.All() {
-		input := baseInput
-		input.Config = cfg.Rules.GetOptions(rule.Metadata().Code)
-		violations = append(violations, rule.Check(input)...)
-	}
-
-	for _, w := range parseResult.Warnings {
-		violations = append(violations, rules.NewViolationFromBuildKitWarning(
-			filePath, w.RuleName, w.Description, w.URL, w.Message, w.Location,
-		))
-	}
-
-	fixes.EnrichBuildKitFixes(violations, sem, content)
-
-	fileConfigs := map[string]*config.Config{filePath: cfg}
-	fileSources := map[string][]byte{filePath: content}
-	chain := processor.NewChain(
-		processor.NewSeverityOverride(),
-		processor.NewEnableFilter(),
-		processor.NewInlineDirectiveFilter(),
-		processor.NewDeduplication(),
-		processor.NewSorting(),
+	chain := linter.LSPProcessors()
+	ctx := processor.NewContext(
+		map[string]*config.Config{input.FilePath: result.Config},
+		result.Config,
+		map[string][]byte{input.FilePath: content},
 	)
-	procCtx := processor.NewContext(fileConfigs, cfg, fileSources)
-	violations = chain.Process(violations, procCtx)
-
-	return violations
+	return chain.Process(result.Violations, ctx)
 }
 
 // convertDiagnostics converts tally violations to LSP diagnostics.
@@ -296,52 +250,3 @@ func uriToPath(docURI string) string {
 	return filepath.FromSlash(path)
 }
 
-// computeEnabledRules returns the list of enabled rule codes.
-func computeEnabledRules(cfg *config.Config) []string {
-	var enabled []string
-	for _, rule := range rules.All() {
-		meta := rule.Metadata()
-		if isRuleEnabled(meta.Code, meta.DefaultSeverity, cfg) {
-			enabled = append(enabled, meta.Code)
-		}
-	}
-	return enabled
-}
-
-// isRuleEnabled checks if a rule is enabled based on config.
-func isRuleEnabled(ruleCode string, defaultSeverity rules.Severity, cfg *config.Config) bool {
-	if cfg == nil {
-		return defaultSeverity != rules.SeverityOff
-	}
-	if enabled := cfg.Rules.IsEnabled(ruleCode); enabled != nil {
-		return *enabled
-	}
-	if sev := cfg.Rules.GetSeverity(ruleCode); sev == "off" {
-		return false
-	}
-	if defaultSeverity == rules.SeverityOff {
-		ruleConfig := cfg.Rules.Get(ruleCode)
-		return ruleConfig != nil && len(ruleConfig.Options) > 0
-	}
-	return defaultSeverity != rules.SeverityOff
-}
-
-// getHeredocMinCommands extracts the min-commands setting from config.
-func getHeredocMinCommands(cfg *config.Config) int {
-	if cfg == nil {
-		return 0
-	}
-	opts := cfg.Rules.GetOptions(rules.HeredocRuleCode)
-	if len(opts) == 0 {
-		return 0
-	}
-	if minCmds, ok := opts["min-commands"]; ok {
-		switch v := minCmds.(type) {
-		case int:
-			return v
-		case float64:
-			return int(v)
-		}
-	}
-	return 0
-}
