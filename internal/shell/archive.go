@@ -142,8 +142,8 @@ func DropQuotes(s string) string {
 }
 
 // DownloadOutputFile extracts the output filename from a curl or wget CommandInfo.
-// For curl: -o <file>, --output <file>, --output=<file>
-// For wget: -O <file>, --output-document <file>, --output-document=<file>
+// For curl: -o <file>, -o<file>, --output <file>, --output=<file>
+// For wget: -O <file>, -O<file>, --output-document <file>, --output-document=<file>
 // Returns "" if no output file is specified or if output is stdout ("-").
 func DownloadOutputFile(cmd *CommandInfo) string {
 	var short, long string
@@ -156,12 +156,21 @@ func DownloadOutputFile(cmd *CommandInfo) string {
 		return ""
 	}
 	for i, arg := range cmd.Args {
+		// --output=<file> / --output-document=<file>
 		if after, found := strings.CutPrefix(arg, long+"="); found {
 			if after == "-" {
 				return ""
 			}
 			return after
 		}
+		// Attached short form: -o<file> / -O<file>
+		if after, found := strings.CutPrefix(arg, short); found && after != "" {
+			if after == "-" {
+				return ""
+			}
+			return after
+		}
+		// Spaced form: -o <file> / --output <file>
 		if (arg == short || arg == long) && i+1 < len(cmd.Args) {
 			val := cmd.Args[i+1]
 			if val == "-" {

@@ -188,6 +188,11 @@ func TestDownloadOutputFile(t *testing.T) {
 			"/tmp/app.tar.gz",
 		},
 		{
+			"curl -ofile attached",
+			CommandInfo{Name: "curl", Args: []string{"-oapp.tar.gz", "https://example.com/dl"}},
+			"app.tar.gz",
+		},
+		{
 			"curl no -o",
 			CommandInfo{Name: "curl", Args: []string{"-fsSL", "https://example.com/app.tar.gz"}},
 			"",
@@ -211,6 +216,16 @@ func TestDownloadOutputFile(t *testing.T) {
 			"wget --output-document=file",
 			CommandInfo{Name: "wget", Args: []string{"--output-document=/tmp/data.tar", "https://example.com/dl"}},
 			"/tmp/data.tar",
+		},
+		{
+			"wget -Ofile attached",
+			CommandInfo{Name: "wget", Args: []string{"-O/tmp/data.tar", "https://example.com/dl"}},
+			"/tmp/data.tar",
+		},
+		{
+			"wget -O- stdout attached",
+			CommandInfo{Name: "wget", Args: []string{"-O-", "https://example.com/dl"}},
+			"",
 		},
 		{
 			"wget no -O",
