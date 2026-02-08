@@ -196,12 +196,12 @@ func GetRunCommandString(run *instructions.RunCommand) string {
 }
 
 // allowedFixCommands is the set of command names that are allowed in a "simple"
-// download+extract RUN instruction eligible for auto-fix.
+// download+extract RUN instruction eligible for auto-fix. Only commands whose
+// semantics are fully captured by ADD --unpack are included; other extractors
+// (gunzip, unzip, etc.) would be silently dropped by the fix.
 var allowedFixCommands = map[string]bool{
 	"curl": true, "wget": true, // download
-	"tar": true, // archive extraction
-	"unzip": true, "gunzip": true, "bunzip2": true, "unlzma": true, "unxz": true,
-	"zgz": true, "uncompress": true, "zcat": true, "gzcat": true, // other extraction
+	"tar": true, // archive extraction (the only extractor ADD --unpack replaces)
 }
 
 // buildAddUnpackFix creates a SuggestedFix for a RUN instruction that downloads
