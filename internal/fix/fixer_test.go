@@ -9,6 +9,7 @@ import (
 )
 
 func TestApplyEdit_SingleLine(t *testing.T) {
+	t.Parallel()
 	content := []byte("FROM alpine\nRUN apt install curl")
 
 	// Replace "apt" with "apt-get" on line 2 (1-based), columns 4-7
@@ -26,6 +27,7 @@ func TestApplyEdit_SingleLine(t *testing.T) {
 }
 
 func TestApplyEdit_MultiLine(t *testing.T) {
+	t.Parallel()
 	content := []byte("FROM alpine\nRUN apt install \\\n    curl")
 
 	// Replace entire RUN command (lines 2-3, 1-based)
@@ -43,6 +45,7 @@ func TestApplyEdit_MultiLine(t *testing.T) {
 }
 
 func TestFixer_Apply_SingleFix(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("FROM alpine\nRUN apt install curl"),
 	}
@@ -87,6 +90,7 @@ func TestFixer_Apply_SingleFix(t *testing.T) {
 }
 
 func TestFixer_Apply_SafetyFilter(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("RUN apt search foo"),
 	}
@@ -133,6 +137,7 @@ func TestFixer_Apply_SafetyFilter(t *testing.T) {
 }
 
 func TestFixer_Apply_RuleFilter(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("RUN apt install curl"),
 	}
@@ -179,6 +184,7 @@ func TestFixer_Apply_RuleFilter(t *testing.T) {
 }
 
 func TestFixer_Apply_ConflictingFixes(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("RUN apt install curl"),
 	}
@@ -246,6 +252,7 @@ func TestFixer_Apply_ConflictingFixes(t *testing.T) {
 }
 
 func TestFixer_Apply_InterleavingConflict(t *testing.T) {
+	t.Parallel()
 	// Test that multi-edit fixes properly reserve all their edits to prevent
 	// interleaving conflicts. Without proper reservation, a candidate B could
 	// be approved between when candidate A is checked and when A's later edit
@@ -358,6 +365,7 @@ func TestFixer_Apply_InterleavingConflict(t *testing.T) {
 }
 
 func TestFixer_Apply_CrossPriorityColumnDrift(t *testing.T) {
+	t.Parallel()
 	// Test that when edits from different priority groups modify the same line,
 	// the later-priority edit's column positions are adjusted to account for
 	// content changes from the earlier-priority edit.
@@ -440,6 +448,7 @@ func TestFixer_Apply_CrossPriorityColumnDrift(t *testing.T) {
 }
 
 func TestFixer_Apply_CrossPrioritySameLengthReplace(t *testing.T) {
+	t.Parallel()
 	// Test that same-length replacements (like casing fixes) don't interfere
 	// with subsequent edits on the same line, since they produce zero column drift.
 	//
@@ -506,6 +515,7 @@ func TestFixer_Apply_CrossPrioritySameLengthReplace(t *testing.T) {
 }
 
 func TestFixer_Apply_MultipleFixes(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("FROM alpine\nRUN apt install curl\nRUN apt update"),
 	}
@@ -561,6 +571,7 @@ func TestFixer_Apply_MultipleFixes(t *testing.T) {
 }
 
 func TestResult_Methods(t *testing.T) {
+	t.Parallel()
 	result := &Result{
 		Changes: map[string]*FileChange{
 			"a.txt": {
@@ -590,6 +601,7 @@ func TestResult_Methods(t *testing.T) {
 }
 
 func TestFixer_Apply_ViolationWithoutFix(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("FROM alpine"),
 	}
@@ -619,6 +631,7 @@ func TestFixer_Apply_ViolationWithoutFix(t *testing.T) {
 }
 
 func TestFixer_Apply_FixWithNoEdits(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("FROM alpine"),
 	}
@@ -656,6 +669,7 @@ func TestFixer_Apply_FixWithNoEdits(t *testing.T) {
 }
 
 func TestFixer_Apply_FixModeNever(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("RUN apt install curl"),
 	}
@@ -705,6 +719,7 @@ func TestFixer_Apply_FixModeNever(t *testing.T) {
 }
 
 func TestFixer_Apply_FixModeExplicit(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("RUN apt install curl"),
 	}
@@ -758,6 +773,7 @@ func TestFixer_Apply_FixModeExplicit(t *testing.T) {
 }
 
 func TestFixer_Apply_FixModeUnsafeOnly(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("RUN apt install curl"),
 	}
@@ -811,6 +827,7 @@ func TestFixer_Apply_FixModeUnsafeOnly(t *testing.T) {
 }
 
 func TestFixer_Apply_UnknownFixMode(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("RUN apt install curl"),
 	}
@@ -853,6 +870,7 @@ func TestFixer_Apply_UnknownFixMode(t *testing.T) {
 }
 
 func TestFixer_Apply_PerFileFixModes(t *testing.T) {
+	t.Parallel()
 	// Two files with the same violation type but different fix modes
 	sources := map[string][]byte{
 		"file1.Dockerfile": []byte("RUN apt install curl"),
@@ -936,6 +954,7 @@ func TestFixer_Apply_PerFileFixModes(t *testing.T) {
 }
 
 func TestApplyEdit_CRLF(t *testing.T) {
+	t.Parallel()
 	// Test with Windows-style line endings
 	content := []byte("FROM alpine\r\nRUN apt install curl\r\n")
 
@@ -953,6 +972,7 @@ func TestApplyEdit_CRLF(t *testing.T) {
 }
 
 func TestApplyEdit_CRLF_ReplacementWithNewlines(t *testing.T) {
+	t.Parallel()
 	// Test that replacement text with embedded LF newlines is normalized to CRLF
 	// when the file uses CRLF line endings. This prevents mixed line endings.
 	content := []byte("FROM alpine\r\nRUN cd /app && make\r\n")
@@ -974,6 +994,7 @@ func TestApplyEdit_CRLF_ReplacementWithNewlines(t *testing.T) {
 }
 
 func TestApplyEdit_CRLF_ReplacementWithMixedNewlines(t *testing.T) {
+	t.Parallel()
 	// Test that replacement text with mixed CRLF/LF newlines is fully normalized
 	content := []byte("FROM alpine\r\nRUN echo hello\r\n")
 
@@ -993,6 +1014,7 @@ func TestApplyEdit_CRLF_ReplacementWithMixedNewlines(t *testing.T) {
 }
 
 func TestApplyEdit_InvalidStartLine(t *testing.T) {
+	t.Parallel()
 	content := []byte("FROM alpine\nRUN echo hello")
 
 	// Line 0 is invalid (1-based, so line 0 becomes -1 after conversion)
@@ -1009,6 +1031,7 @@ func TestApplyEdit_InvalidStartLine(t *testing.T) {
 }
 
 func TestApplyEdit_InvalidEndLine(t *testing.T) {
+	t.Parallel()
 	content := []byte("FROM alpine")
 
 	// End line 100 is beyond file
@@ -1025,12 +1048,13 @@ func TestApplyEdit_InvalidEndLine(t *testing.T) {
 }
 
 func TestApplyEdit_NegativeColumn(t *testing.T) {
+	t.Parallel()
 	content := []byte("FROM alpine")
 
 	// Negative column should be clamped to 0
 	edit := rules.TextEdit{
 		Location: rules.Location{
-			File: "Dockerfile",
+			File:  "Dockerfile",
 			Start: rules.Position{Line: 1, Column: -5},
 			End:   rules.Position{Line: 1, Column: 4},
 		},
@@ -1046,6 +1070,7 @@ func TestApplyEdit_NegativeColumn(t *testing.T) {
 }
 
 func TestApplyEdit_ColumnBeyondLineLength(t *testing.T) {
+	t.Parallel()
 	content := []byte("FROM alpine")
 
 	// Column 100 is beyond line length, should be clamped
@@ -1063,6 +1088,7 @@ func TestApplyEdit_ColumnBeyondLineLength(t *testing.T) {
 }
 
 func TestApplyEdit_NegativeEndColumn(t *testing.T) {
+	t.Parallel()
 	content := []byte("FROM alpine")
 
 	// Negative end column should be clamped to 0
@@ -1100,6 +1126,7 @@ func (r *testResolver) Resolve(ctx context.Context, resolveCtx ResolveContext, f
 }
 
 func TestFixer_Apply_AsyncFix_WithResolver(t *testing.T) {
+	// Not parallel: mutates global resolver registry.
 	ClearResolvers()
 	defer ClearResolvers()
 
@@ -1153,6 +1180,7 @@ func TestFixer_Apply_AsyncFix_WithResolver(t *testing.T) {
 }
 
 func TestFixer_Apply_AsyncFix_ResolverError(t *testing.T) {
+	// Not parallel: mutates global resolver registry.
 	ClearResolvers()
 	defer ClearResolvers()
 
@@ -1204,6 +1232,7 @@ func TestFixer_Apply_AsyncFix_ResolverError(t *testing.T) {
 }
 
 func TestFixer_Apply_AsyncFix_UnknownResolver(t *testing.T) {
+	// Not parallel: mutates global resolver registry.
 	ClearResolvers()
 	defer ClearResolvers()
 
@@ -1241,6 +1270,7 @@ func TestFixer_Apply_AsyncFix_UnknownResolver(t *testing.T) {
 }
 
 func TestFixer_Apply_ViolationForUnknownFile(t *testing.T) {
+	t.Parallel()
 	sources := map[string][]byte{
 		"Dockerfile": []byte("FROM alpine"),
 	}
@@ -1298,6 +1328,7 @@ func TestFixer_Apply_ViolationForUnknownFile(t *testing.T) {
 }
 
 func TestFixer_Apply_DefaultConcurrency(t *testing.T) {
+	// Not parallel: mutates global resolver registry.
 	ClearResolvers()
 	defer ClearResolvers()
 

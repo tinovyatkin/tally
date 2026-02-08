@@ -19,6 +19,7 @@ type TestConfig struct {
 }
 
 func TestResolve_EmptyOpts(t *testing.T) {
+	t.Parallel()
 	defaults := TestConfig{
 		IntField:    42,
 		BoolField:   true,
@@ -39,6 +40,7 @@ func TestResolve_EmptyOpts(t *testing.T) {
 }
 
 func TestResolve_MergesWithDefaults(t *testing.T) {
+	t.Parallel()
 	intVal := 50
 	defaults := TestConfig{
 		IntField:    50,
@@ -69,6 +71,7 @@ func TestResolve_MergesWithDefaults(t *testing.T) {
 }
 
 func TestResolve_ZeroValuesGetDefaults(t *testing.T) {
+	t.Parallel()
 	defaults := TestConfig{
 		IntField:    50,
 		BoolField:   true,
@@ -92,6 +95,7 @@ func TestResolve_ZeroValuesGetDefaults(t *testing.T) {
 }
 
 func TestResolve_SliceHandling(t *testing.T) {
+	t.Parallel()
 	defaults := TestConfig{
 		SliceField: []string{"default1", "default2"},
 	}
@@ -117,6 +121,7 @@ func TestResolve_SliceHandling(t *testing.T) {
 }
 
 func TestResolve_InvalidType(t *testing.T) {
+	t.Parallel()
 	defaults := TestConfig{IntField: 42}
 
 	// Invalid type should fall back to defaults
@@ -131,6 +136,7 @@ func TestResolve_InvalidType(t *testing.T) {
 }
 
 func TestValidateWithSchema_NilInputs(t *testing.T) {
+	t.Parallel()
 	// Nil schema should return nil
 	if err := ValidateWithSchema(map[string]any{}, nil); err != nil {
 		t.Errorf("expected nil, got %v", err)
@@ -150,6 +156,7 @@ func TestValidateWithSchema_NilInputs(t *testing.T) {
 }
 
 func TestValidateWithSchema_ValidConfig(t *testing.T) {
+	t.Parallel()
 	schema := map[string]any{
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
 		"type":    "object",
@@ -175,6 +182,7 @@ func TestValidateWithSchema_ValidConfig(t *testing.T) {
 }
 
 func TestValidateWithSchema_InvalidSchema(t *testing.T) {
+	t.Parallel()
 	// Invalid schema should return error
 	badSchema := map[string]any{
 		"type": "invalid-type",
@@ -188,6 +196,7 @@ func TestValidateWithSchema_InvalidSchema(t *testing.T) {
 }
 
 func TestValidateWithSchema_ComplexTypes(t *testing.T) {
+	t.Parallel()
 	schema := map[string]any{
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
 		"type":    "object",
@@ -221,6 +230,7 @@ func TestValidateWithSchema_ComplexTypes(t *testing.T) {
 }
 
 func TestResolve_PointerFields(t *testing.T) {
+	t.Parallel()
 	intVal := 100
 	boolVal := true
 	defaults := TestConfig{
@@ -240,6 +250,7 @@ func TestResolve_PointerFields(t *testing.T) {
 }
 
 func TestResolve_TrustedRegistries(t *testing.T) {
+	t.Parallel()
 	type Config struct {
 		TrustedRegistries []string `koanf:"trusted-registries"`
 	}
@@ -262,6 +273,7 @@ func TestResolve_TrustedRegistries(t *testing.T) {
 }
 
 func TestResolve_UintAndFloatDefaults(t *testing.T) {
+	t.Parallel()
 	defaults := TestConfig{
 		UintField:  10,
 		FloatField: 3.14,
@@ -291,6 +303,7 @@ func TestResolve_UintAndFloatDefaults(t *testing.T) {
 }
 
 func TestMergeDefaults_NonStruct(t *testing.T) {
+	t.Parallel()
 	// mergeDefaults with a non-struct type should return result unchanged
 	got := mergeDefaults(42, 100)
 	if got != 42 {
@@ -304,6 +317,7 @@ func TestMergeDefaults_NonStruct(t *testing.T) {
 }
 
 func TestMergeDefaults_UnexportedFields(t *testing.T) {
+	t.Parallel()
 	type config struct {
 		Public  int
 		private int
@@ -319,6 +333,7 @@ func TestMergeDefaults_UnexportedFields(t *testing.T) {
 }
 
 func TestValidateWithSchema_ErrorMessages(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		schema      map[string]any
@@ -373,6 +388,7 @@ func TestValidateWithSchema_ErrorMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateWithSchema(tt.config, tt.schema)
 			if err == nil {
 				t.Fatal("expected validation error, got nil")

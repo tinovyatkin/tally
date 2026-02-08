@@ -9,6 +9,7 @@ import (
 )
 
 func TestGitHubActionsReporter(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -77,6 +78,7 @@ func TestGitHubActionsReporter(t *testing.T) {
 }
 
 func TestGitHubActionsReporterSeverityMapping(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		severity rules.Severity
@@ -90,6 +92,7 @@ func TestGitHubActionsReporterSeverityMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := severityToGitHubLevel(tt.severity)
 			if result != tt.expected {
 				t.Errorf("severityToGitHubLevel(%v) = %q, want %q", tt.severity, result, tt.expected)
@@ -99,6 +102,7 @@ func TestGitHubActionsReporterSeverityMapping(t *testing.T) {
 }
 
 func TestGitHubActionsReporterEmpty(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	reporter := NewGitHubActionsReporter(&buf)
 
@@ -113,6 +117,7 @@ func TestGitHubActionsReporterEmpty(t *testing.T) {
 }
 
 func TestGitHubActionsReporterMessageEscaping(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -147,6 +152,7 @@ func TestGitHubActionsReporterMessageEscaping(t *testing.T) {
 }
 
 func TestGitHubActionsReporterPropertyEscaping(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -186,6 +192,7 @@ func TestGitHubActionsReporterPropertyEscaping(t *testing.T) {
 }
 
 func TestGitHubActionsReporterSorting(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{

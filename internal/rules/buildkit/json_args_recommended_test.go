@@ -10,6 +10,7 @@ import (
 )
 
 func TestJSONArgsRecommendedRule_Check_AndFix(t *testing.T) {
+	t.Parallel()
 	df := `FROM alpine
 CMD echo hello # trailing comment
 ENTRYPOINT echo 'hello world'

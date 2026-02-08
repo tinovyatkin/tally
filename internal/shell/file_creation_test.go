@@ -8,6 +8,7 @@ import (
 )
 
 func TestDetectFileCreation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		script     string
@@ -108,10 +109,10 @@ func TestDetectFileCreation(t *testing.T) {
 			wantPath: "/app/file",
 		},
 		{
-			name:    "command substitution - unsafe",
-			script:  `echo "$(date)" > /app/file`,
-			variant: VariantBash,
-			wantPath: "/app/file",
+			name:       "command substitution - unsafe",
+			script:     `echo "$(date)" > /app/file`,
+			variant:    VariantBash,
+			wantPath:   "/app/file",
 			wantUnsafe: true,
 		},
 		{
@@ -172,6 +173,7 @@ func TestDetectFileCreation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := DetectFileCreation(tt.script, tt.variant, nil)
 
 			if tt.wantNil {
@@ -201,6 +203,7 @@ func TestDetectFileCreation(t *testing.T) {
 }
 
 func TestIsPureFileCreation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		script  string
@@ -265,6 +268,7 @@ func TestIsPureFileCreation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := IsPureFileCreation(tt.script, tt.variant)
 			if got != tt.want {
 				t.Errorf("IsPureFileCreation() = %v, want %v", got, tt.want)
@@ -274,6 +278,7 @@ func TestIsPureFileCreation(t *testing.T) {
 }
 
 func TestIsOctalMode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  bool
@@ -284,10 +289,10 @@ func TestIsOctalMode(t *testing.T) {
 		{"0644", true},
 		{"777", true},
 		{"0777", true},
-		{"1755", true},  // sticky bit
-		{"2755", true},  // setgid
-		{"4755", true},  // setuid
-		{"4777", true},  // setuid + all perms
+		{"1755", true}, // sticky bit
+		{"2755", true}, // setgid
+		{"4755", true}, // setuid
+		{"4777", true}, // setuid + all perms
 		{"+x", false},
 		{"u+rwx", false},
 		{"a+r", false},
@@ -299,6 +304,7 @@ func TestIsOctalMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := isOctalMode(tt.input)
 			if got != tt.want {
 				t.Errorf("isOctalMode(%q) = %v, want %v", tt.input, got, tt.want)
@@ -308,6 +314,7 @@ func TestIsOctalMode(t *testing.T) {
 }
 
 func TestIsSymbolicMode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  bool
@@ -330,6 +337,7 @@ func TestIsSymbolicMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := isSymbolicMode(tt.input)
 			if got != tt.want {
 				t.Errorf("isSymbolicMode(%q) = %v, want %v", tt.input, got, tt.want)
@@ -339,6 +347,7 @@ func TestIsSymbolicMode(t *testing.T) {
 }
 
 func TestSymbolicToOctal(t *testing.T) {
+	t.Parallel()
 	// Base mode 0o644 (default for newly created files)
 	tests := []struct {
 		symbolic string
@@ -386,6 +395,7 @@ func TestSymbolicToOctal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.symbolic, func(t *testing.T) {
+			t.Parallel()
 			got := symbolicToOctal(tt.symbolic, tt.base)
 			if got != tt.want {
 				t.Errorf("symbolicToOctal(%q, %04o) = %04o, want %04o", tt.symbolic, tt.base, got, tt.want)
@@ -395,6 +405,7 @@ func TestSymbolicToOctal(t *testing.T) {
 }
 
 func TestParseOctalMode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  uint16
@@ -412,6 +423,7 @@ func TestParseOctalMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := ParseOctalMode(tt.input)
 			if got != tt.want {
 				t.Errorf("ParseOctalMode(%q) = %04o, want %04o", tt.input, got, tt.want)
@@ -421,6 +433,7 @@ func TestParseOctalMode(t *testing.T) {
 }
 
 func TestFormatOctalMode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input uint16
 		want  string
@@ -435,6 +448,7 @@ func TestFormatOctalMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
 			got := FormatOctalMode(tt.input)
 			if got != tt.want {
 				t.Errorf("FormatOctalMode(%04o) = %q, want %q", tt.input, got, tt.want)
@@ -444,6 +458,7 @@ func TestFormatOctalMode(t *testing.T) {
 }
 
 func TestDetectFileCreationWithKnownVars(t *testing.T) {
+	t.Parallel()
 	knownVars := func(name string) bool {
 		return name == "APP_CONFIG" || name == "VERSION"
 	}
@@ -487,6 +502,7 @@ func TestDetectFileCreationWithKnownVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := DetectFileCreation(tt.script, VariantBash, knownVars)
 			if result == nil {
 				t.Fatal("expected non-nil result")
@@ -499,6 +515,7 @@ func TestDetectFileCreationWithKnownVars(t *testing.T) {
 }
 
 func TestDetectStandaloneChmod(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		script   string
@@ -556,6 +573,7 @@ func TestDetectStandaloneChmod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := DetectStandaloneChmod(tt.script, tt.variant)
 			if tt.wantNil {
 				if result != nil {
@@ -577,6 +595,7 @@ func TestDetectStandaloneChmod(t *testing.T) {
 }
 
 func TestDetectFileCreationCatHeredoc(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		script      string
@@ -607,6 +626,7 @@ func TestDetectFileCreationCatHeredoc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := DetectFileCreation(tt.script, VariantBash, nil)
 			if tt.wantNil {
 				if result != nil {
@@ -631,6 +651,7 @@ func TestDetectFileCreationCatHeredoc(t *testing.T) {
 }
 
 func TestDetectFileCreationEchoEdgeCases(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		script      string
@@ -661,6 +682,7 @@ func TestDetectFileCreationEchoEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := DetectFileCreation(tt.script, VariantBash, nil)
 			if tt.wantNil {
 				if result != nil {
@@ -685,6 +707,7 @@ func TestDetectFileCreationEchoEdgeCases(t *testing.T) {
 }
 
 func TestDetectFileCreationWithUmask(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		script    string
@@ -744,6 +767,7 @@ func TestDetectFileCreationWithUmask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := DetectFileCreation(tt.script, VariantBash, nil)
 			if tt.wantNil {
 				if result != nil {
@@ -765,6 +789,7 @@ func TestDetectFileCreationWithUmask(t *testing.T) {
 }
 
 func TestParseUmask(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		args   []string
@@ -782,6 +807,7 @@ func TestParseUmask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Build a minimal CallExpr for testing
 			script := strings.Join(tt.args, " ")
 			prog, err := parseScript(script, VariantBash)

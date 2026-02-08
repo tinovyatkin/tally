@@ -9,6 +9,7 @@ import (
 )
 
 func TestRedundantTargetPlatformRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewRedundantTargetPlatformRule()
 	meta := r.Metadata()
 
@@ -22,6 +23,7 @@ func TestRedundantTargetPlatformRule_Metadata(t *testing.T) {
 }
 
 func TestRedundantTargetPlatformRule_Check_RedundantTargetPlatform(t *testing.T) {
+	t.Parallel()
 	r := NewRedundantTargetPlatformRule()
 
 	input := rules.LintInput{
@@ -45,6 +47,7 @@ func TestRedundantTargetPlatformRule_Check_RedundantTargetPlatform(t *testing.T)
 }
 
 func TestRedundantTargetPlatformRule_Check_RedundantTargetPlatformBraces(t *testing.T) {
+	t.Parallel()
 	r := NewRedundantTargetPlatformRule()
 
 	input := rules.LintInput{
@@ -64,6 +67,7 @@ func TestRedundantTargetPlatformRule_Check_RedundantTargetPlatformBraces(t *test
 }
 
 func TestRedundantTargetPlatformRule_Check_NoPlatform(t *testing.T) {
+	t.Parallel()
 	r := NewRedundantTargetPlatformRule()
 
 	input := rules.LintInput{
@@ -83,6 +87,7 @@ func TestRedundantTargetPlatformRule_Check_NoPlatform(t *testing.T) {
 }
 
 func TestRedundantTargetPlatformRule_Check_ExplicitPlatform(t *testing.T) {
+	t.Parallel()
 	r := NewRedundantTargetPlatformRule()
 
 	input := rules.LintInput{
@@ -102,6 +107,7 @@ func TestRedundantTargetPlatformRule_Check_ExplicitPlatform(t *testing.T) {
 }
 
 func TestRedundantTargetPlatformRule_Check_OtherVariable(t *testing.T) {
+	t.Parallel()
 	r := NewRedundantTargetPlatformRule()
 
 	input := rules.LintInput{
@@ -121,6 +127,7 @@ func TestRedundantTargetPlatformRule_Check_OtherVariable(t *testing.T) {
 }
 
 func TestRedundantTargetPlatformRule_Check_MultipleStages(t *testing.T) {
+	t.Parallel()
 	r := NewRedundantTargetPlatformRule()
 
 	input := rules.LintInput{
@@ -148,6 +155,7 @@ func TestRedundantTargetPlatformRule_Check_MultipleStages(t *testing.T) {
 }
 
 func TestIsRedundantPlatform(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		platform string
 		want     bool

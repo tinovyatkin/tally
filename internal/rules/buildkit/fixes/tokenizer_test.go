@@ -8,6 +8,7 @@ import (
 )
 
 func TestTokenizeLine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -111,6 +112,7 @@ func TestTokenizeLine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tokens := TokenizeLine([]byte(tt.line))
 			assert.Equal(t, tt.expected, tokens)
 		})
@@ -118,6 +120,7 @@ func TestTokenizeLine(t *testing.T) {
 }
 
 func TestInstructionTokens_FindKeyword(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		line    string
@@ -146,6 +149,7 @@ func TestInstructionTokens_FindKeyword(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			it := ParseInstruction([]byte(tt.line))
 			got := it.FindKeyword(tt.keyword)
 			assert.Equal(t, tt.want, got)
@@ -154,6 +158,7 @@ func TestInstructionTokens_FindKeyword(t *testing.T) {
 }
 
 func TestInstructionTokens_FindFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		line string
@@ -188,6 +193,7 @@ func TestInstructionTokens_FindFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			it := ParseInstruction([]byte(tt.line))
 			got := it.FindFlag(tt.flag)
 			assert.Equal(t, tt.want, got)
@@ -196,6 +202,7 @@ func TestInstructionTokens_FindFlag(t *testing.T) {
 }
 
 func TestInstructionTokens_FlagValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		line      string
@@ -240,6 +247,7 @@ func TestInstructionTokens_FlagValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			it := ParseInstruction([]byte(tt.line))
 			flagToken := it.FindFlag(tt.flag)
 			start, end, value := it.FlagValue(flagToken)
@@ -251,6 +259,7 @@ func TestInstructionTokens_FlagValue(t *testing.T) {
 }
 
 func TestInstructionTokens_TokenAfter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		line    string
@@ -279,6 +288,7 @@ func TestInstructionTokens_TokenAfter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			it := ParseInstruction([]byte(tt.line))
 			keyword := it.FindKeyword(tt.keyword)
 			require.NotNil(t, keyword)
@@ -289,6 +299,7 @@ func TestInstructionTokens_TokenAfter(t *testing.T) {
 }
 
 func TestTokenizerQuotedStrings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		line string
@@ -303,6 +314,7 @@ func TestTokenizerQuotedStrings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tokens := TokenizeLine([]byte(tt.line))
 			assert.NotEmpty(t, tokens)
 			// Verify all byte ranges are valid and non-overlapping
@@ -315,6 +327,7 @@ func TestTokenizerQuotedStrings(t *testing.T) {
 }
 
 func TestTokenizerEdgeCases(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		line string
@@ -327,6 +340,7 @@ func TestTokenizerEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Should not panic
 			tokens := TokenizeLine([]byte(tt.line))
 			// All tokens should have valid ranges
@@ -340,6 +354,7 @@ func TestTokenizerEdgeCases(t *testing.T) {
 
 // TestByteOffsetAccuracy verifies that token positions correctly index into source.
 func TestByteOffsetAccuracy(t *testing.T) {
+	t.Parallel()
 	line := "FROM alpine:3.18 AS builder"
 	lineBytes := []byte(line)
 	tokens := TokenizeLine(lineBytes)

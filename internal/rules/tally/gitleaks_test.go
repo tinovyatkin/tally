@@ -10,10 +10,20 @@ import (
 // This test documents the expected behavior and validates our understanding
 // of gitleaks' pattern matching (including entropy filtering).
 func TestGitleaksDetection(t *testing.T) {
-	d, err := detect.NewDetectorDefaultConfig()
-	if err != nil {
-		t.Fatalf("failed to create detector: %v", err)
+	t.Parallel()
+	// Use the package-level singleton (guarded by sync.Once) to avoid
+	// racing on the global viper instance inside NewDetectorDefaultConfig.
+	gitleaksOnce.Do(func() {
+		d, err := detect.NewDetectorDefaultConfig()
+		if err != nil {
+			return
+		}
+		gitleaksDetector = d
+	})
+	if gitleaksDetector == nil {
+		t.Fatal("failed to create gitleaks detector")
 	}
+	d := gitleaksDetector
 
 	// Verify gitleaks loaded rules (avoid brittle count assertions)
 	if len(d.Config.Rules) == 0 {
@@ -68,6 +78,7 @@ BBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQ
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			findings := d.DetectString(tc.content)
 			if tc.wantAny && len(findings) == 0 {
 				t.Errorf("expected findings for %q, got none", tc.content)

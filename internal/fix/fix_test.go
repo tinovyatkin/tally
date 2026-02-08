@@ -7,6 +7,7 @@ import (
 )
 
 func TestSkipReason_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		reason SkipReason
 		want   string
@@ -21,6 +22,7 @@ func TestSkipReason_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.reason.String(); got != tt.want {
 				t.Errorf("SkipReason(%d).String() = %q, want %q", tt.reason, got, tt.want)
 			}
@@ -29,7 +31,9 @@ func TestSkipReason_String(t *testing.T) {
 }
 
 func TestFileChange_HasChanges(t *testing.T) {
+	t.Parallel()
 	t.Run("no changes", func(t *testing.T) {
+		t.Parallel()
 		fc := &FileChange{
 			Path:            "Dockerfile",
 			OriginalContent: []byte("FROM alpine"),
@@ -41,6 +45,7 @@ func TestFileChange_HasChanges(t *testing.T) {
 	})
 
 	t.Run("with changes", func(t *testing.T) {
+		t.Parallel()
 		fc := &FileChange{
 			Path:            "Dockerfile",
 			OriginalContent: []byte("RUN apt install curl"),
@@ -60,6 +65,7 @@ func TestFileChange_HasChanges(t *testing.T) {
 }
 
 func TestFixSafety_ReExport(t *testing.T) {
+	t.Parallel()
 	// Verify re-exports match rules package
 	if FixSafe != rules.FixSafe {
 		t.Errorf("FixSafe = %v, want %v", FixSafe, rules.FixSafe)

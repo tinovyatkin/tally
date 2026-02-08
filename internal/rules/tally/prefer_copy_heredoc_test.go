@@ -9,6 +9,7 @@ import (
 )
 
 func TestPreferCopyHeredocRule_Metadata(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferCopyHeredocRule()
 	meta := rule.Metadata()
 
@@ -27,6 +28,7 @@ func TestPreferCopyHeredocRule_Metadata(t *testing.T) {
 }
 
 func TestPreferCopyHeredocRule_DefaultConfig(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferCopyHeredocRule()
 	cfg, ok := rule.DefaultConfig().(PreferCopyHeredocConfig)
 	if !ok {
@@ -42,6 +44,7 @@ func TestPreferCopyHeredocRule_DefaultConfig(t *testing.T) {
 }
 
 func TestPreferCopyHeredocRule_Check(t *testing.T) {
+	t.Parallel()
 	testutil.RunRuleTests(t, NewPreferCopyHeredocRule(), []testutil.RuleTestCase{
 		{
 			Name: "simple echo to file",
@@ -245,6 +248,7 @@ RUN --mount=type=ssh git clone git@github.com:user/repo && echo "cloned" > /app/
 }
 
 func TestPreferCopyHeredocRule_CheckWithFixes(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferCopyHeredocRule()
 
 	tests := []struct {
@@ -336,6 +340,7 @@ RUN echo "b" >> /app/file
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithConfig(t, "Dockerfile", tt.content, nil)
 			violations := rule.Check(input)
 
@@ -361,6 +366,7 @@ RUN echo "b" >> /app/file
 }
 
 func TestPreferCopyHeredocRule_ValidateConfig(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferCopyHeredocRule()
 
 	tests := []struct {
@@ -392,6 +398,7 @@ func TestPreferCopyHeredocRule_ValidateConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := rule.ValidateConfig(tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateConfig() error = %v, wantErr %v", err, tt.wantErr)
@@ -401,6 +408,7 @@ func TestPreferCopyHeredocRule_ValidateConfig(t *testing.T) {
 }
 
 func TestBuildCopyHeredoc(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		targetPath string
@@ -440,6 +448,7 @@ func TestBuildCopyHeredoc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := buildCopyHeredoc(tt.targetPath, tt.content, tt.chmodMode)
 			if got != tt.want {
 				t.Errorf("buildCopyHeredoc() =\n%s\nwant:\n%s", got, tt.want)
@@ -449,6 +458,7 @@ func TestBuildCopyHeredoc(t *testing.T) {
 }
 
 func TestChooseDelimiter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -478,6 +488,7 @@ func TestChooseDelimiter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := chooseDelimiter(tt.content)
 			if got != tt.want {
 				t.Errorf("chooseDelimiter() = %q, want %q", got, tt.want)

@@ -21,6 +21,7 @@ func (m *mockResolver) Resolve(_ context.Context, _ ResolveContext, _ *rules.Sug
 }
 
 func TestResolverRegistry(t *testing.T) {
+	// Not parallel: mutates global resolver registry.
 	// Clear registry before test
 	ClearResolvers()
 	defer ClearResolvers()
@@ -51,6 +52,7 @@ func TestResolverRegistry(t *testing.T) {
 }
 
 func TestRegisterResolver_Duplicate(t *testing.T) {
+	// Not parallel: mutates global resolver registry.
 	ClearResolvers()
 	defer ClearResolvers()
 
@@ -68,6 +70,7 @@ func TestRegisterResolver_Duplicate(t *testing.T) {
 }
 
 func TestMockResolver_Resolve(t *testing.T) {
+	t.Parallel()
 	loc := rules.NewLineLocation("Dockerfile", 1)
 	edits := []rules.TextEdit{
 		{Location: loc, NewText: "new text"},

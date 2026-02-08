@@ -158,6 +158,7 @@ ONBUILD RUN apt install python`,
 }
 
 func TestDL3027_MultipleApt(t *testing.T) {
+	t.Parallel()
 	input := testutil.MakeLintInput(t, "Dockerfile", "FROM ubuntu\nRUN apt update && apt install curl")
 	r := NewDL3027Rule()
 	violations := r.Check(input)
@@ -257,6 +258,7 @@ RUN apt show curl`,
 }
 
 func TestDL3027Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3027Rule()
 	meta := r.Metadata()
 
@@ -281,6 +283,7 @@ func TestDL3027Rule_Metadata(t *testing.T) {
 // fix edit locations use the same line numbering as violation locations.
 // Previously, violations used 1-based lines (BuildKit) while edits used 0-based.
 func TestDL3027_FixLocationConsistency(t *testing.T) {
+	t.Parallel()
 	input := testutil.MakeLintInput(t, "Dockerfile", "FROM ubuntu\nRUN apt install curl")
 	r := NewDL3027Rule()
 	violations := r.Check(input)
@@ -313,6 +316,7 @@ func TestDL3027_FixLocationConsistency(t *testing.T) {
 // TestDL3027_WhitespaceDrift verifies that auto-fix works correctly even with
 // extra whitespace in the RUN command, since we parse the original source.
 func TestDL3027_WhitespaceDrift(t *testing.T) {
+	t.Parallel()
 	// RUN with extra spaces - parsing original source handles this correctly
 	dockerfile := "FROM ubuntu\nRUN    apt   install curl"
 
@@ -340,6 +344,7 @@ func TestDL3027_WhitespaceDrift(t *testing.T) {
 // TestDL3027_MultiLineRUN verifies that multi-line RUN commands are detected
 // AND auto-fixed correctly by parsing the original source with preserved positions.
 func TestDL3027_MultiLineRUN(t *testing.T) {
+	t.Parallel()
 	// Multi-line RUN with backslash continuation - apt on different physical lines
 	dockerfile := `FROM ubuntu
 RUN apt-get update && \

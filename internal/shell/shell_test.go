@@ -8,6 +8,7 @@ import (
 )
 
 func TestCommandNames(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		script string
@@ -112,6 +113,7 @@ func TestCommandNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := CommandNames(tt.script)
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("CommandNames(%q) = %v, want %v", tt.script, got, tt.want)
@@ -121,6 +123,7 @@ func TestCommandNames(t *testing.T) {
 }
 
 func TestCommandWrappers(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		script string
@@ -185,6 +188,7 @@ func TestCommandWrappers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := CommandNames(tt.script)
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("CommandNames(%q) = %v, want %v", tt.script, got, tt.want)
@@ -194,6 +198,7 @@ func TestCommandWrappers(t *testing.T) {
 }
 
 func TestShellWrappers(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		script string
@@ -233,6 +238,7 @@ func TestShellWrappers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := CommandNames(tt.script)
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("CommandNames(%q) = %v, want %v", tt.script, got, tt.want)
@@ -242,6 +248,7 @@ func TestShellWrappers(t *testing.T) {
 }
 
 func TestContainsCommand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		script  string
 		command string
@@ -264,6 +271,7 @@ func TestContainsCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.script+"_"+tt.command, func(t *testing.T) {
+			t.Parallel()
 			got := ContainsCommand(tt.script, tt.command)
 			if got != tt.want {
 				t.Errorf("ContainsCommand(%q, %q) = %v, want %v", tt.script, tt.command, got, tt.want)
@@ -273,6 +281,7 @@ func TestContainsCommand(t *testing.T) {
 }
 
 func TestVariantFromShell(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		shell string
 		want  Variant
@@ -303,6 +312,7 @@ func TestVariantFromShell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.shell, func(t *testing.T) {
+			t.Parallel()
 			got := VariantFromShell(tt.shell)
 			if got != tt.want {
 				t.Errorf("VariantFromShell(%q) = %v, want %v", tt.shell, got, tt.want)
@@ -312,6 +322,7 @@ func TestVariantFromShell(t *testing.T) {
 }
 
 func TestVariantFromShellCmd(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		shellCmd []string
@@ -326,6 +337,7 @@ func TestVariantFromShellCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := VariantFromShellCmd(tt.shellCmd)
 			if got != tt.want {
 				t.Errorf("VariantFromShellCmd(%v) = %v, want %v", tt.shellCmd, got, tt.want)
@@ -335,6 +347,7 @@ func TestVariantFromShellCmd(t *testing.T) {
 }
 
 func TestCommandNamesWithVariant(t *testing.T) {
+	t.Parallel()
 	// Test that different variants parse correctly
 	// Bash-specific syntax like [[ ]] should work with VariantBash
 	bashScript := "[[ -f /etc/foo ]] && echo exists"
@@ -359,6 +372,7 @@ func TestCommandNamesWithVariant(t *testing.T) {
 }
 
 func TestContainsCommandWithVariant(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		script  string
 		command string
@@ -379,6 +393,7 @@ func TestContainsCommandWithVariant(t *testing.T) {
 			name = name[:50]
 		}
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			got := ContainsCommandWithVariant(tt.script, tt.command, tt.variant)
 			if got != tt.want {
 				t.Errorf("ContainsCommandWithVariant(%q, %q, %v) = %v, want %v",
@@ -389,6 +404,7 @@ func TestContainsCommandWithVariant(t *testing.T) {
 }
 
 func TestSimpleCommandNames(t *testing.T) {
+	t.Parallel()
 	// Test the fallback parser by calling it directly
 	tests := []struct {
 		name   string
@@ -454,6 +470,7 @@ func TestSimpleCommandNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := simpleCommandNames(tt.script)
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("simpleCommandNames(%q) = %v, want %v", tt.script, got, tt.want)
@@ -463,6 +480,7 @@ func TestSimpleCommandNames(t *testing.T) {
 }
 
 func TestToLangVariant(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		variant Variant
 		want    syntax.LangVariant
@@ -483,6 +501,7 @@ func TestToLangVariant(t *testing.T) {
 }
 
 func TestIsNonPOSIX(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		variant Variant
 		want    bool

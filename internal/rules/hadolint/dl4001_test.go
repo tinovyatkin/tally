@@ -9,6 +9,7 @@ import (
 )
 
 func TestDL4001Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL4001Rule()
 	meta := r.Metadata()
 
@@ -24,6 +25,7 @@ func TestDL4001Rule_Metadata(t *testing.T) {
 }
 
 func TestDL4001Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -123,6 +125,7 @@ RUN curl localhost
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL4001Rule()
@@ -145,6 +148,7 @@ RUN curl localhost
 }
 
 func TestDL4001Rule_Check_SmartMessages(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		dockerfile      string
@@ -215,6 +219,7 @@ RUN wget https://example.com/another-file
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL4001Rule()

@@ -9,6 +9,7 @@ import (
 )
 
 func TestWorkdirRelativePathRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewWorkdirRelativePathRule()
 	meta := r.Metadata()
 
@@ -22,6 +23,7 @@ func TestWorkdirRelativePathRule_Metadata(t *testing.T) {
 }
 
 func TestWorkdirRelativePathRule_Check_RelativeWithoutAbsolute(t *testing.T) {
+	t.Parallel()
 	r := NewWorkdirRelativePathRule()
 
 	input := rules.LintInput{
@@ -46,6 +48,7 @@ func TestWorkdirRelativePathRule_Check_RelativeWithoutAbsolute(t *testing.T) {
 }
 
 func TestWorkdirRelativePathRule_Check_AbsoluteFirst(t *testing.T) {
+	t.Parallel()
 	r := NewWorkdirRelativePathRule()
 
 	input := rules.LintInput{
@@ -67,6 +70,7 @@ func TestWorkdirRelativePathRule_Check_AbsoluteFirst(t *testing.T) {
 }
 
 func TestWorkdirRelativePathRule_Check_OnlyAbsolute(t *testing.T) {
+	t.Parallel()
 	r := NewWorkdirRelativePathRule()
 
 	input := rules.LintInput{
@@ -87,6 +91,7 @@ func TestWorkdirRelativePathRule_Check_OnlyAbsolute(t *testing.T) {
 }
 
 func TestWorkdirRelativePathRule_Check_MultipleRelativeBeforeAbsolute(t *testing.T) {
+	t.Parallel()
 	r := NewWorkdirRelativePathRule()
 
 	input := rules.LintInput{
@@ -109,6 +114,7 @@ func TestWorkdirRelativePathRule_Check_MultipleRelativeBeforeAbsolute(t *testing
 }
 
 func TestWorkdirRelativePathRule_Check_MultipleStages(t *testing.T) {
+	t.Parallel()
 	r := NewWorkdirRelativePathRule()
 
 	input := rules.LintInput{
@@ -136,6 +142,7 @@ func TestWorkdirRelativePathRule_Check_MultipleStages(t *testing.T) {
 }
 
 func TestIsAbsPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		os   string

@@ -154,89 +154,97 @@ func uint64PtrEqual(a, b *uint64) bool {
 }
 
 // FormatMount formats a mount for output in a RUN instruction.
-//
-//nolint:gocyclo // complexity from switch over mount types is unavoidable
 func FormatMount(m *instructions.Mount) string {
-	var parts []string
+	parts := []string{"type=" + string(m.Type)}
 
-	// Type is always first
-	parts = append(parts, "type="+string(m.Type))
-
-	// Add fields based on mount type
 	switch m.Type {
 	case instructions.MountTypeCache:
-		if m.Target != "" {
-			parts = append(parts, "target="+m.Target)
-		}
-		if m.CacheID != "" && m.CacheID != m.Target {
-			parts = append(parts, "id="+m.CacheID)
-		}
-		if m.CacheSharing != "" && m.CacheSharing != instructions.MountSharingShared {
-			parts = append(parts, "sharing="+string(m.CacheSharing))
-		}
-		if m.From != "" {
-			parts = append(parts, "from="+m.From)
-		}
-		if m.Source != "" {
-			parts = append(parts, "source="+m.Source)
-		}
-		if m.ReadOnly {
-			parts = append(parts, "ro")
-		}
-		if m.UID != nil {
-			parts = append(parts, "uid="+formatUint64(*m.UID))
-		}
-		if m.GID != nil {
-			parts = append(parts, "gid="+formatUint64(*m.GID))
-		}
-		if m.Mode != nil {
-			parts = append(parts, "mode="+formatOctal(*m.Mode))
-		}
-
+		parts = formatCacheMount(parts, m)
 	case instructions.MountTypeBind:
-		if m.Target != "" {
-			parts = append(parts, "target="+m.Target)
-		}
-		if m.Source != "" {
-			parts = append(parts, "source="+m.Source)
-		}
-		if m.From != "" {
-			parts = append(parts, "from="+m.From)
-		}
-		if !m.ReadOnly {
-			parts = append(parts, "rw")
-		}
-
+		parts = formatBindMount(parts, m)
 	case instructions.MountTypeTmpfs:
-		if m.Target != "" {
-			parts = append(parts, "target="+m.Target)
-		}
-		if m.SizeLimit > 0 {
-			parts = append(parts, "size="+formatBytes(m.SizeLimit))
-		}
-
+		parts = formatTmpfsMount(parts, m)
 	case instructions.MountTypeSecret, instructions.MountTypeSSH:
-		if m.CacheID != "" {
-			parts = append(parts, "id="+m.CacheID)
-		}
-		if m.Target != "" {
-			parts = append(parts, "target="+m.Target)
-		}
-		if m.Required {
-			parts = append(parts, "required")
-		}
-		if m.UID != nil {
-			parts = append(parts, "uid="+formatUint64(*m.UID))
-		}
-		if m.GID != nil {
-			parts = append(parts, "gid="+formatUint64(*m.GID))
-		}
-		if m.Mode != nil {
-			parts = append(parts, "mode="+formatOctal(*m.Mode))
-		}
+		parts = formatSecretSSHMount(parts, m)
 	}
 
 	return "--mount=" + joinParts(parts)
+}
+
+func formatCacheMount(parts []string, m *instructions.Mount) []string {
+	if m.Target != "" {
+		parts = append(parts, "target="+m.Target)
+	}
+	if m.CacheID != "" && m.CacheID != m.Target {
+		parts = append(parts, "id="+m.CacheID)
+	}
+	if m.CacheSharing != "" && m.CacheSharing != instructions.MountSharingShared {
+		parts = append(parts, "sharing="+string(m.CacheSharing))
+	}
+	if m.From != "" {
+		parts = append(parts, "from="+m.From)
+	}
+	if m.Source != "" {
+		parts = append(parts, "source="+m.Source)
+	}
+	if m.ReadOnly {
+		parts = append(parts, "ro")
+	}
+	parts = appendOwnershipParts(parts, m)
+	return parts
+}
+
+func formatBindMount(parts []string, m *instructions.Mount) []string {
+	if m.Target != "" {
+		parts = append(parts, "target="+m.Target)
+	}
+	if m.Source != "" {
+		parts = append(parts, "source="+m.Source)
+	}
+	if m.From != "" {
+		parts = append(parts, "from="+m.From)
+	}
+	if m.ReadOnly {
+		parts = append(parts, "ro")
+	}
+	return parts
+}
+
+func formatTmpfsMount(parts []string, m *instructions.Mount) []string {
+	if m.Target != "" {
+		parts = append(parts, "target="+m.Target)
+	}
+	if m.SizeLimit > 0 {
+		parts = append(parts, "size="+formatBytes(m.SizeLimit))
+	}
+	return parts
+}
+
+func formatSecretSSHMount(parts []string, m *instructions.Mount) []string {
+	if m.CacheID != "" {
+		parts = append(parts, "id="+m.CacheID)
+	}
+	if m.Target != "" {
+		parts = append(parts, "target="+m.Target)
+	}
+	if m.Required {
+		parts = append(parts, "required")
+	}
+	parts = appendOwnershipParts(parts, m)
+	return parts
+}
+
+func appendOwnershipParts(parts []string, m *instructions.Mount) []string {
+	if m.UID != nil {
+		parts = append(parts, "uid="+formatUint64(*m.UID))
+	}
+	if m.GID != nil {
+		parts = append(parts, "gid="+formatUint64(*m.GID))
+	}
+	if m.Mode != nil {
+		parts = append(parts, "mode="+formatOctal(*m.Mode))
+	}
+	return parts
 }
 
 // FormatMounts formats multiple mounts for a RUN instruction.

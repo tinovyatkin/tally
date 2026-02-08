@@ -28,6 +28,7 @@ func (r *mockRule) Check(input LintInput) []Violation {
 }
 
 func TestRegistry_Register(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 
 	rule := &mockRule{code: "test-001"}
@@ -39,6 +40,7 @@ func TestRegistry_Register(t *testing.T) {
 }
 
 func TestRegistry_Register_Duplicate(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	rule := &mockRule{code: "dup-001"}
 	reg.Register(rule)
@@ -53,6 +55,7 @@ func TestRegistry_Register_Duplicate(t *testing.T) {
 }
 
 func TestRegistry_Get(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	rule := &mockRule{code: "get-001"}
 	reg.Register(rule)
@@ -71,6 +74,7 @@ func TestRegistry_Get(t *testing.T) {
 }
 
 func TestRegistry_All(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	reg.Register(&mockRule{code: "c-rule"})
 	reg.Register(&mockRule{code: "a-rule"})
@@ -92,6 +96,7 @@ func TestRegistry_All(t *testing.T) {
 }
 
 func TestRegistry_Codes(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	reg.Register(&mockRule{code: "z-rule"})
 	reg.Register(&mockRule{code: "a-rule"})
@@ -106,6 +111,7 @@ func TestRegistry_Codes(t *testing.T) {
 }
 
 func TestRegistry_ByCategory(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	reg.Register(&mockRule{code: "sec-1", category: "security"})
 	reg.Register(&mockRule{code: "perf-1", category: "performance"})
@@ -123,6 +129,7 @@ func TestRegistry_ByCategory(t *testing.T) {
 }
 
 func TestRegistry_BySeverity(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	reg.Register(&mockRule{code: "err-1", severity: SeverityError})
 	reg.Register(&mockRule{code: "warn-1", severity: SeverityWarning})
@@ -135,6 +142,7 @@ func TestRegistry_BySeverity(t *testing.T) {
 }
 
 func TestRegistry_Experimental(t *testing.T) {
+	t.Parallel()
 	reg := NewRegistry()
 	reg.Register(&mockRule{code: "stable", expmt: false})
 	reg.Register(&mockRule{code: "experimental", expmt: true})

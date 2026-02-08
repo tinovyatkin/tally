@@ -139,6 +139,7 @@ RUN yum -y install httpd`,
 }
 
 func TestDL3030Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3030Rule()
 	meta := r.Metadata()
 

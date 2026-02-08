@@ -8,6 +8,7 @@ import (
 )
 
 func TestConsistentIndentationMetadata(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentIndentationRule()
 	meta := r.Metadata()
 
@@ -29,6 +30,7 @@ func TestConsistentIndentationMetadata(t *testing.T) {
 }
 
 func TestConsistentIndentationCheck(t *testing.T) {
+	t.Parallel()
 	testutil.RunRuleTests(t, NewConsistentIndentationRule(), []testutil.RuleTestCase{
 		// === Single-stage Dockerfiles: no indentation expected ===
 		{
@@ -147,6 +149,7 @@ func TestConsistentIndentationCheck(t *testing.T) {
 }
 
 func TestConsistentIndentationCheckWithFixes(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentIndentationRule()
 
 	tests := []struct {
@@ -190,6 +193,7 @@ func TestConsistentIndentationCheckWithFixes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithConfig(t, "Dockerfile", tt.content, nil)
 			violations := r.Check(input)
 
@@ -213,6 +217,7 @@ func TestConsistentIndentationCheckWithFixes(t *testing.T) {
 }
 
 func TestDescribeIndent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		indent string
 		want   string
@@ -228,6 +233,7 @@ func TestDescribeIndent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
 			got := describeIndent(tt.indent)
 			if got != tt.want {
 				t.Errorf("describeIndent(%q) = %q, want %q", tt.indent, got, tt.want)
@@ -237,6 +243,7 @@ func TestDescribeIndent(t *testing.T) {
 }
 
 func TestLeadingWhitespace(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line string
 		want string
@@ -251,6 +258,7 @@ func TestLeadingWhitespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
+			t.Parallel()
 			got := leadingWhitespace(tt.line)
 			if got != tt.want {
 				t.Errorf("leadingWhitespace(%q) = %q, want %q", tt.line, got, tt.want)

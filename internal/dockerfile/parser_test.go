@@ -11,6 +11,7 @@ import (
 )
 
 func TestParse_BasicParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -40,6 +41,7 @@ func TestParse_BasicParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 			if err := os.WriteFile(dockerfilePath, []byte(tt.content), 0o644); err != nil {
@@ -69,6 +71,7 @@ func TestParse_BasicParsing(t *testing.T) {
 }
 
 func TestParse_Stages(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		content        string
@@ -105,6 +108,7 @@ func TestParse_Stages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 			if err := os.WriteFile(dockerfilePath, []byte(tt.content), 0o644); err != nil {
@@ -130,6 +134,7 @@ func TestParse_Stages(t *testing.T) {
 }
 
 func TestParse_MetaArgs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		content      string
@@ -159,6 +164,7 @@ func TestParse_MetaArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 			if err := os.WriteFile(dockerfilePath, []byte(tt.content), 0o644); err != nil {
@@ -186,6 +192,7 @@ func TestParse_MetaArgs(t *testing.T) {
 }
 
 func TestParse_BuildKitWarnings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		content          string
@@ -213,6 +220,7 @@ func TestParse_BuildKitWarnings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 			if err := os.WriteFile(dockerfilePath, []byte(tt.content), 0o644); err != nil {
@@ -241,6 +249,7 @@ func TestParse_BuildKitWarnings(t *testing.T) {
 }
 
 func TestParse_Source(t *testing.T) {
+	t.Parallel()
 	content := "FROM alpine:3.18\nRUN echo hello\n"
 	tmpDir := t.TempDir()
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
@@ -259,6 +268,7 @@ func TestParse_Source(t *testing.T) {
 }
 
 func TestParse_SkipsDisabledBuildKitRules(t *testing.T) {
+	t.Parallel()
 	// Dockerfile that triggers StageNameCasing warning (uppercase stage name)
 	content := "FROM alpine:3.18 AS MyBuild\nRUN echo hello\n"
 
@@ -296,6 +306,7 @@ func TestParse_SkipsDisabledBuildKitRules(t *testing.T) {
 }
 
 func TestParse_EnablesExperimentalRules(t *testing.T) {
+	t.Parallel()
 	// Dockerfile that triggers InvalidDefinitionDescription (experimental rule)
 	// This rule checks that comments for ARG/stage follow format: # name description
 	content := `# wrong format comment

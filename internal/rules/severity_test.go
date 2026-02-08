@@ -6,6 +6,7 @@ import (
 )
 
 func TestSeverity_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		s    Severity
 		want string
@@ -19,6 +20,7 @@ func TestSeverity_String(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.want, func(t *testing.T) {
+			t.Parallel()
 			if got := tc.s.String(); got != tc.want {
 				t.Errorf("String() = %q, want %q", got, tc.want)
 			}
@@ -27,6 +29,7 @@ func TestSeverity_String(t *testing.T) {
 }
 
 func TestSeverity_MarshalJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		s    Severity
 		want string
@@ -39,6 +42,7 @@ func TestSeverity_MarshalJSON(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.want, func(t *testing.T) {
+			t.Parallel()
 			data, err := json.Marshal(tc.s)
 			if err != nil {
 				t.Fatalf("Marshal error: %v", err)
@@ -51,6 +55,7 @@ func TestSeverity_MarshalJSON(t *testing.T) {
 }
 
 func TestSeverity_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input   string
 		want    Severity
@@ -68,6 +73,7 @@ func TestSeverity_UnmarshalJSON(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
 			var s Severity
 			err := json.Unmarshal([]byte(tc.input), &s)
 			if (err != nil) != tc.wantErr {
@@ -82,6 +88,7 @@ func TestSeverity_UnmarshalJSON(t *testing.T) {
 }
 
 func TestParseSeverity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input   string
 		want    Severity
@@ -98,6 +105,7 @@ func TestParseSeverity(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
 			got, err := ParseSeverity(tc.input)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("ParseSeverity error = %v, wantErr %v", err, tc.wantErr)
@@ -111,6 +119,7 @@ func TestParseSeverity(t *testing.T) {
 }
 
 func TestSeverity_IsMoreSevereThan(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		s, other Severity
 		want     bool
@@ -124,6 +133,7 @@ func TestSeverity_IsMoreSevereThan(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.s.String()+"_vs_"+tc.other.String(), func(t *testing.T) {
+			t.Parallel()
 			if got := tc.s.IsMoreSevereThan(tc.other); got != tc.want {
 				t.Errorf("IsMoreSevereThan = %v, want %v", got, tc.want)
 			}
@@ -132,6 +142,7 @@ func TestSeverity_IsMoreSevereThan(t *testing.T) {
 }
 
 func TestSeverity_IsAtLeast(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		s, threshold Severity
 		want         bool
@@ -146,6 +157,7 @@ func TestSeverity_IsAtLeast(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.s.String()+"_at_least_"+tc.threshold.String(), func(t *testing.T) {
+			t.Parallel()
 			if got := tc.s.IsAtLeast(tc.threshold); got != tc.want {
 				t.Errorf("IsAtLeast = %v, want %v", got, tc.want)
 			}
@@ -154,6 +166,7 @@ func TestSeverity_IsAtLeast(t *testing.T) {
 }
 
 func TestSeverityValues(t *testing.T) {
+	t.Parallel()
 	// Verify enum values - SeverityOff is last to avoid zero-value confusion
 	if SeverityError != 0 {
 		t.Errorf("SeverityError should be 0 (zero value), got %d", SeverityError)

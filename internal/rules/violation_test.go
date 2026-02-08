@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewViolation(t *testing.T) {
+	t.Parallel()
 	loc := NewLineLocation("Dockerfile", 5)
 	v := NewViolation(loc, "test-rule", "test message", SeverityWarning)
 
@@ -29,6 +30,7 @@ func TestNewViolation(t *testing.T) {
 }
 
 func TestViolation_WithMethods(t *testing.T) {
+	t.Parallel()
 	loc := NewLineLocation("Dockerfile", 1)
 	v := NewViolation(loc, "rule", "msg", SeverityError).
 		WithDetail("extra detail").
@@ -47,6 +49,7 @@ func TestViolation_WithMethods(t *testing.T) {
 }
 
 func TestViolation_WithSuggestedFix(t *testing.T) {
+	t.Parallel()
 	loc := NewRangeLocation("Dockerfile", 1, 1, 1, 12)
 	fix := &SuggestedFix{
 		Description: "Use specific tag",
@@ -76,6 +79,7 @@ func TestViolation_WithSuggestedFix(t *testing.T) {
 }
 
 func TestViolation_JSON(t *testing.T) {
+	t.Parallel()
 	loc := NewLineLocation("Dockerfile", 10)
 	v := NewViolation(loc, "max-lines", "file too long", SeverityError).
 		WithDocURL("https://example.com")
@@ -105,6 +109,7 @@ func TestViolation_JSON(t *testing.T) {
 }
 
 func TestViolation_JSON_WithFix(t *testing.T) {
+	t.Parallel()
 	loc := NewLineLocation("Dockerfile", 1)
 	fix := &SuggestedFix{
 		Description: "Fix the issue",
@@ -133,6 +138,7 @@ func TestViolation_JSON_WithFix(t *testing.T) {
 }
 
 func TestNewViolationFromBuildKitWarning(t *testing.T) {
+	t.Parallel()
 	// Test with location (0-based coordinates from BuildKit)
 	location := []parser.Range{
 		{
@@ -175,6 +181,7 @@ func TestNewViolationFromBuildKitWarning(t *testing.T) {
 }
 
 func TestNewViolationFromBuildKitWarning_NoLocation(t *testing.T) {
+	t.Parallel()
 	// Test without location (file-level warning)
 	v := NewViolationFromBuildKitWarning(
 		"Dockerfile",
@@ -197,6 +204,7 @@ func TestNewViolationFromBuildKitWarning_NoLocation(t *testing.T) {
 }
 
 func TestFixSafety_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		safety FixSafety
 		want   string
@@ -209,6 +217,7 @@ func TestFixSafety_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.safety.String(); got != tt.want {
 				t.Errorf("FixSafety(%d).String() = %q, want %q", tt.safety, got, tt.want)
 			}
@@ -217,6 +226,7 @@ func TestFixSafety_String(t *testing.T) {
 }
 
 func TestSuggestedFix_WithSafety(t *testing.T) {
+	t.Parallel()
 	loc := NewLineLocation("Dockerfile", 1)
 	fix := &SuggestedFix{
 		Description: "Replace apt with apt-get",
@@ -241,6 +251,7 @@ func TestSuggestedFix_WithSafety(t *testing.T) {
 }
 
 func TestSuggestedFix_AsyncFix(t *testing.T) {
+	t.Parallel()
 	loc := NewLineLocation("Dockerfile", 1)
 	fix := &SuggestedFix{
 		Description:  "Add image digest",
@@ -284,6 +295,7 @@ func TestSuggestedFix_AsyncFix(t *testing.T) {
 }
 
 func TestSuggestedFix_JSON_WithSafety(t *testing.T) {
+	t.Parallel()
 	loc := NewLineLocation("Dockerfile", 1)
 	fix := &SuggestedFix{
 		Description: "Replace apt with apt-get",
@@ -313,6 +325,7 @@ func TestSuggestedFix_JSON_WithSafety(t *testing.T) {
 }
 
 func TestSuggestedFix_JSON_AsyncFix(t *testing.T) {
+	t.Parallel()
 	fix := &SuggestedFix{
 		Description:  "Add image digest",
 		NeedsResolve: true,

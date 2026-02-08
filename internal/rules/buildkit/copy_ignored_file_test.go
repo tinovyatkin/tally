@@ -33,6 +33,7 @@ func (m *mockBuildContext) HasIgnoreFile() bool {
 }
 
 func TestCopyIgnoredFileRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 	meta := r.Metadata()
 
@@ -46,6 +47,7 @@ func TestCopyIgnoredFileRule_Metadata(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_NoContext(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	input := rules.LintInput{
@@ -60,6 +62,7 @@ func TestCopyIgnoredFileRule_Check_NoContext(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_NoIgnoreFile(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -89,6 +92,7 @@ func TestCopyIgnoredFileRule_Check_NoIgnoreFile(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_IgnoredFile(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -123,6 +127,7 @@ func TestCopyIgnoredFileRule_Check_IgnoredFile(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_NonIgnoredFile(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -153,6 +158,7 @@ func TestCopyIgnoredFileRule_Check_NonIgnoredFile(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_SkipsCopyFromStage(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -184,6 +190,7 @@ func TestCopyIgnoredFileRule_Check_SkipsCopyFromStage(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_SkipsHeredocInSourceContents(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -217,6 +224,7 @@ func TestCopyIgnoredFileRule_Check_SkipsHeredocInSourceContents(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_SkipsHeredocInContext(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -248,6 +256,7 @@ func TestCopyIgnoredFileRule_Check_SkipsHeredocInContext(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_SkipsURLs(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -278,6 +287,7 @@ func TestCopyIgnoredFileRule_Check_SkipsURLs(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_NormalizesLeadingDotSlash(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -308,6 +318,7 @@ func TestCopyIgnoredFileRule_Check_NormalizesLeadingDotSlash(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_ADD(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -338,6 +349,7 @@ func TestCopyIgnoredFileRule_Check_ADD(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_Check_MultipleStages(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{
@@ -380,6 +392,7 @@ func TestCopyIgnoredFileRule_Check_MultipleStages(t *testing.T) {
 }
 
 func TestIsURLCopyIgnored(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want bool
@@ -402,6 +415,7 @@ func TestIsURLCopyIgnored(t *testing.T) {
 }
 
 func TestNormalizePathCopyIgnored(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want string
@@ -421,6 +435,7 @@ func TestNormalizePathCopyIgnored(t *testing.T) {
 }
 
 func TestCopyIgnoredFileRule_LocationFromRanges(t *testing.T) {
+	t.Parallel()
 	r := NewCopyIgnoredFileRule()
 
 	ctx := &mockBuildContext{

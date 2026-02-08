@@ -7,11 +7,12 @@ import (
 )
 
 func TestFindCdCommands(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name       string
-		script     string
-		wantCount  int
-		wantFirst  *CdCommand // Expected first result (nil to skip check)
+		name      string
+		script    string
+		wantCount int
+		wantFirst *CdCommand // Expected first result (nil to skip check)
 	}{
 		{
 			name:      "standalone cd",
@@ -129,6 +130,7 @@ func TestFindCdCommands(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			results := FindCdCommands(tt.script, VariantBash)
 			assert.Len(t, results, tt.wantCount)
 
@@ -145,6 +147,7 @@ func TestFindCdCommands(t *testing.T) {
 }
 
 func TestHasStandaloneCd(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		script string
 		want   bool
@@ -158,6 +161,7 @@ func TestHasStandaloneCd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.script, func(t *testing.T) {
+			t.Parallel()
 			got := HasStandaloneCd(tt.script, VariantBash)
 			assert.Equal(t, tt.want, got)
 		})
@@ -165,6 +169,7 @@ func TestHasStandaloneCd(t *testing.T) {
 }
 
 func TestHasCdAtStart(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		script string
 		want   bool
@@ -177,6 +182,7 @@ func TestHasCdAtStart(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.script, func(t *testing.T) {
+			t.Parallel()
 			got := HasCdAtStart(tt.script, VariantBash)
 			assert.Equal(t, tt.want, got)
 		})

@@ -8,6 +8,7 @@ import (
 )
 
 func TestBuilderWithShellDirectivesAppliesToFollowingStages(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18 AS s0
 # tally shell=dash
 # tally shell=bash
@@ -49,6 +50,7 @@ RUN echo "ok"
 }
 
 func TestBuilderExtractPackageInstallsFromRun(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 RUN apk add curl wget
 `
@@ -73,6 +75,7 @@ RUN apk add curl wget
 }
 
 func TestBuilderExtractPackageInstallsFromRunHeredoc(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 RUN <<EOF
 apk add curl wget
@@ -99,6 +102,7 @@ EOF
 }
 
 func TestBuilderCopyFromInvalidNumericDoesNotCreateDependency(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18 AS s0
 RUN echo "base"
 
@@ -126,6 +130,7 @@ COPY --from=1 /a /b
 }
 
 func TestBuilderOnbuildCopyFromInvalidNumeric(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 ONBUILD COPY --from=0 /a /b
 `
@@ -145,6 +150,7 @@ ONBUILD COPY --from=0 /a /b
 }
 
 func TestBuilderHelpersHandleNilInputs(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder(nil, nil, "Dockerfile")
 	b.checkDL3061InstructionOrder()
 	b.checkDL3043ForbiddenOnbuildTriggers()
@@ -162,6 +168,7 @@ func TestBuilderHelpersHandleNilInputs(t *testing.T) {
 }
 
 func TestParseOnbuildCopyInvalidExpressionReturnsNil(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder(nil, nil, "Dockerfile")
 	if cmd := b.parseOnbuildCopy("COPY"); cmd != nil {
 		t.Errorf("expected nil for invalid ONBUILD expression, got %#v", cmd)
