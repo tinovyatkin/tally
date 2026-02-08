@@ -267,9 +267,14 @@ func extractFixData(cmdStr string, variant shell.Variant) (string, string, bool)
 		return "", "", false
 	}
 
-	// Extract destination from tar -C / --directory flag (default: /)
-	dest := "/"
+	// Only emit a fix when tar extraction is present.
+	// ADD --unpack only unpacks tar archives; single-file decompressors
+	// (gunzip, bunzip2, etc.) would produce an incorrect transformation.
 	tarCmds := shell.FindCommands(cmdStr, variant, "tar")
+	if len(tarCmds) == 0 {
+		return "", "", false
+	}
+	dest := "/"
 	for i := range tarCmds {
 		if d := shell.TarDestination(&tarCmds[i]); d != "" {
 			dest = d
