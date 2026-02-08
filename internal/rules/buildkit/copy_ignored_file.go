@@ -9,6 +9,7 @@ import (
 
 	"github.com/tinovyatkin/tally/internal/dockerfile"
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/shell"
 )
 
 // CopyIgnoredFileRule implements the copy-ignored-file linting rule.
@@ -136,11 +137,8 @@ func (r *CopyIgnoredFileRule) checkCopyAdd(
 }
 
 // isURLCopyIgnored checks if a path looks like a URL.
-func isURLCopyIgnored(path string) bool {
-	return strings.HasPrefix(path, "http://") ||
-		strings.HasPrefix(path, "https://") ||
-		strings.HasPrefix(path, "ftp://") ||
-		strings.HasPrefix(path, "git://")
+func isURLCopyIgnored(p string) bool {
+	return shell.IsURL(p) || strings.HasPrefix(p, "git://")
 }
 
 // normalizePathCopyIgnored normalizes a source path for comparison.

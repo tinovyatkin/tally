@@ -6,6 +6,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/shell"
 )
 
 // DL3021Rule implements the DL3021 linting rule.
@@ -51,7 +52,7 @@ func (r *DL3021Rule) Check(input rules.LintInput) []rules.Violation {
 
 			// Check if destination ends with /
 			// Strip quotes if present (handles "dest" case)
-			dest := stripQuotes(copyCmd.DestPath)
+			dest := shell.DropQuotes(copyCmd.DestPath)
 			if dest != "" && !strings.HasSuffix(dest, "/") {
 				loc := rules.NewLocationFromRanges(input.File, copyCmd.Location())
 				violations = append(violations, rules.NewViolation(
