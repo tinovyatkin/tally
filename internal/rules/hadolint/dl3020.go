@@ -2,6 +2,7 @@ package hadolint
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
@@ -105,12 +106,9 @@ func isTarArchiveDL3020(src string) bool {
 		".tar.zst", ".tzst",
 		".tar.lz4",
 	}
-	for _, ext := range tarExtensions {
-		if strings.HasSuffix(src, ext) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(tarExtensions, func(ext string) bool {
+		return strings.HasSuffix(src, ext)
+	})
 }
 
 // isHeredocDL3020 checks if a source is a heredoc marker.
