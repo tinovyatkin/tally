@@ -104,7 +104,16 @@ func (r *PreferAddUnpackRule) Check(input rules.LintInput) []rules.Violation {
 			}
 		}
 
+		// Track the effective WORKDIR as we walk through the stage.
+		// Docker default is "/" when no WORKDIR is set.
+		workdir := "/"
+
 		for _, cmd := range stage.Commands {
+			if wd, ok := cmd.(*instructions.WorkdirCommand); ok {
+				workdir = wd.Path
+				continue
+			}
+
 			run, ok := cmd.(*instructions.RunCommand)
 			if !ok {
 				continue
@@ -123,7 +132,7 @@ func (r *PreferAddUnpackRule) Check(input rules.LintInput) []rules.Violation {
 						"This reduces image size and build complexity. Requires BuildKit.",
 				)
 
-				if fix := buildAddUnpackFix(input.File, run, cmdStr, shellVariant, meta); fix != nil {
+				if fix := buildAddUnpackFix(input.File, run, cmdStr, shellVariant, meta, workdir); fix != nil {
 					v = v.WithSuggestedFix(fix)
 				}
 
@@ -199,8 +208,9 @@ func buildAddUnpackFix(
 	cmdStr string,
 	variant shell.Variant,
 	meta rules.RuleMetadata,
+	workdir string,
 ) *rules.SuggestedFix {
-	url, dest, ok := extractFixData(cmdStr, variant)
+	url, dest, ok := extractFixData(cmdStr, variant, workdir)
 	if !ok {
 		return nil
 	}
@@ -239,8 +249,10 @@ func buildAddUnpackFix(
 
 // extractFixData checks if a RUN command is a simple download+extract and
 // extracts the archive URL and destination directory.
+// When tar has no explicit -C/--directory, workdir (the effective WORKDIR
+// from the Dockerfile) is used as the extraction destination.
 // Returns ("", "", false) if the command contains non-download/extract commands.
-func extractFixData(cmdStr string, variant shell.Variant) (string, string, bool) {
+func extractFixData(cmdStr string, variant shell.Variant, workdir string) (string, string, bool) {
 	// Check that ALL commands in the script are download or extraction commands
 	allNames := shell.CommandNamesWithVariant(cmdStr, variant)
 	for _, name := range allNames {
@@ -276,7 +288,8 @@ func extractFixData(cmdStr string, variant shell.Variant) (string, string, bool)
 	if len(tarCmds) == 0 {
 		return "", "", false
 	}
-	dest := "/"
+	// Default to the effective WORKDIR; tar without -C extracts into cwd.
+	dest := workdir
 	for i := range tarCmds {
 		if d := shell.TarDestination(&tarCmds[i]); d != "" {
 			dest = d

@@ -307,6 +307,26 @@ RUN wget -O /tmp/app.tar.gz https://example.com/app.tar.gz && tar -xf /tmp/app.t
 			wantURL:  "https://example.com/app.tar.gz",
 			wantDest: "/opt",
 		},
+		{
+			name: "WORKDIR used as default dest when no -C",
+			dockerfile: `FROM ubuntu:22.04
+WORKDIR /app
+RUN curl -fsSL https://example.com/app.tar.gz | tar -xz
+`,
+			wantFix:  true,
+			wantURL:  "https://example.com/app.tar.gz",
+			wantDest: "/app",
+		},
+		{
+			name: "explicit -C overrides WORKDIR",
+			dockerfile: `FROM ubuntu:22.04
+WORKDIR /app
+RUN curl -fsSL https://example.com/app.tar.gz | tar -xz -C /usr/local
+`,
+			wantFix:  true,
+			wantURL:  "https://example.com/app.tar.gz",
+			wantDest: "/usr/local",
+		},
 	}
 
 	for _, tt := range tests {
