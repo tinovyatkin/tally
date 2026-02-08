@@ -574,7 +574,6 @@ func TestFix(t *testing.T) {
 	testCases := []struct {
 		name        string
 		input       string // Input Dockerfile content
-		want        string // Expected fixed content
 		args        []string
 		wantApplied int    // Expected number of fixes applied
 		config      string // Optional config file content (empty string uses default empty config)
@@ -582,21 +581,18 @@ func TestFix(t *testing.T) {
 		{
 			name:        "stage-name-casing",
 			input:       "FROM alpine:3.18 AS Builder\nRUN echo hello\nFROM alpine:3.18\nCOPY --from=Builder /app /app\n",
-			want:        "FROM alpine:3.18 AS builder\nRUN echo hello\nFROM alpine:3.18\nCOPY --from=builder /app /app\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
 		{
 			name:        "from-as-casing",
 			input:       "FROM alpine:3.18 as builder\nRUN echo hello\n",
-			want:        "FROM alpine:3.18 AS builder\nRUN echo hello\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
 		{
 			name:        "combined-stage-and-as-casing",
 			input:       "FROM alpine:3.18 as Builder\nRUN echo hello\n",
-			want:        "FROM alpine:3.18 AS builder\nRUN echo hello\n",
 			args:        []string{"--fix"},
 			wantApplied: 2, // Both FromAsCasing and StageNameCasing
 		},
@@ -604,7 +600,6 @@ func TestFix(t *testing.T) {
 		{
 			name:        "dl3027-apt-to-apt-get",
 			input:       "FROM ubuntu:22.04\nRUN apt update && apt install -y curl\n",
-			want:        "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y curl\n",
 			args:        []string{"--fix"},
 			wantApplied: 1, // Single violation with multiple edits
 		},
@@ -615,7 +610,6 @@ func TestFix(t *testing.T) {
 			// Requires both --fix and --fix-unsafe since FixSuggestion > FixSafe.
 			name:        "dl3003-cd-to-workdir",
 			input:       "FROM ubuntu:22.04\nRUN cd /app\n",
-			want:        "FROM ubuntu:22.04\nWORKDIR /app\n",
 			args:        []string{"--fix", "--fix-unsafe"},
 			wantApplied: 1,
 		},
@@ -623,14 +617,12 @@ func TestFix(t *testing.T) {
 		{
 			name:        "no-empty-continuation-single",
 			input:       "FROM alpine:3.18\nRUN apk update && \\\n\n    apk add curl\n",
-			want:        "FROM alpine:3.18\nRUN apk update && \\\n    apk add curl\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
 		{
 			name:        "no-empty-continuation-multiple",
 			input:       "FROM alpine:3.18\nRUN apk update && \\\n\n    apk add \\\n\n    curl\n",
-			want:        "FROM alpine:3.18\nRUN apk update && \\\n    apk add \\\n    curl\n",
 			args:        []string{"--fix"},
 			wantApplied: 1, // Single violation covers all empty lines
 		},
@@ -638,14 +630,12 @@ func TestFix(t *testing.T) {
 		{
 			name:        "consistent-instruction-casing-to-upper",
 			input:       "FROM alpine:3.18\nrun echo hello\nCOPY . /app\nworkdir /app\n",
-			want:        "FROM alpine:3.18\nRUN echo hello\nCOPY . /app\nWORKDIR /app\n",
 			args:        []string{"--fix"},
 			wantApplied: 2, // Two instructions need fixing
 		},
 		{
 			name:        "consistent-instruction-casing-to-lower",
 			input:       "from alpine:3.18\nrun echo hello\nCOPY . /app\nworkdir /app\n",
-			want:        "from alpine:3.18\nrun echo hello\ncopy . /app\nworkdir /app\n",
 			args:        []string{"--fix"},
 			wantApplied: 1, // Only COPY needs fixing
 		},
@@ -658,13 +648,6 @@ func TestFix(t *testing.T) {
 RUN cd /app && make build
 RUN apt install curl
 `,
-			// DL3003 splits "RUN cd /app && make build" into "WORKDIR /app\nRUN make build"
-			// DL3027 changes "apt install" to "apt-get install"
-			want: `FROM ubuntu:22.04
-WORKDIR /app
-RUN make build
-RUN apt-get install curl
-`,
 			args:        []string{"--fix", "--fix-unsafe", "--ignore", "tally/prefer-run-heredoc"},
 			wantApplied: 2, // DL3003 + DL3027
 		},
@@ -672,28 +655,24 @@ RUN apt-get install curl
 		{
 			name:        "legacy-key-value-format-simple",
 			input:       "FROM alpine:3.18\nENV foo bar\n",
-			want:        "FROM alpine:3.18\nENV foo=bar\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
 		{
 			name:        "legacy-key-value-format-multi-word",
 			input:       "FROM alpine:3.18\nENV MY_VAR hello world\n",
-			want:        "FROM alpine:3.18\nENV MY_VAR=\"hello world\"\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
 		{
 			name:        "legacy-key-value-format-label",
 			input:       "FROM alpine:3.18\nLABEL maintainer John Doe\n",
-			want:        "FROM alpine:3.18\nLABEL maintainer=\"John Doe\"\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
 		{
 			name:        "legacy-key-value-format-multiple",
 			input:       "FROM alpine:3.18\nENV foo bar\nLABEL version 1.0\n",
-			want:        "FROM alpine:3.18\nENV foo=bar\nLABEL version=1.0\n",
 			args:        []string{"--fix"},
 			wantApplied: 2,
 		},
@@ -701,14 +680,12 @@ RUN apt-get install curl
 		{
 			name:        "maintainer-deprecated",
 			input:       "FROM alpine:3.18\nMAINTAINER John Doe <john@example.com>\nRUN echo hello\n",
-			want:        "FROM alpine:3.18\nLABEL org.opencontainers.image.authors=\"John Doe <john@example.com>\"\nRUN echo hello\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
 		},
 		{
 			name:        "json-args-recommended",
 			input:       "FROM alpine:3.18\nCMD echo hello\n",
-			want:        "FROM alpine:3.18\nCMD [\"echo\",\"hello\"]\n",
 			args:        []string{"--fix", "--fix-unsafe"},
 			wantApplied: 1,
 		},
@@ -726,20 +703,6 @@ ARG version=latest
 # definitely a bad comment
 ARG baz=quux
 `,
-			want: `# check=experimental=InvalidDefinitionDescription
-# bar this is the bar
-
-ARG foo=bar
-# BasE this is the BasE image
-
-FROM scratch AS base
-# definitely a bad comment
-
-ARG version=latest
-# definitely a bad comment
-
-ARG baz=quux
-`,
 			args:        []string{"--fix", "--select", "buildkit/InvalidDefinitionDescription"},
 			wantApplied: 4, // Four violations: lines 3, 5, 7, 9
 		},
@@ -747,7 +710,6 @@ ARG baz=quux
 		{
 			name:        "consistent-indentation-multi-stage",
 			input:       "FROM alpine:3.20 AS builder\nRUN echo build\nFROM scratch\nCOPY --from=builder /app /app\n",
-			want:        "FROM alpine:3.20 AS builder\n\tRUN echo build\nFROM scratch\n\tCOPY --from=builder /app /app\n",
 			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
 			wantApplied: 2,
 			config: `[rules.tally.consistent-indentation]
@@ -758,7 +720,6 @@ severity = "style"
 		{
 			name:        "consistent-indentation-single-stage",
 			input:       "FROM alpine:3.20\n\tRUN echo hello\n\tCOPY . /app\n",
-			want:        "FROM alpine:3.20\nRUN echo hello\nCOPY . /app\n",
 			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
 			wantApplied: 2,
 			config: `[rules.tally.consistent-indentation]
@@ -769,7 +730,6 @@ severity = "style"
 		{
 			name:        "consistent-indentation-single-stage-spaces",
 			input:       "FROM alpine:3.20\n    RUN echo hello\n    COPY . /app\n",
-			want:        "FROM alpine:3.20\nRUN echo hello\nCOPY . /app\n",
 			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
 			wantApplied: 2,
 			config: `[rules.tally.consistent-indentation]
@@ -789,16 +749,6 @@ severity = "style"
 				"      uv pip install --system -r requirements.txt\n" +
 				"FROM scratch\n" +
 				"COPY --from=builder /app /app\n",
-			want: "FROM ubuntu:22.04 AS builder\n" +
-				"\tRUN --mount=type=secret,id=pipconf,target=/root/.config/pip/pip.conf \\\n" +
-				"\t--mount=type=cache,target=/root/.cache/pip \\\n" +
-				"\t--mount=type=secret,id=uvtoml,target=/root/.config/uv/uv.toml \\\n" +
-				"\t--mount=type=bind,source=requirements.txt,target=${LAMBDA_TASK_ROOT}/requirements.txt \\\n" +
-				"\t--mount=type=cache,target=/root/.cache/uv \\\n" +
-				"\tpip install uv==0.9.24 && \\\n" +
-				"\tuv pip install --system -r requirements.txt\n" +
-				"FROM scratch\n" +
-				"\tCOPY --from=builder /app /app\n",
 			args:        []string{"--fix", "--select", "tally/consistent-indentation"},
 			wantApplied: 2, // RUN (multi-line) + COPY
 			config: `[rules.tally.consistent-indentation]
@@ -810,7 +760,6 @@ severity = "style"
 		{
 			name:  "consistent-indentation-with-casing-fix",
 			input: "FROM alpine:3.20 AS builder\nrun echo build\nFROM scratch\ncopy --from=builder /app /app\n",
-			want:  "FROM alpine:3.20 AS builder\n\tRUN echo build\nFROM scratch\n\tCOPY --from=builder /app /app\n",
 			args: []string{
 				"--fix",
 				"--select", "tally/consistent-indentation",
@@ -830,13 +779,6 @@ ARG foo=bar
 # Another mismatched comment
 FROM scratch AS base
 `,
-			want: `# This comment doesn't match the ARG name
-
-ARG foo=bar
-# Another mismatched comment
-
-FROM scratch AS base
-`,
 			args:        []string{"--fix"},
 			wantApplied: 2,
 			config: `[rules.buildkit.InvalidDefinitionDescription]
@@ -850,7 +792,6 @@ severity = "error"
 		{
 			name:  "prefer-copy-heredoc-single-echo",
 			input: "FROM ubuntu:22.04\nRUN echo 'hello world' > /app/greeting.txt\n",
-			want:  "FROM ubuntu:22.04\nCOPY <<EOF /app/greeting.txt\nhello world\nEOF\n",
 			args: []string{
 				"--fix-unsafe",
 				"--fix",
@@ -865,8 +806,6 @@ severity = "error"
 			input: "FROM ubuntu:22.04\n" +
 				"RUN echo 'line1' > /app/data.txt\n" +
 				"RUN echo 'line2' >> /app/data.txt\n",
-			want: "FROM ubuntu:22.04\n" +
-				"COPY <<EOF /app/data.txt\nline1\nline2\nEOF\n",
 			args: []string{
 				"--fix-unsafe",
 				"--fix",
@@ -882,8 +821,6 @@ severity = "error"
 				"RUN apt-get update\n" +
 				"RUN apt-get install -y curl\n" +
 				"RUN apt-get install -y git\n",
-			want: "FROM ubuntu:22.04\n" +
-				"RUN <<EOF\nset -e\napt-get update\napt-get install -y curl\napt-get install -y git\nEOF\n",
 			args: []string{
 				"--fix-unsafe",
 				"--fix",
@@ -896,7 +833,6 @@ severity = "error"
 		{
 			name:  "prefer-run-heredoc-chained",
 			input: "FROM ubuntu:22.04\nRUN echo step1 && echo step2 && echo step3\n",
-			want:  "FROM ubuntu:22.04\nRUN <<EOF\nset -e\necho step1\necho step2\necho step3\nEOF\n",
 			args: []string{
 				"--fix-unsafe",
 				"--fix",
@@ -914,9 +850,6 @@ severity = "error"
 				"RUN apt-get update\n" +
 				"RUN apt-get install -y curl\n" +
 				"RUN apt-get install -y git\n",
-			want: "FROM ubuntu:22.04\n" +
-				"COPY <<EOF /etc/nginx.conf\nserver {}\nEOF\n" +
-				"RUN <<EOF\nset -e\napt-get update\napt-get install -y curl\napt-get install -y git\nEOF\n",
 			args: []string{
 				"--fix-unsafe",
 				"--fix",
@@ -938,11 +871,6 @@ severity = "error"
 				"FROM alpine:3.20\n" +
 				"COPY --from=builder /usr/bin/curl /usr/bin/curl\n" +
 				"RUN echo 'done'\n",
-			want: "FROM ubuntu:22.04 AS builder\n" +
-				"\tRUN <<-EOF\n\t\tset -e\n\t\tapt-get update\n\t\tapt-get install -y curl\n\t\tapt-get install -y git\n\t\tEOF\n" +
-				"FROM alpine:3.20\n" +
-				"\tCOPY --from=builder /usr/bin/curl /usr/bin/curl\n" +
-				"\tRUN echo 'done'\n",
 			args: []string{
 				"--fix-unsafe",
 				"--fix",
@@ -960,7 +888,6 @@ severity = "style"
 		{
 			name:  "prefer-copy-heredoc-with-chmod",
 			input: "FROM ubuntu:22.04\nRUN echo '#!/bin/sh' > /entrypoint.sh && chmod +x /entrypoint.sh\n",
-			want:  "FROM ubuntu:22.04\nCOPY --chmod=0755 <<EOF /entrypoint.sh\n#!/bin/sh\nEOF\n",
 			args: []string{
 				"--fix-unsafe",
 				"--fix",
@@ -998,15 +925,13 @@ severity = "style"
 				t.Fatalf("check --fix failed: %v\noutput:\n%s", err, output)
 			}
 
-			// Read the fixed Dockerfile
+			// Read the fixed Dockerfile and snapshot it
 			fixed, err := os.ReadFile(dockerfilePath)
 			if err != nil {
 				t.Fatalf("failed to read fixed Dockerfile: %v", err)
 			}
 
-			if string(fixed) != tc.want {
-				t.Errorf("fixed content mismatch:\ngot:\n%s\nwant:\n%s\noutput:\n%s", fixed, tc.want, output)
-			}
+			snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, string(fixed))
 
 			// Check that the output mentions the expected number of fixes
 			outputStr := string(output)
@@ -1224,11 +1149,6 @@ func TestFixPreferAddUnpackBeatsHeredoc(t *testing.T) {
 		"RUN curl -fsSL https://nodejs.org/dist/v20.11.0/node-v20.11.0-linux-x64.tar.xz | tar -xJ -C /usr/local\n" +
 		"RUN curl -fsSL https://example.com/app.tar.gz | tar -xz -C /opt\n"
 
-	want := "FROM ubuntu:22.04\n" +
-		"ADD --unpack https://go.dev/dl/go1.22.0.linux-amd64.tar.gz /usr/local\n" +
-		"ADD --unpack https://nodejs.org/dist/v20.11.0/node-v20.11.0-linux-x64.tar.xz /usr/local\n" +
-		"ADD --unpack https://example.com/app.tar.gz /opt\n"
-
 	tmpDir := t.TempDir()
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 	if err := os.WriteFile(dockerfilePath, []byte(input), 0o644); err != nil {
@@ -1265,9 +1185,7 @@ func TestFixPreferAddUnpackBeatsHeredoc(t *testing.T) {
 		t.Fatalf("failed to read fixed Dockerfile: %v", err)
 	}
 
-	if string(fixed) != want {
-		t.Errorf("fixed content mismatch:\ngot:\n%s\nwant:\n%s\noutput:\n%s", fixed, want, output)
-	}
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, string(fixed))
 
 	outputStr := string(output)
 	if !strings.Contains(outputStr, "Fixed") {
