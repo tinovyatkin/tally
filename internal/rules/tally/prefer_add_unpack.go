@@ -249,18 +249,20 @@ func extractFixData(cmdStr string, variant shell.Variant) (string, string, bool)
 		}
 	}
 
-	// Extract the archive URL from download commands
+	// Collect all distinct archive URLs from download commands.
+	// Bail out if there are multiple — we can't reliably match which
+	// URL corresponds to the tar extraction (e.g. curl a.tar.gz &&
+	// curl b.tar.gz && tar -xf b.tar.gz).
 	var archiveURL string
 	dlCmds := shell.FindCommands(cmdStr, variant, shell.DownloadCommands...)
 	for _, dl := range dlCmds {
 		for _, arg := range dl.Args {
 			if shell.IsArchiveURL(arg) {
+				if archiveURL != "" && arg != archiveURL {
+					return "", "", false // multiple distinct archive URLs
+				}
 				archiveURL = arg
-				break
 			}
-		}
-		if archiveURL != "" {
-			break
 		}
 	}
 	if archiveURL == "" {
