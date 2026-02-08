@@ -327,6 +327,17 @@ RUN curl -fsSL https://example.com/app.tar.gz | tar -xz -C /usr/local
 			wantURL:  "https://example.com/app.tar.gz",
 			wantDest: "/usr/local",
 		},
+		{
+			name: "relative WORKDIR resolved against previous",
+			dockerfile: `FROM ubuntu:22.04
+WORKDIR /opt
+WORKDIR myapp
+RUN curl -fsSL https://example.com/app.tar.gz | tar -xz
+`,
+			wantFix:  true,
+			wantURL:  "https://example.com/app.tar.gz",
+			wantDest: "/opt/myapp",
+		},
 	}
 
 	for _, tt := range tests {

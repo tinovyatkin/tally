@@ -1,6 +1,7 @@
 package tally
 
 import (
+	"path"
 	"slices"
 	"strings"
 
@@ -110,7 +111,11 @@ func (r *PreferAddUnpackRule) Check(input rules.LintInput) []rules.Violation {
 
 		for _, cmd := range stage.Commands {
 			if wd, ok := cmd.(*instructions.WorkdirCommand); ok {
-				workdir = wd.Path
+				if path.IsAbs(wd.Path) {
+					workdir = path.Clean(wd.Path)
+				} else {
+					workdir = path.Clean(path.Join(workdir, wd.Path))
+				}
 				continue
 			}
 
