@@ -292,24 +292,24 @@ func TestFormatMount(t *testing.T) {
 			want: "--mount=type=cache,target=/var/cache/apt,sharing=locked",
 		},
 		{
-			name: "bind mount",
+			name: "bind mount ro",
 			mount: &instructions.Mount{
 				Type:     instructions.MountTypeBind,
 				Source:   "/src",
 				Target:   "/app",
-				ReadOnly: true, // Default for bind
+				ReadOnly: true,
 			},
-			want: "--mount=type=bind,target=/app,source=/src",
+			want: "--mount=type=bind,target=/app,source=/src,ro",
 		},
 		{
-			name: "bind mount rw",
+			name: "bind mount rw (default)",
 			mount: &instructions.Mount{
 				Type:     instructions.MountTypeBind,
 				Source:   "/src",
 				Target:   "/app",
 				ReadOnly: false,
 			},
-			want: "--mount=type=bind,target=/app,source=/src,rw",
+			want: "--mount=type=bind,target=/app,source=/src",
 		},
 		{
 			name: "secret mount",
@@ -447,7 +447,7 @@ func TestFormatMount_WithUIDGIDMode(t *testing.T) {
 				From:     "builder",
 				ReadOnly: true,
 			},
-			want: "--mount=type=bind,target=/app,from=builder",
+			want: "--mount=type=bind,target=/app,from=builder,ro",
 		},
 		{
 			name: "secret mount with target",

@@ -204,8 +204,8 @@ func formatBindMount(parts []string, m *instructions.Mount) []string {
 	if m.From != "" {
 		parts = append(parts, "from="+m.From)
 	}
-	if !m.ReadOnly {
-		parts = append(parts, "rw")
+	if m.ReadOnly {
+		parts = append(parts, "ro")
 	}
 	return parts
 }
