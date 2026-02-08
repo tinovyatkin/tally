@@ -48,6 +48,7 @@ func NewSARIFReporter(w io.Writer, toolName, toolVersion, toolURI string) *SARIF
 func (r *SARIFReporter) Report(violations []rules.Violation, _ map[string][]byte, _ ReportMetadata) error {
 	// Create a new SARIF report (v2.1.0 for maximum compatibility)
 	report := sarif.NewReport()
+	report.Schema = "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json"
 
 	// Create a run with tool information
 	run := sarif.NewRunWithInformationURI(r.toolName, r.toolURI)
