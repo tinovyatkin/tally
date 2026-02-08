@@ -94,11 +94,11 @@ RUN curl -fsSL https://example.com/app.tgz | tar -xz -C /opt/
 			wantCount: 1,
 		},
 		{
-			name: "catch: .gz URL with gunzip",
+			name: "ignore: .gz URL with gunzip (not tar-based)",
 			dockerfile: `FROM ubuntu:22.04
 RUN curl -fsSL https://example.com/data.gz -o /tmp/data.gz && gunzip /tmp/data.gz
 `,
-			wantCount: 1,
+			wantCount: 0,
 		},
 		// URL with query string
 		{

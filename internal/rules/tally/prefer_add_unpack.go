@@ -155,11 +155,9 @@ func (r *PreferAddUnpackRule) resolveConfig(config any) PreferAddUnpackConfig {
 }
 
 // hasRemoteArchiveExtraction checks if a shell command downloads a remote archive
-// and extracts it, which could be replaced with ADD --unpack.
-// Detects patterns like:
-//   - curl -fsSL https://example.com/app.tar.gz | tar -xz
-//   - wget -qO- https://example.com/app.tar.gz | tar -xz
-//   - curl -o /tmp/app.tar.gz https://example.com/app.tar.gz && tar -xf /tmp/app.tar.gz
+// and extracts it with tar, which can be replaced with ADD --unpack.
+// Only tar-based extractions are detected since ADD --unpack does not handle
+// single-file decompressors (gunzip, bunzip2, etc.).
 func hasRemoteArchiveExtraction(cmdStr string, variant shell.Variant) bool {
 	dlCmds := shell.FindCommands(cmdStr, variant, shell.DownloadCommands...)
 	if len(dlCmds) == 0 {
@@ -171,7 +169,7 @@ func hasRemoteArchiveExtraction(cmdStr string, variant shell.Variant) bool {
 		return false
 	}
 
-	// Check if the same RUN contains an extraction command
+	// Only detect tar extraction — ADD --unpack only handles tar archives
 	tarCmds := shell.FindCommands(cmdStr, variant, "tar")
 	for i := range tarCmds {
 		if shell.IsTarExtract(&tarCmds[i]) {
@@ -179,7 +177,7 @@ func hasRemoteArchiveExtraction(cmdStr string, variant shell.Variant) bool {
 		}
 	}
 
-	return len(shell.FindCommands(cmdStr, variant, shell.ExtractionCommands...)) > 0
+	return false
 }
 
 // hasArchiveURLArg checks if any download command has a URL pointing to an archive.

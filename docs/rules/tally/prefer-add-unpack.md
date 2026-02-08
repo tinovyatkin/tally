@@ -11,8 +11,8 @@ Prefer `ADD --unpack` for downloading and extracting remote archives.
 
 ## Description
 
-Flags `RUN` instructions that download a remote archive with `curl`/ `wget` and extract it. Tar-based extractions can be replaced with
-[`ADD --unpack <url> <dest>`](https://docs.docker.com/reference/dockerfile/#add---unpack); single-file decompressors are reported without a fix.
+Flags `RUN` instructions that download a remote tar archive with `curl`/ `wget` and extract it with `tar`, suggesting
+[`ADD --unpack <url> <dest>`](https://docs.docker.com/reference/dockerfile/#add---unpack) instead.
 
 `ADD --unpack` is a [BuildKit feature](https://docs.docker.com/build/buildkit/) that downloads and extracts a remote tar archive in a single layer,
 reducing image size and build complexity.
@@ -22,9 +22,8 @@ reducing image size and build complexity.
 1. **Pipe pattern**: `curl -fsSL <url> | tar -xz -C /dest`
 2. **Download-then-extract**: `curl -o /tmp/app.tar.gz <url> && tar -xf /tmp/app.tar.gz -C /dest`
 3. **wget variants**: Same patterns with `wget` instead of `curl`
-4. **Single-file decompressors**: `curl -o /tmp/data.gz <url> && gunzip /tmp/data.gz` (detected but not auto-fixed)
 
-The rule checks that the URL has a recognized archive extension and that an extraction command is present in the same `RUN` instruction.
+The rule checks that the URL has a recognized archive extension and that a `tar` extraction command is present in the same `RUN` instruction.
 
 ## Examples
 
@@ -55,15 +54,14 @@ The auto-fix is only emitted when:
 - A `tar` extraction command is present (`ADD --unpack` only handles tar archives)
 
 If additional commands are present (e.g. `chmod`, `rm`, `mv`), the violation is still reported but no fix is suggested, since those commands would be
-lost. Single-file decompressors (`gunzip`, `bunzip2`, etc.) are flagged as violations but not auto-fixed because `ADD --unpack` does not decompress
-non-tar files.
+lost.
 
 The tar destination is extracted from `-C`, `--directory=`, or `--directory` flags. If no destination is specified, the effective `WORKDIR` is used.
 
 ## Limitations
 
 - Only detects `curl` and `wget` as download commands
-- Auto-fix requires `tar` extraction (single-file decompressors are detected but not auto-fixed)
+- Only detects `tar` extraction (`ADD --unpack` does not handle single-file decompressors)
 - Skips non-POSIX shells (e.g. PowerShell stages)
 - URL must have a recognized archive file extension
 
