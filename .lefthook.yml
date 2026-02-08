@@ -7,6 +7,10 @@ output:
 assert_lefthook_installed: true
 pre-commit:
   commands:
+    format-go:
+      glob: "**/*.go"
+      run: gofmt -w -s {staged_files}
+      stage_fixed: true
     lint-go:
       glob: "**/*.go"
       run: GOEXPERIMENT=jsonv2 make lint-fix
