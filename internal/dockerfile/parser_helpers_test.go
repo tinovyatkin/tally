@@ -6,6 +6,7 @@ import (
 )
 
 func TestExtractRuleNameFromURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		url  string
@@ -35,6 +36,7 @@ func TestExtractRuleNameFromURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := extractRuleNameFromURL(tt.url); got != tt.want {
 				t.Fatalf("extractRuleNameFromURL(%q) = %q, want %q", tt.url, got, tt.want)
 			}
@@ -43,6 +45,7 @@ func TestExtractRuleNameFromURL(t *testing.T) {
 }
 
 func TestKebabToPascalCase(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   string
 		want string
@@ -55,6 +58,7 @@ func TestKebabToPascalCase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
+			t.Parallel()
 			if got := kebabToPascalCase(tt.in); got != tt.want {
 				t.Fatalf("kebabToPascalCase(%q) = %q, want %q", tt.in, got, tt.want)
 			}
@@ -63,6 +67,7 @@ func TestKebabToPascalCase(t *testing.T) {
 }
 
 func TestExtractHeredocFiles(t *testing.T) {
+	t.Parallel()
 	content := syntaxDirective + `FROM alpine
 RUN echo hi
 COPY <<CONFIG /app/config.txt

@@ -9,6 +9,7 @@ import (
 )
 
 func TestJSONReporter(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -75,6 +76,7 @@ func TestJSONReporter(t *testing.T) {
 }
 
 func TestJSONReporterMultipleFiles(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -134,6 +136,7 @@ func TestJSONReporterMultipleFiles(t *testing.T) {
 }
 
 func TestJSONReporterEmpty(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	reporter := NewJSONReporter(&buf)
 

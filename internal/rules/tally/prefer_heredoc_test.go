@@ -12,6 +12,7 @@ import (
 )
 
 func TestPreferHeredocRule_Metadata(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferHeredocRule()
 	meta := rule.Metadata()
 
@@ -30,6 +31,7 @@ func TestPreferHeredocRule_Metadata(t *testing.T) {
 }
 
 func TestPreferHeredocRule_DefaultConfig(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferHeredocRule()
 	cfg, ok := rule.DefaultConfig().(PreferHeredocConfig)
 	if !ok {
@@ -48,6 +50,7 @@ func TestPreferHeredocRule_DefaultConfig(t *testing.T) {
 }
 
 func TestPreferHeredocRule_Check(t *testing.T) {
+	t.Parallel()
 	testutil.RunRuleTests(t, NewPreferHeredocRule(), []testutil.RuleTestCase{
 		{
 			Name: "three consecutive RUNs",
@@ -187,6 +190,7 @@ RUN echo 2
 }
 
 func TestPreferHeredocRule_CheckWithFixes(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferHeredocRule()
 
 	tests := []struct {
@@ -223,6 +227,7 @@ RUN echo 3
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithConfig(t, "Dockerfile", tt.content, nil)
 			violations := rule.Check(input)
 
@@ -243,6 +248,7 @@ RUN echo 3
 }
 
 func TestPreferHeredocRule_ValidateConfig(t *testing.T) {
+	t.Parallel()
 	rule := NewPreferHeredocRule()
 
 	tests := []struct {
@@ -282,6 +288,7 @@ func TestPreferHeredocRule_ValidateConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := rule.ValidateConfig(tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateConfig() error = %v, wantErr %v", err, tt.wantErr)
@@ -291,9 +298,11 @@ func TestPreferHeredocRule_ValidateConfig(t *testing.T) {
 }
 
 func TestFormatHeredocWithMounts(t *testing.T) {
+	t.Parallel()
 	commands := []string{"apt-get update", "apt-get install -y vim", "apt-get clean"}
 
 	t.Run("without mounts", func(t *testing.T) {
+		t.Parallel()
 		result := heredoc.FormatWithMounts(commands, nil, shell.VariantBash)
 
 		expected := "RUN <<EOF\nset -e\napt-get update\napt-get install -y vim\napt-get clean\nEOF"
@@ -304,6 +313,7 @@ func TestFormatHeredocWithMounts(t *testing.T) {
 	})
 
 	t.Run("with cache mount", func(t *testing.T) {
+		t.Parallel()
 		mounts := []*instructions.Mount{{
 			Type:   instructions.MountTypeCache,
 			Target: "/var/cache/apt",
@@ -318,6 +328,7 @@ func TestFormatHeredocWithMounts(t *testing.T) {
 	})
 
 	t.Run("with multiple mounts", func(t *testing.T) {
+		t.Parallel()
 		mounts := []*instructions.Mount{
 			{Type: instructions.MountTypeCache, Target: "/var/cache/apt"},
 			{Type: instructions.MountTypeCache, Target: "/root/.cache"},

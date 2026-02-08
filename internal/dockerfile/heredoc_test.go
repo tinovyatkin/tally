@@ -9,6 +9,7 @@ import (
 const syntaxDirective = "# syntax=docker/dockerfile:1\n"
 
 func TestExtractHeredocs_Empty(t *testing.T) {
+	t.Parallel()
 	content := "FROM alpine\nRUN echo hello"
 	result, err := Parse(strings.NewReader(content), nil)
 	if err != nil {
@@ -22,6 +23,7 @@ func TestExtractHeredocs_Empty(t *testing.T) {
 }
 
 func TestExtractHeredocs_RUNHeredoc(t *testing.T) {
+	t.Parallel()
 	content := syntaxDirective + `FROM alpine
 RUN <<EOF
 echo hello
@@ -60,6 +62,7 @@ EOF
 }
 
 func TestExtractHeredocs_COPYHeredoc(t *testing.T) {
+	t.Parallel()
 	content := syntaxDirective + `FROM alpine
 COPY <<EOF /app/config.txt
 key=value
@@ -92,6 +95,7 @@ EOF
 }
 
 func TestExtractHeredocs_ADDHeredoc(t *testing.T) {
+	t.Parallel()
 	content := syntaxDirective + `FROM alpine
 ADD <<EOF /app/data.txt
 some data
@@ -117,6 +121,7 @@ EOF
 }
 
 func TestExtractHeredocs_Multiple(t *testing.T) {
+	t.Parallel()
 	content := syntaxDirective + `FROM alpine
 RUN <<SCRIPT
 #!/bin/bash
@@ -166,6 +171,7 @@ EOF2
 }
 
 func TestHasHeredocs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -198,6 +204,7 @@ EOF
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := Parse(strings.NewReader(tt.content), nil)
 			if err != nil {
 				t.Fatalf("Parse failed: %v", err)
@@ -212,6 +219,7 @@ EOF
 }
 
 func TestHeredocKind_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		kind HeredocKind
 		want string
@@ -231,6 +239,7 @@ func TestHeredocKind_String(t *testing.T) {
 }
 
 func TestExtractHeredocs_NilInput(t *testing.T) {
+	t.Parallel()
 	// Should not panic
 	heredocs := ExtractHeredocs(nil)
 	if len(heredocs) != 0 {
@@ -245,6 +254,7 @@ func TestExtractHeredocs_NilInput(t *testing.T) {
 }
 
 func TestHeredocLine(t *testing.T) {
+	t.Parallel()
 	// Note: syntax directive is on line 0, so RUN is on line 3 (0-based)
 	content := syntaxDirective + `FROM alpine
 # comment
@@ -269,6 +279,7 @@ EOF
 }
 
 func TestHeredocExpand(t *testing.T) {
+	t.Parallel()
 	// Test heredoc with variable expansion (no quotes around delimiter)
 	content := syntaxDirective + `FROM alpine
 ARG NAME=world
@@ -293,6 +304,7 @@ EOF
 }
 
 func TestHeredocNoExpand(t *testing.T) {
+	t.Parallel()
 	// Test heredoc without variable expansion (quoted delimiter)
 	content := syntaxDirective + `FROM alpine
 ARG NAME=world

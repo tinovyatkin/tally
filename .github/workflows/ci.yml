@@ -32,13 +32,14 @@ jobs:
       - name: Run integration tests with coverage
         run: |
           # Integration tests use -cover build and write binary coverage data
+          mkdir -p coverage
           GOTESTSUM_BIN=$(make -s print-gotestsum-bin)
-          "$GOTESTSUM_BIN" --format testname --junitfile junit-integration.xml -- ./internal/integration/...
+          GOCOVERDIR="$(pwd)/coverage" "$GOTESTSUM_BIN" --format testname --junitfile junit-integration.xml -- ./internal/integration/...
       - name: Run LSP protocol tests with coverage
         run: |
           # LSP black-box tests launch tally lsp --stdio as a subprocess
           GOTESTSUM_BIN=$(make -s print-gotestsum-bin)
-          "$GOTESTSUM_BIN" --format testname --junitfile junit-lsptest.xml -- ./internal/lsptest/...
+          GOCOVERDIR="$(pwd)/coverage" "$GOTESTSUM_BIN" --format testname --junitfile junit-lsptest.xml -- ./internal/lsptest/...
           # Convert all binary coverage data (integration + LSP) to text format
           go tool covdata textfmt -i=coverage -o=coverage-integration.txt
       - name: Upload coverage to Codecov

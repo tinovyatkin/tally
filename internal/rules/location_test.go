@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewFileLocation(t *testing.T) {
+	t.Parallel()
 	loc := NewFileLocation("Dockerfile")
 
 	if loc.File != "Dockerfile" {
@@ -22,6 +23,7 @@ func TestNewFileLocation(t *testing.T) {
 }
 
 func TestNewLineLocation(t *testing.T) {
+	t.Parallel()
 	// 0-based: line 10 means the 11th line
 	loc := NewLineLocation("Dockerfile", 10)
 
@@ -46,6 +48,7 @@ func TestNewLineLocation(t *testing.T) {
 }
 
 func TestNewRangeLocation(t *testing.T) {
+	t.Parallel()
 	// 0-based coordinates
 	loc := NewRangeLocation("Dockerfile", 5, 3, 7, 10)
 
@@ -70,6 +73,7 @@ func TestNewRangeLocation(t *testing.T) {
 }
 
 func TestLocation_JSON(t *testing.T) {
+	t.Parallel()
 	loc := NewRangeLocation("test.dockerfile", 1, 5, 3, 20)
 
 	data, err := json.Marshal(loc)
@@ -91,6 +95,7 @@ func TestLocation_JSON(t *testing.T) {
 }
 
 func TestNewLocationFromRange(t *testing.T) {
+	t.Parallel()
 	// Both BuildKit and our Location use 0-based coordinates (LSP semantics)
 	r := parser.Range{
 		Start: parser.Position{Line: 5, Character: 10},

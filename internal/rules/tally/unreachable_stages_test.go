@@ -28,6 +28,7 @@ func makeLintInput(t *testing.T, content string) rules.LintInput {
 }
 
 func TestUnreachableStagesRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewUnreachableStagesRule()
 	meta := r.Metadata()
 
@@ -40,6 +41,7 @@ func TestUnreachableStagesRule_Metadata(t *testing.T) {
 }
 
 func TestUnreachableStagesRule_SingleStage_NoViolation(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 RUN echo "hello"
 `
@@ -53,6 +55,7 @@ RUN echo "hello"
 }
 
 func TestUnreachableStagesRule_AllStagesReachable_NoViolation(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -69,6 +72,7 @@ COPY --from=builder /app /app
 }
 
 func TestUnreachableStagesRule_UnreachableNamedStage(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -106,6 +110,7 @@ COPY --from=builder /app /app
 }
 
 func TestUnreachableStagesRule_UnreachableUnnamedStage(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -135,6 +140,7 @@ COPY --from=builder /app /app
 }
 
 func TestUnreachableStagesRule_MultipleUnreachableStages(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -166,6 +172,7 @@ COPY --from=builder /app /app
 }
 
 func TestUnreachableStagesRule_ChainedDependencies_AllReachable(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS deps
 RUN go mod download
 
@@ -189,6 +196,7 @@ COPY --from=builder /app /app
 }
 
 func TestUnreachableStagesRule_FinalStageWithNoDependencies(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -210,6 +218,7 @@ RUN echo "final stage with no COPY --from"
 }
 
 func TestUnreachableStagesRule_NoSemanticModel_NoViolation(t *testing.T) {
+	t.Parallel()
 	// Test graceful handling when semantic model is nil
 	pr, err := dockerfile.Parse(strings.NewReader(`FROM alpine:3.18
 RUN echo "hello"
@@ -236,6 +245,7 @@ RUN echo "hello"
 }
 
 func TestUnreachableStagesRule_ViolationHasDetail(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS unused
 RUN echo "never used"
 

@@ -8,6 +8,7 @@ import (
 )
 
 func TestDL3003Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -75,6 +76,7 @@ func TestDL3003Rule_Check(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 			r := NewDL3003Rule()
 			violations := r.Check(input)
@@ -90,6 +92,7 @@ func TestDL3003Rule_Check(t *testing.T) {
 }
 
 func TestDL3003Rule_AutoFix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		dockerfile      string
@@ -135,6 +138,7 @@ func TestDL3003Rule_AutoFix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 			r := NewDL3003Rule()
 			violations := r.Check(input)
@@ -168,6 +172,7 @@ func TestDL3003Rule_AutoFix(t *testing.T) {
 // Standalone cd -> WORKDIR is FixSuggestion because WORKDIR creates the directory
 // if it doesn't exist, while RUN cd fails if the directory is missing.
 func TestDL3003_FixSafety(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -187,6 +192,7 @@ func TestDL3003_FixSafety(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 			r := NewDL3003Rule()
 			violations := r.Check(input)
@@ -212,6 +218,7 @@ func TestDL3003_FixSafety(t *testing.T) {
 // fix edit locations use the same line numbering as violation locations.
 // Previously, violations used 1-based lines (BuildKit) while edits used 0-based.
 func TestDL3003_FixLocationConsistency(t *testing.T) {
+	t.Parallel()
 	input := testutil.MakeLintInput(t, "Dockerfile", "FROM ubuntu\nRUN cd /opt")
 	r := NewDL3003Rule()
 	violations := r.Check(input)
@@ -245,10 +252,12 @@ func TestDL3003_FixLocationConsistency(t *testing.T) {
 // when prefer-run-heredoc is enabled and the command is a heredoc candidate.
 // This prevents DL3003 from splitting a RUN that would be better converted to heredoc.
 func TestDL3003_HeredocCoordination(t *testing.T) {
+	t.Parallel()
 	// Command with 3+ chained commands - a heredoc candidate
 	dockerfile := "FROM ubuntu\nRUN cd /app && make && make install"
 
 	t.Run("without heredoc rule - generates fix", func(t *testing.T) {
+		t.Parallel()
 		input := testutil.MakeLintInput(t, "Dockerfile", dockerfile)
 		// EnabledRules is nil (backward compatible) - should generate fix
 		r := NewDL3003Rule()
@@ -263,6 +272,7 @@ func TestDL3003_HeredocCoordination(t *testing.T) {
 	})
 
 	t.Run("with heredoc rule enabled - skips fix for heredoc candidate", func(t *testing.T) {
+		t.Parallel()
 		input := testutil.MakeLintInput(t, "Dockerfile", dockerfile)
 		input.EnabledRules = []string{"tally/prefer-run-heredoc"}
 		r := NewDL3003Rule()
@@ -278,6 +288,7 @@ func TestDL3003_HeredocCoordination(t *testing.T) {
 	})
 
 	t.Run("with heredoc rule enabled - still fixes non-candidate", func(t *testing.T) {
+		t.Parallel()
 		// Only 2 commands - not a heredoc candidate (default minCommands is 3)
 		shortCmd := "FROM ubuntu\nRUN cd /app && make"
 		input := testutil.MakeLintInput(t, "Dockerfile", shortCmd)
@@ -295,6 +306,7 @@ func TestDL3003_HeredocCoordination(t *testing.T) {
 	})
 
 	t.Run("with custom min-commands - respects configured threshold", func(t *testing.T) {
+		t.Parallel()
 		// 3 commands - a heredoc candidate with default (3), but not with min-commands=5
 		threeCmd := "FROM ubuntu\nRUN cd /app && make build && make install"
 		input := testutil.MakeLintInput(t, "Dockerfile", threeCmd)

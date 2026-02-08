@@ -9,6 +9,7 @@ import (
 )
 
 func TestSnippetAttachment_Name(t *testing.T) {
+	t.Parallel()
 	p := NewSnippetAttachment()
 	if p.Name() != "snippet-attachment" {
 		t.Errorf("expected snippet-attachment, got %s", p.Name())
@@ -16,6 +17,7 @@ func TestSnippetAttachment_Name(t *testing.T) {
 }
 
 func TestSnippetAttachment_SkipsExistingSnippet(t *testing.T) {
+	t.Parallel()
 	p := NewSnippetAttachment()
 
 	violations := []rules.Violation{
@@ -42,6 +44,7 @@ func TestSnippetAttachment_SkipsExistingSnippet(t *testing.T) {
 }
 
 func TestSnippetAttachment_SkipsFileLevelViolations(t *testing.T) {
+	t.Parallel()
 	p := NewSnippetAttachment()
 
 	violations := []rules.Violation{
@@ -67,6 +70,7 @@ func TestSnippetAttachment_SkipsFileLevelViolations(t *testing.T) {
 }
 
 func TestSnippetAttachment_SkipsWhenSourceNotAvailable(t *testing.T) {
+	t.Parallel()
 	p := NewSnippetAttachment()
 
 	violations := []rules.Violation{
@@ -92,6 +96,7 @@ func TestSnippetAttachment_SkipsWhenSourceNotAvailable(t *testing.T) {
 }
 
 func TestSnippetAttachment_ExtractsPointLocation(t *testing.T) {
+	t.Parallel()
 	p := NewSnippetAttachment()
 
 	violations := []rules.Violation{
@@ -117,6 +122,7 @@ func TestSnippetAttachment_ExtractsPointLocation(t *testing.T) {
 }
 
 func TestSnippetAttachment_ExtractsRangeLocation(t *testing.T) {
+	t.Parallel()
 	p := NewSnippetAttachment()
 
 	// Range from line 2 to 4
@@ -147,6 +153,7 @@ func TestSnippetAttachment_ExtractsRangeLocation(t *testing.T) {
 }
 
 func TestSnippetAttachment_HandlesInvalidLineNumbers(t *testing.T) {
+	t.Parallel()
 	p := NewSnippetAttachment()
 
 	// Line 0 and negative lines
@@ -183,6 +190,7 @@ func TestSnippetAttachment_HandlesInvalidLineNumbers(t *testing.T) {
 }
 
 func TestExtractSnippet_RangeWithColumn(t *testing.T) {
+	t.Parallel()
 	source := []byte("line1\nline2\nline3\nline4\n")
 	sm := &mockSourceMap{source: source}
 
@@ -201,6 +209,7 @@ func TestExtractSnippet_RangeWithColumn(t *testing.T) {
 }
 
 func TestExtractSnippet_SingleLineRange(t *testing.T) {
+	t.Parallel()
 	source := []byte("line1\nline2\nline3\n")
 	sm := &mockSourceMap{source: source}
 

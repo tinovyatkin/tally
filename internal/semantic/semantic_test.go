@@ -19,6 +19,7 @@ func parseDockerfile(t *testing.T, content string) *dockerfile.ParseResult {
 }
 
 func TestEmptyDockerfile(t *testing.T) {
+	t.Parallel()
 	// Empty Dockerfiles return parse error from BuildKit
 	// Test that we handle nil parse result gracefully
 	model := NewModel(nil, nil, "Dockerfile")
@@ -32,6 +33,7 @@ func TestEmptyDockerfile(t *testing.T) {
 }
 
 func TestSingleStage(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 RUN echo "hello"
 `
@@ -66,6 +68,7 @@ RUN echo "hello"
 }
 
 func TestMultipleStages(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -110,6 +113,7 @@ COPY --from=builder /app /app
 }
 
 func TestNamedAndUnnamedStages(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18 AS first
 RUN echo "first"
 
@@ -147,6 +151,7 @@ RUN echo "third"
 }
 
 func TestDL3012MultipleHealthcheck(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 HEALTHCHECK CMD echo ok
 HEALTHCHECK NONE
@@ -167,6 +172,7 @@ HEALTHCHECK NONE
 }
 
 func TestDL3012ResetsPerStage(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 HEALTHCHECK NONE
 
@@ -183,6 +189,7 @@ HEALTHCHECK NONE
 }
 
 func TestDL3023CopyFromOwnAlias(t *testing.T) {
+	t.Parallel()
 	content := `FROM node:20 AS foo
 COPY --from=foo bar .
 `
@@ -202,6 +209,7 @@ COPY --from=foo bar .
 }
 
 func TestDL3043OnbuildForbiddenInstructions(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 ONBUILD FROM debian:buster
 `
@@ -221,6 +229,7 @@ ONBUILD FROM debian:buster
 }
 
 func TestDL3061InvalidInstructionOrder(t *testing.T) {
+	t.Parallel()
 	content := `ARG FOO=bar
 RUN echo "hello"
 ARG BAR=baz
@@ -243,6 +252,7 @@ RUN echo "ok"
 }
 
 func TestVariableResolutionBasic(t *testing.T) {
+	t.Parallel()
 	content := `ARG VERSION=1.0
 FROM alpine:3.18
 ARG VERSION
@@ -273,6 +283,7 @@ RUN echo $VERSION $OTHER
 }
 
 func TestVariableResolutionBuildArgOverride(t *testing.T) {
+	t.Parallel()
 	content := `ARG VERSION=1.0
 FROM alpine:3.18
 ARG VERSION
@@ -293,6 +304,7 @@ RUN echo $VERSION
 }
 
 func TestVariableResolutionENVOverridesARG(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 ARG MYVAR=arg_value
 ENV MYVAR=env_value
@@ -312,6 +324,7 @@ RUN echo $MYVAR
 }
 
 func TestVariableResolutionENVOverridesBuildArg(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 ARG MYVAR=arg_value
 ENV MYVAR=env_value
@@ -336,6 +349,7 @@ RUN echo $MYVAR
 }
 
 func TestCopyFromNamedStage(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -363,6 +377,7 @@ COPY --from=builder /app /app
 }
 
 func TestCopyFromNumericIndex(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21
 RUN go build -o /app
 
@@ -390,6 +405,7 @@ COPY --from=0 /app /app
 }
 
 func TestCopyFromExternalImage(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf
 `
@@ -420,6 +436,7 @@ COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf
 }
 
 func TestSHELLInheritance(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 RUN echo "default shell"
 SHELL ["/bin/bash", "-c"]
@@ -443,6 +460,7 @@ RUN echo "bash shell"
 }
 
 func TestDefaultShell(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 RUN echo "hello"
 `
@@ -463,6 +481,7 @@ RUN echo "hello"
 }
 
 func TestStageGraphDependencies(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -499,6 +518,7 @@ COPY --from=webserver /app /final
 }
 
 func TestUnreachableStages(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -524,6 +544,7 @@ COPY --from=builder /app /app
 }
 
 func TestIsReachable(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -547,6 +568,7 @@ COPY --from=builder /app /app
 }
 
 func TestBaseImageFromStage(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -570,6 +592,7 @@ RUN echo "extending builder"
 }
 
 func TestBaseImageStageReachability(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18 AS base
 RUN echo "base"
 
@@ -593,6 +616,7 @@ RUN echo "final"
 }
 
 func TestOnbuildCopyFrom(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -640,6 +664,7 @@ ONBUILD RUN echo "not a copy"
 }
 
 func TestOnbuildCopyFromNumeric(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21
 RUN go build -o /app
 
@@ -667,6 +692,7 @@ ONBUILD COPY --from=0 /app /app
 }
 
 func TestOnbuildCopyFromExternal(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18
 ONBUILD COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf
 `
@@ -691,6 +717,7 @@ ONBUILD COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf
 }
 
 func TestNilParseResult(t *testing.T) {
+	t.Parallel()
 	model := NewModel(nil, nil, "Dockerfile")
 
 	if model.StageCount() != 0 {
@@ -705,6 +732,7 @@ func TestNilParseResult(t *testing.T) {
 }
 
 func TestStageIndexByName(t *testing.T) {
+	t.Parallel()
 	content := `FROM alpine:3.18 AS first
 FROM ubuntu:22.04 AS second
 FROM debian:12 AS third
@@ -727,6 +755,7 @@ FROM debian:12 AS third
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			idx, found := model.StageIndexByName(tt.name)
 			if found != tt.wantFound {
 				t.Errorf("StageIndexByName(%q) found = %v, want %v", tt.name, found, tt.wantFound)
@@ -739,6 +768,7 @@ FROM debian:12 AS third
 }
 
 func TestMetaArgs(t *testing.T) {
+	t.Parallel()
 	content := `ARG BASE=alpine
 ARG VERSION=3.18
 FROM ${BASE}:${VERSION}
@@ -764,6 +794,7 @@ RUN echo "hello"
 }
 
 func TestGraphDirectDependencies(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -806,6 +837,7 @@ COPY --from=webserver /app /webserver-app
 }
 
 func TestGraphDirectDependents(t *testing.T) {
+	t.Parallel()
 	content := `FROM golang:1.21 AS builder
 RUN go build -o /app
 
@@ -841,6 +873,7 @@ COPY --from=builder /app /app
 }
 
 func TestPlatformInBaseImage(t *testing.T) {
+	t.Parallel()
 	content := `FROM --platform=linux/amd64 alpine:3.18
 RUN echo "hello"
 `

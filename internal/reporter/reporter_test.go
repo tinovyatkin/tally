@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseFormat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected Format
@@ -25,6 +26,7 @@ func TestParseFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			format, err := ParseFormat(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseFormat(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
@@ -37,6 +39,7 @@ func TestParseFormat(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		format  Format
@@ -51,6 +54,7 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var buf bytes.Buffer
 			opts := Options{
 				Format: tt.format,
@@ -68,6 +72,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestGetWriter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path     string
 		wantErr  bool
@@ -80,6 +85,7 @@ func TestGetWriter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
 			w, closer, err := GetWriter(tt.path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetWriter(%q) error = %v, wantErr %v", tt.path, err, tt.wantErr)
@@ -110,6 +116,7 @@ func TestGetWriter(t *testing.T) {
 }
 
 func TestGetWriterFile(t *testing.T) {
+	t.Parallel()
 	// Test file output
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "output.txt")
@@ -141,6 +148,7 @@ func TestGetWriterFile(t *testing.T) {
 }
 
 func TestGetWriterInvalidPath(t *testing.T) {
+	t.Parallel()
 	// Test invalid file path
 	_, _, err := GetWriter("/nonexistent/directory/file.txt")
 	if err == nil {
@@ -149,6 +157,7 @@ func TestGetWriterInvalidPath(t *testing.T) {
 }
 
 func TestDefaultOptions(t *testing.T) {
+	t.Parallel()
 	opts := DefaultOptions()
 
 	if opts.Format != FormatText {

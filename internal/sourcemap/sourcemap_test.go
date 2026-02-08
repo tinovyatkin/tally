@@ -6,6 +6,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo hello\nCMD [\"sh\"]")
 	sm := New(source)
 
@@ -15,6 +16,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNew_EmptySource(t *testing.T) {
+	t.Parallel()
 	sm := New([]byte{})
 	if sm.LineCount() != 1 {
 		// Empty source still has one empty "line"
@@ -23,6 +25,7 @@ func TestNew_EmptySource(t *testing.T) {
 }
 
 func TestNew_CRLF(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\r\nRUN echo\r\n")
 	sm := New(source)
 
@@ -36,6 +39,7 @@ func TestNew_CRLF(t *testing.T) {
 }
 
 func TestLines(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo hello\nCMD [\"sh\"]")
 	sm := New(source)
 
@@ -54,6 +58,7 @@ func TestLines(t *testing.T) {
 }
 
 func TestLine(t *testing.T) {
+	t.Parallel()
 	source := []byte("line0\nline1\nline2")
 	sm := New(source)
 
@@ -78,6 +83,7 @@ func TestLine(t *testing.T) {
 }
 
 func TestLineOffset(t *testing.T) {
+	t.Parallel()
 	source := []byte("abc\ndefg\nhi")
 	sm := New(source)
 	// Line 0: "abc" at offset 0
@@ -104,6 +110,7 @@ func TestLineOffset(t *testing.T) {
 }
 
 func TestSnippet(t *testing.T) {
+	t.Parallel()
 	source := []byte("line0\nline1\nline2\nline3\nline4")
 	sm := New(source)
 
@@ -124,6 +131,7 @@ func TestSnippet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := sm.Snippet(tt.startLine, tt.endLine)
 			if got != tt.want {
 				t.Errorf("Snippet(%d, %d) = %q, want %q", tt.startLine, tt.endLine, got, tt.want)
@@ -133,6 +141,7 @@ func TestSnippet(t *testing.T) {
 }
 
 func TestSnippetAround(t *testing.T) {
+	t.Parallel()
 	source := []byte("line0\nline1\nline2\nline3\nline4")
 	sm := New(source)
 
@@ -152,6 +161,7 @@ func TestSnippetAround(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := sm.SnippetAround(tt.line, tt.before, tt.after)
 			if got != tt.want {
 				t.Errorf("SnippetAround(%d, %d, %d) = %q, want %q", tt.line, tt.before, tt.after, got, tt.want)
@@ -161,6 +171,7 @@ func TestSnippetAround(t *testing.T) {
 }
 
 func TestComments(t *testing.T) {
+	t.Parallel()
 	source := []byte(`# This is a comment
 FROM alpine
 # Another comment
@@ -196,6 +207,7 @@ RUN echo hello
 }
 
 func TestComments_Directives(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		text        string
 		isDirective bool
@@ -215,6 +227,7 @@ func TestComments_Directives(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.text, func(t *testing.T) {
+			t.Parallel()
 			sm := New([]byte(tt.text))
 			comments := sm.Comments()
 
@@ -230,6 +243,7 @@ func TestComments_Directives(t *testing.T) {
 }
 
 func TestCommentsForLine(t *testing.T) {
+	t.Parallel()
 	source := []byte(`FROM alpine
 
 # Comment for RUN
@@ -268,6 +282,7 @@ CMD ["sh"]
 }
 
 func TestSource(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo")
 	sm := New(source)
 

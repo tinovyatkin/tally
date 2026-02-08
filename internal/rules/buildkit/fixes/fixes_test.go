@@ -14,12 +14,13 @@ import (
 )
 
 func TestFromAsCasingFix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name       string
-		source     string
-		wantFix    bool
-		wantNewAS  string
-		wantEdits  int
+		name      string
+		source    string
+		wantFix   bool
+		wantNewAS string
+		wantEdits int
 	}{
 		{
 			name:      "uppercase FROM with lowercase as",
@@ -36,24 +37,25 @@ func TestFromAsCasingFix(t *testing.T) {
 			wantEdits: 1,
 		},
 		{
-			name:      "matching uppercase",
-			source:    "FROM alpine AS builder",
-			wantFix:   false,
+			name:    "matching uppercase",
+			source:  "FROM alpine AS builder",
+			wantFix: false,
 		},
 		{
-			name:      "matching lowercase",
-			source:    "from alpine as builder",
-			wantFix:   false,
+			name:    "matching lowercase",
+			source:  "from alpine as builder",
+			wantFix: false,
 		},
 		{
-			name:      "no AS clause",
-			source:    "FROM alpine:3.18",
-			wantFix:   false,
+			name:    "no AS clause",
+			source:  "FROM alpine:3.18",
+			wantFix: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			source := []byte(tt.source)
 			v := rules.Violation{
 				Location: rules.NewRangeLocation("test.Dockerfile", 1, 0, 1, len(tt.source)),
@@ -76,6 +78,7 @@ func TestFromAsCasingFix(t *testing.T) {
 }
 
 func TestStageNameCasingFix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		source        string
@@ -120,6 +123,7 @@ func TestStageNameCasingFix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			source := []byte(tt.source)
 
 			// Parse the Dockerfile to get semantic model
@@ -158,6 +162,7 @@ func TestStageNameCasingFix(t *testing.T) {
 }
 
 func TestEnrichBuildKitFixes(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine as Builder\nRUN echo hello")
 
 	parseResult, err := dockerfile.Parse(bytes.NewReader(source), nil)
@@ -200,45 +205,46 @@ func TestEnrichBuildKitFixes(t *testing.T) {
 }
 
 func TestFindASKeyword(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name         string
-		line         string
-		wantASStart  int
-		wantASEnd    int
+		name          string
+		line          string
+		wantASStart   int
+		wantASEnd     int
 		wantNameStart int
-		wantNameEnd  int
+		wantNameEnd   int
 	}{
 		{
-			name:         "simple FROM AS",
-			line:         "FROM alpine AS builder",
-			wantASStart:  12,
-			wantASEnd:    14,
+			name:          "simple FROM AS",
+			line:          "FROM alpine AS builder",
+			wantASStart:   12,
+			wantASEnd:     14,
 			wantNameStart: 15,
-			wantNameEnd:  22,
+			wantNameEnd:   22,
 		},
 		{
-			name:         "lowercase as",
-			line:         "FROM alpine as builder",
-			wantASStart:  12,
-			wantASEnd:    14,
+			name:          "lowercase as",
+			line:          "FROM alpine as builder",
+			wantASStart:   12,
+			wantASEnd:     14,
 			wantNameStart: 15,
-			wantNameEnd:  22,
+			wantNameEnd:   22,
 		},
 		{
-			name:         "with platform",
-			line:         "FROM --platform=linux/amd64 alpine AS builder",
-			wantASStart:  35,
-			wantASEnd:    37,
+			name:          "with platform",
+			line:          "FROM --platform=linux/amd64 alpine AS builder",
+			wantASStart:   35,
+			wantASEnd:     37,
 			wantNameStart: 38,
-			wantNameEnd:  45,
+			wantNameEnd:   45,
 		},
 		{
-			name:         "no AS keyword",
-			line:         "FROM alpine:3.18",
-			wantASStart:  -1,
-			wantASEnd:    -1,
+			name:          "no AS keyword",
+			line:          "FROM alpine:3.18",
+			wantASStart:   -1,
+			wantASEnd:     -1,
 			wantNameStart: -1,
-			wantNameEnd:  -1,
+			wantNameEnd:   -1,
 		},
 		{
 			name:          "stage name with dot",
@@ -260,6 +266,7 @@ func TestFindASKeyword(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			asStart, asEnd, nameStart, nameEnd := findASKeyword([]byte(tt.line))
 			assert.Equal(t, tt.wantASStart, asStart, "asStart")
 			assert.Equal(t, tt.wantASEnd, asEnd, "asEnd")
@@ -270,11 +277,12 @@ func TestFindASKeyword(t *testing.T) {
 }
 
 func TestFindCopyFromValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name       string
-		line       string
-		wantStart  int
-		wantEnd    int
+		name      string
+		line      string
+		wantStart int
+		wantEnd   int
 	}{
 		{
 			name:      "simple COPY --from",
@@ -304,6 +312,7 @@ func TestFindCopyFromValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			start, end := findCopyFromValue([]byte(tt.line))
 			assert.Equal(t, tt.wantStart, start, "start")
 			assert.Equal(t, tt.wantEnd, end, "end")
@@ -312,6 +321,7 @@ func TestFindCopyFromValue(t *testing.T) {
 }
 
 func TestNoEmptyContinuationFix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		source           string
@@ -397,6 +407,7 @@ func TestNoEmptyContinuationFix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			source := []byte(tt.source)
 			endLine := tt.endLine
 			if endLine == 0 {
@@ -431,6 +442,7 @@ func TestNoEmptyContinuationFix(t *testing.T) {
 }
 
 func TestSplitLines(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		source    string
@@ -475,6 +487,7 @@ func TestSplitLines(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := splitLines([]byte(tt.source))
 			gotStrings := make([]string, len(got))
 			for i, line := range got {
@@ -486,6 +499,7 @@ func TestSplitLines(t *testing.T) {
 }
 
 func TestHasContinuationBefore(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		lines    []string
@@ -557,6 +571,7 @@ func TestHasContinuationBefore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			lines := make([][]byte, len(tt.lines))
 			for i, s := range tt.lines {
 				lines[i] = []byte(s)
@@ -567,13 +582,13 @@ func TestHasContinuationBefore(t *testing.T) {
 	}
 }
 
-
 func TestMaintainerDeprecatedFix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name      string
-		source    string
-		wantFix   bool
-		wantText  string
+		name     string
+		source   string
+		wantFix  bool
+		wantText string
 	}{
 		{
 			name:     "simple maintainer with email",
@@ -650,6 +665,7 @@ func TestMaintainerDeprecatedFix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			source := []byte(tt.source)
 			v := rules.Violation{
 				Location: rules.NewRangeLocation("test.Dockerfile", 1, 0, 1, len(tt.source)),
@@ -673,6 +689,7 @@ func TestMaintainerDeprecatedFix(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingFix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		source      string
@@ -732,6 +749,7 @@ func TestConsistentInstructionCasingFix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			source := []byte(tt.source)
 			v := rules.Violation{
 				Location: rules.NewRangeLocation("test.Dockerfile", 1, 0, 1, len(tt.source)),
@@ -755,6 +773,7 @@ func TestConsistentInstructionCasingFix(t *testing.T) {
 }
 
 func TestFindFROMBaseName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		line      string
@@ -801,6 +820,7 @@ func TestFindFROMBaseName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			start, end := findFROMBaseName([]byte(tt.line))
 			assert.Equal(t, tt.wantStart, start, "start")
 			assert.Equal(t, tt.wantEnd, end, "end")
@@ -809,14 +829,15 @@ func TestFindFROMBaseName(t *testing.T) {
 }
 
 func TestInvalidDefinitionDescriptionFix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name           string
-		source         string
-		violationLine  int // 1-based line where BuildKit reports the violation (the FROM/ARG line)
-		wantFix        bool
-		wantEditLine   int    // 1-based line number where edit should be applied
-		wantEditCol    int    // Column where edit should be applied
-		wantNewText    string // Expected newline to insert
+		name          string
+		source        string
+		violationLine int // 1-based line where BuildKit reports the violation (the FROM/ARG line)
+		wantFix       bool
+		wantEditLine  int    // 1-based line number where edit should be applied
+		wantEditCol   int    // Column where edit should be applied
+		wantNewText   string // Expected newline to insert
 	}{
 		{
 			name:          "comment before FROM with stage name",
@@ -889,6 +910,7 @@ FROM scratch AS base`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			source := []byte(tt.source)
 			v := rules.Violation{
 				Location: rules.NewRangeLocation("test.Dockerfile", tt.violationLine, 0, tt.violationLine, 0),

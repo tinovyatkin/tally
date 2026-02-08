@@ -416,10 +416,10 @@ func TestExtractIndent(t *testing.T) {
 func TestApplyIndent(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name       string
-		heredoc    string
-		indent     string
-		want       string
+		name    string
+		heredoc string
+		indent  string
+		want    string
 	}{
 		{
 			name:    "no indent",

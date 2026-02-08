@@ -7,6 +7,7 @@ import (
 )
 
 func TestDefaultPatterns(t *testing.T) {
+	t.Parallel()
 	patterns := DefaultPatterns()
 	if len(patterns) == 0 {
 		t.Fatal("DefaultPatterns() returned empty slice")
@@ -33,6 +34,7 @@ func TestDefaultPatterns(t *testing.T) {
 }
 
 func TestDiscoverFile(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory with a Dockerfile
 	tmpDir := t.TempDir()
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
@@ -64,6 +66,7 @@ func TestDiscoverFile(t *testing.T) {
 }
 
 func TestDiscoverDirectory(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 
@@ -110,6 +113,7 @@ func TestDiscoverDirectory(t *testing.T) {
 }
 
 func TestDiscoverGlob(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 
@@ -143,6 +147,7 @@ func TestDiscoverGlob(t *testing.T) {
 }
 
 func TestDiscoverExclude(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 
@@ -190,6 +195,7 @@ func TestDiscoverExclude(t *testing.T) {
 }
 
 func TestDiscoverContextDir(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory with a Dockerfile
 	tmpDir := t.TempDir()
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
@@ -218,6 +224,7 @@ func TestDiscoverContextDir(t *testing.T) {
 }
 
 func TestDiscoverDeduplication(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory with a Dockerfile
 	tmpDir := t.TempDir()
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
@@ -246,6 +253,7 @@ func TestDiscoverDeduplication(t *testing.T) {
 }
 
 func TestDiscoverNonexistent(t *testing.T) {
+	t.Parallel()
 	// Discover a pattern that matches nothing
 	results, err := Discover([]string{"nonexistent-pattern-*.xyz"}, Options{})
 	if err != nil {

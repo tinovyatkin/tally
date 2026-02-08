@@ -6,11 +6,12 @@ import (
 )
 
 func TestExtractPackageInstalls(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name     string
-		script   string
-		variant  Variant
-		want     []PackageInstallInfo
+		name    string
+		script  string
+		variant Variant
+		want    []PackageInstallInfo
 	}{
 		{
 			name:    "apt-get install single package",
@@ -139,6 +140,7 @@ func TestExtractPackageInstalls(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := ExtractPackageInstalls(tt.script, tt.variant)
 
 			if len(got) != len(tt.want) {
@@ -162,6 +164,7 @@ func TestExtractPackageInstalls(t *testing.T) {
 }
 
 func TestFilterPackageArgs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		args []string
 		want []string
@@ -183,6 +186,7 @@ func TestFilterPackageArgs(t *testing.T) {
 }
 
 func TestExtractPackageInstallsSimple(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		script string
@@ -252,6 +256,7 @@ func TestExtractPackageInstallsSimple(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractPackageInstallsSimple(tt.script)
 
 			if len(got) != len(tt.want) {
@@ -275,6 +280,7 @@ func TestExtractPackageInstallsSimple(t *testing.T) {
 }
 
 func TestExtractSimplePackages(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input string
@@ -334,6 +340,7 @@ func TestExtractSimplePackages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractSimplePackages(tt.input)
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("extractSimplePackages(%q) = %v, want %v", tt.input, got, tt.want)
@@ -341,4 +348,3 @@ func TestExtractSimplePackages(t *testing.T) {
 		})
 	}
 }
-

@@ -8,6 +8,7 @@ import (
 )
 
 func TestDL3006Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3006Rule()
 	meta := r.Metadata()
 
@@ -23,6 +24,7 @@ func TestDL3006Rule_Metadata(t *testing.T) {
 }
 
 func TestDL3006Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -114,6 +116,7 @@ FROM ${BASE_IMAGE}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL3006Rule()
@@ -136,6 +139,7 @@ FROM ${BASE_IMAGE}
 }
 
 func TestImageRefHasExplicitVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		image string
 		want  bool
@@ -154,6 +158,7 @@ func TestImageRefHasExplicitVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.image, func(t *testing.T) {
+			t.Parallel()
 			ref := parseImageRef(tt.image)
 			if ref == nil {
 				t.Fatalf("parseImageRef(%q) returned nil", tt.image)

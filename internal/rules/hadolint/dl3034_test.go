@@ -157,6 +157,7 @@ RUN zypper -n install httpd`,
 }
 
 func TestDL3034Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3034Rule()
 	meta := r.Metadata()
 

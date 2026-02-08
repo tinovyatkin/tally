@@ -11,6 +11,7 @@ import (
 )
 
 func TestGetRunCommandString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -39,6 +40,7 @@ RUN apt-get update && \
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 			if len(input.Stages) == 0 || len(input.Stages[0].Commands) == 0 {
 				t.Fatal("expected at least one stage with one command")
@@ -58,6 +60,7 @@ RUN apt-get update && \
 }
 
 func TestScanRunCommandsWithPOSIXShell(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		dockerfile    string
@@ -108,6 +111,7 @@ RUN Write-Host "hello"`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			callCount := 0
@@ -133,6 +137,7 @@ RUN Write-Host "hello"`,
 }
 
 func TestScanRunCommandsWithPOSIXShell_ShellVariant(t *testing.T) {
+	t.Parallel()
 	t.Skip("Shell variant detection requires semantic model which testutil.MakeLintInput doesn't provide")
 
 	tests := []struct {
@@ -164,6 +169,7 @@ RUN echo hello`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			ScanRunCommandsWithPOSIXShell(input, func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {

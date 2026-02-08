@@ -30,6 +30,7 @@ type upstreamRuleUsage struct {
 }
 
 func TestRegistryMatchesUpstreamBuildkitRules(t *testing.T) {
+	t.Parallel()
 	defs := mustUpstreamRuleDefinitions(t)
 	want := make([]string, 0, len(defs))
 	for _, d := range defs {
@@ -57,6 +58,7 @@ func TestRegistryMatchesUpstreamBuildkitRules(t *testing.T) {
 }
 
 func TestCapturedRuleNamesMatchUpstreamParsePhaseRules(t *testing.T) {
+	t.Parallel()
 	defs := mustUpstreamRuleDefinitions(t)
 	usages := mustUpstreamRuleUsages(t)
 	parserWarningURLs := mustUpstreamParserWarningURLs(t)

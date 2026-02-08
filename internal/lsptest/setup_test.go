@@ -36,28 +36,24 @@ func TestMain(m *testing.M) {
 	}
 	binaryPath = filepath.Join(tmpDir, binaryName)
 
-	// Reuse the same coverage directory as integration tests.
+	// Collect coverage only when GOCOVERDIR is set (Linux CI).
+	buildArgs := []string{"build"}
 	coverageDir = os.Getenv("GOCOVERDIR")
-	if coverageDir == "" {
-		wd, err := os.Getwd()
+	if coverageDir != "" {
+		coverageDir, err = filepath.Abs(coverageDir)
 		if err != nil {
 			_ = os.RemoveAll(tmpDir)
-			panic("failed to get working directory: " + err.Error())
+			panic("failed to get absolute coverage directory path: " + err.Error())
 		}
-		coverageDir = filepath.Join(wd, "..", "..", "coverage")
+		if err := os.MkdirAll(coverageDir, 0o750); err != nil {
+			_ = os.RemoveAll(tmpDir)
+			panic("failed to create coverage directory: " + err.Error())
+		}
+		buildArgs = append(buildArgs, "-cover")
 	}
-	coverageDir, err = filepath.Abs(coverageDir)
-	if err != nil {
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to get absolute coverage directory path: " + err.Error())
-	}
-	if err := os.MkdirAll(coverageDir, 0o750); err != nil {
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to create coverage directory: " + err.Error())
-	}
+	buildArgs = append(buildArgs, "-o", binaryPath, "github.com/tinovyatkin/tally")
 
-	// Build the binary with coverage instrumentation.
-	cmd := exec.Command("go", "build", "-cover", "-o", binaryPath, "github.com/tinovyatkin/tally")
+	cmd := exec.Command("go", buildArgs...)
 	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(tmpDir)

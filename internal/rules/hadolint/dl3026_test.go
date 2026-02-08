@@ -8,6 +8,7 @@ import (
 )
 
 func TestDL3026Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	meta := r.Metadata()
 
@@ -21,6 +22,7 @@ func TestDL3026Rule_Metadata(t *testing.T) {
 }
 
 func TestDL3026Rule_NoConfigDisablesRule(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInput(t, "Dockerfile", `FROM python:3.9
 RUN pip install flask
@@ -33,6 +35,7 @@ RUN pip install flask
 }
 
 func TestDL3026Rule_TrustedRegistry(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM docker.io/python:3.9
 RUN pip install flask
@@ -45,6 +48,7 @@ RUN pip install flask
 }
 
 func TestDL3026Rule_UntrustedRegistry(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM randomguy/python:3.9
 RUN pip install flask
@@ -60,6 +64,7 @@ RUN pip install flask
 }
 
 func TestDL3026Rule_ImplicitDockerHub(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 
 	tests := []struct {
@@ -90,6 +95,7 @@ func TestDL3026Rule_ImplicitDockerHub(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithConfig(t, "Dockerfile", tt.dockerfile,
 				DL3026Config{TrustedRegistries: tt.trusted})
 			violations := r.Check(input)
@@ -101,6 +107,7 @@ func TestDL3026Rule_ImplicitDockerHub(t *testing.T) {
 }
 
 func TestDL3026Rule_CustomRegistry(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM my-registry.com/myimage:latest
 RUN echo hello
@@ -113,6 +120,7 @@ RUN echo hello
 }
 
 func TestDL3026Rule_RegistryWithPort(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM localhost:5000/myimage:latest
 RUN echo hello
@@ -125,6 +133,7 @@ RUN echo hello
 }
 
 func TestDL3026Rule_ScratchIsAlwaysAllowed(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM scratch
 COPY binary /
@@ -137,6 +146,7 @@ COPY binary /
 }
 
 func TestDL3026Rule_StageReferenceIsAllowed(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM gcr.io/distroless/static AS base
 RUN echo hello
@@ -152,6 +162,7 @@ COPY --from=base /etc/passwd /etc/passwd
 }
 
 func TestDL3026Rule_MultipleRegistries(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM gcr.io/distroless/static AS build
 RUN echo build
@@ -167,6 +178,7 @@ RUN echo runtime
 }
 
 func TestDL3026Rule_DockerHubAliases(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 
 	// All these should be treated as docker.io
@@ -181,6 +193,7 @@ func TestDL3026Rule_DockerHubAliases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithConfig(t, "Dockerfile", "FROM python:3.9\n",
 				DL3026Config{TrustedRegistries: []string{tt.trusted}})
 			violations := r.Check(input)
@@ -192,6 +205,7 @@ func TestDL3026Rule_DockerHubAliases(t *testing.T) {
 }
 
 func TestDL3026Rule_ConfigFromMap(t *testing.T) {
+	t.Parallel()
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", "FROM python:3.9\n",
 		map[string]any{
@@ -207,6 +221,7 @@ func TestDL3026Rule_ConfigFromMap(t *testing.T) {
 // Tests adapted from hadolint/hadolint test/Hadolint/Rule/DL3026Spec.hs
 
 func TestDL3026Rule_WildcardAny(t *testing.T) {
+	t.Parallel()
 	// "does not warn on * registry" - from hadolint
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM ubuntu:18.04 AS builder1
@@ -224,6 +239,7 @@ FROM docker.io/zemanlx/ubuntu:18.04 AS builder3
 }
 
 func TestDL3026Rule_WildcardSuffix(t *testing.T) {
+	t.Parallel()
 	// "does not warn on allowed wildcard registries" - from hadolint
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM foo.random.com/debian
@@ -237,6 +253,7 @@ RUN echo hello
 }
 
 func TestDL3026Rule_WildcardSuffixNoMatch(t *testing.T) {
+	t.Parallel()
 	// "warn on non-allowed wildcard registry" - from hadolint
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM x.com/debian
@@ -250,6 +267,7 @@ RUN echo hello
 }
 
 func TestDL3026Rule_AllDockerHubForms(t *testing.T) {
+	t.Parallel()
 	// "allows both all forms of docker.io" - from hadolint
 	// Tests that bare image names, user/image, and explicit docker.io all work
 	r := NewDL3026Rule()
@@ -268,6 +286,7 @@ FROM docker.io/zemanlx/ubuntu:18.04 AS builder3
 }
 
 func TestDL3026Rule_StageReferenceFromUntrusted(t *testing.T) {
+	t.Parallel()
 	// "allows using previous stages" - from hadolint
 	// Even if first stage is from trusted registry, referencing it by name should work
 	r := NewDL3026Rule()
@@ -282,6 +301,7 @@ FROM builder1 AS builder2
 }
 
 func TestDL3026Rule_MultipleAllowedRegistries(t *testing.T) {
+	t.Parallel()
 	// "does not warn on allowed registries" - from hadolint
 	r := NewDL3026Rule()
 	input := testutil.MakeLintInputWithConfig(t, "Dockerfile", `FROM random.com/debian
@@ -295,6 +315,7 @@ RUN echo hello
 }
 
 func TestDL3026Rule_MatchRegistry(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		pattern  string
 		registry string
@@ -326,6 +347,7 @@ func TestDL3026Rule_MatchRegistry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.pattern+"_"+tt.registry, func(t *testing.T) {
+			t.Parallel()
 			got := matchRegistry(tt.pattern, tt.registry)
 			if got != tt.want {
 				t.Errorf("matchRegistry(%q, %q) = %v, want %v", tt.pattern, tt.registry, got, tt.want)

@@ -14,6 +14,7 @@ func boolTrue() *bool      { return boolPtr(true) }
 func boolFalse() *bool     { return boolPtr(false) }
 
 func TestMaxLinesRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewMaxLinesRule()
 	meta := r.Metadata()
 
@@ -24,6 +25,7 @@ func TestMaxLinesRule_Metadata(t *testing.T) {
 }
 
 func TestMaxLinesRule_Check(t *testing.T) {
+	t.Parallel()
 	testutil.RunRuleTests(t, NewMaxLinesRule(), []testutil.RuleTestCase{
 		{
 			Name:           "disabled when max is 0",
@@ -120,6 +122,7 @@ func TestMaxLinesRule_Check(t *testing.T) {
 }
 
 func TestMaxLinesRule_Interfaces(t *testing.T) {
+	t.Parallel()
 	r := NewMaxLinesRule()
 
 	// Verify Rule interface
@@ -130,6 +133,7 @@ func TestMaxLinesRule_Interfaces(t *testing.T) {
 }
 
 func TestMaxLinesRule_DefaultConfig(t *testing.T) {
+	t.Parallel()
 	r := NewMaxLinesRule()
 	cfg := r.DefaultConfig()
 
@@ -152,6 +156,7 @@ func TestMaxLinesRule_DefaultConfig(t *testing.T) {
 }
 
 func TestMaxLinesRule_ValidateConfig(t *testing.T) {
+	t.Parallel()
 	r := NewMaxLinesRule()
 
 	tests := []struct {
@@ -208,6 +213,7 @@ func TestMaxLinesRule_ValidateConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := r.ValidateConfig(tc.config)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("ValidateConfig() error = %v, wantErr %v", err, tc.wantErr)

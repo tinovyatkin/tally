@@ -9,6 +9,7 @@ import (
 )
 
 func TestPrintTextPlain_SingleViolation(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo hello\nCMD [\"sh\"]")
 	violations := []rules.Violation{
 		{
@@ -55,6 +56,7 @@ func TestPrintTextPlain_SingleViolation(t *testing.T) {
 }
 
 func TestPrintTextPlain_DifferentSeverities(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine")
 	tests := []struct {
 		severity rules.Severity
@@ -68,6 +70,7 @@ func TestPrintTextPlain_DifferentSeverities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
 			violations := []rules.Violation{
 				{
 					Location: rules.NewLineLocation("Dockerfile", 1), // Line 1 (1-based) = "FROM alpine"
@@ -92,6 +95,7 @@ func TestPrintTextPlain_DifferentSeverities(t *testing.T) {
 }
 
 func TestPrintTextPlain_NoURL(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo hello")
 	violations := []rules.Violation{
 		{
@@ -121,6 +125,7 @@ func TestPrintTextPlain_NoURL(t *testing.T) {
 }
 
 func TestPrintTextPlain_FileLevel(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine")
 	violations := []rules.Violation{
 		{
@@ -153,6 +158,7 @@ func TestPrintTextPlain_FileLevel(t *testing.T) {
 }
 
 func TestPrintTextPlain_Sorted(t *testing.T) {
+	t.Parallel()
 	source := []byte("line1\nline2\nline3\nline4\nline5")
 	violations := []rules.Violation{
 		{
@@ -207,6 +213,7 @@ func TestPrintTextPlain_Sorted(t *testing.T) {
 }
 
 func TestPrintTextPlain_MultipleLines(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo 1\nRUN echo 2\nRUN echo 3\nCMD [\"sh\"]")
 	violations := []rules.Violation{
 		{
@@ -243,6 +250,7 @@ func TestPrintTextPlain_MultipleLines(t *testing.T) {
 }
 
 func TestPrintTextPlain_Padding(t *testing.T) {
+	t.Parallel()
 	// Test that we get context padding around the violation
 	source := []byte("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8")
 	violations := []rules.Violation{
@@ -273,6 +281,7 @@ func TestPrintTextPlain_Padding(t *testing.T) {
 }
 
 func TestLineInRange(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line, start, end int
 		want             bool
@@ -296,6 +305,7 @@ func TestLineInRange(t *testing.T) {
 }
 
 func TestNewTextReporter_Options(t *testing.T) {
+	t.Parallel()
 	// Test with explicit options
 	colorOn := true
 	colorOff := false
@@ -312,6 +322,7 @@ func TestNewTextReporter_Options(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			r := NewTextReporter(tt.opts)
 			if r == nil {
 				t.Fatal("NewTextReporter returned nil")
@@ -321,6 +332,7 @@ func TestNewTextReporter_Options(t *testing.T) {
 }
 
 func TestTextReporter_Print(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo hello")
 	violations := []rules.Violation{
 		{
@@ -347,6 +359,7 @@ func TestTextReporter_Print(t *testing.T) {
 }
 
 func TestPrintText(t *testing.T) {
+	t.Parallel()
 	// Test the PrintText convenience function
 	source := []byte("FROM alpine\nRUN echo hello")
 	violations := []rules.Violation{
@@ -375,6 +388,7 @@ func TestPrintText(t *testing.T) {
 }
 
 func TestPrintTextPlain_CRLF(t *testing.T) {
+	t.Parallel()
 	// Test that CRLF line endings are handled properly
 	source := []byte("FROM alpine\r\nRUN echo hello\r\nCMD [\"sh\"]\r\n")
 	violations := []rules.Violation{
@@ -401,6 +415,7 @@ func TestPrintTextPlain_CRLF(t *testing.T) {
 }
 
 func TestPrintTextPlain_ExclusiveEnd(t *testing.T) {
+	t.Parallel()
 	// Test that exclusive end (End.Column == 0) is handled correctly
 	source := []byte("FROM alpine\nRUN echo 1\nRUN echo 2\nRUN echo 3\nCMD [\"sh\"]")
 	violations := []rules.Violation{
@@ -439,6 +454,7 @@ func TestPrintTextPlain_ExclusiveEnd(t *testing.T) {
 }
 
 func TestPrintTextPlain_EmptyViolations(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	err := PrintTextPlain(&buf, nil, nil)
 	if err != nil {
@@ -452,6 +468,7 @@ func TestPrintTextPlain_EmptyViolations(t *testing.T) {
 }
 
 func TestPrintTextPlain_NoSource(t *testing.T) {
+	t.Parallel()
 	// Test violation without corresponding source
 	violations := []rules.Violation{
 		{
@@ -482,6 +499,7 @@ func TestPrintTextPlain_NoSource(t *testing.T) {
 }
 
 func TestPrintTextPlain_OutOfBoundsLine(t *testing.T) {
+	t.Parallel()
 	// Test violation pointing to line beyond source
 	source := []byte("FROM alpine")
 	violations := []rules.Violation{
@@ -509,6 +527,7 @@ func TestPrintTextPlain_OutOfBoundsLine(t *testing.T) {
 }
 
 func TestNewTextReporter_InvalidStyle(t *testing.T) {
+	t.Parallel()
 	// Test with non-existent style name - should fall back
 	colorOn := true
 	opts := TextOptions{
@@ -528,6 +547,7 @@ func TestNewTextReporter_InvalidStyle(t *testing.T) {
 }
 
 func TestTextReporter_HighlightLine(t *testing.T) {
+	t.Parallel()
 	// Test syntax highlighting
 	colorOn := true
 	opts := TextOptions{

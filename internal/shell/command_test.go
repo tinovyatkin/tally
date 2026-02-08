@@ -5,6 +5,7 @@ import (
 )
 
 func TestCommandInfo_HasFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		cmd  CommandInfo
@@ -75,6 +76,7 @@ func TestCommandInfo_HasFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.cmd.HasFlag(tt.flag); got != tt.want {
 				t.Errorf("CommandInfo.HasFlag(%q) = %v, want %v", tt.flag, got, tt.want)
 			}
@@ -83,6 +85,7 @@ func TestCommandInfo_HasFlag(t *testing.T) {
 }
 
 func TestCommandInfo_HasAnyFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		cmd   CommandInfo
@@ -117,6 +120,7 @@ func TestCommandInfo_HasAnyFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.cmd.HasAnyFlag(tt.flags...); got != tt.want {
 				t.Errorf("CommandInfo.HasAnyFlag(%v) = %v, want %v", tt.flags, got, tt.want)
 			}
@@ -125,6 +129,7 @@ func TestCommandInfo_HasAnyFlag(t *testing.T) {
 }
 
 func TestCommandInfo_CountFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		cmd  CommandInfo
@@ -171,6 +176,7 @@ func TestCommandInfo_CountFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.cmd.CountFlag(tt.flag); got != tt.want {
 				t.Errorf("CommandInfo.CountFlag(%q) = %d, want %d", tt.flag, got, tt.want)
 			}
@@ -179,6 +185,7 @@ func TestCommandInfo_CountFlag(t *testing.T) {
 }
 
 func TestCommandInfo_GetArgValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		cmd  CommandInfo
@@ -213,6 +220,7 @@ func TestCommandInfo_GetArgValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.cmd.GetArgValue(tt.flag); got != tt.want {
 				t.Errorf("CommandInfo.GetArgValue(%q) = %q, want %q", tt.flag, got, tt.want)
 			}
@@ -221,6 +229,7 @@ func TestCommandInfo_GetArgValue(t *testing.T) {
 }
 
 func TestFindCommands(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		script     string
@@ -295,6 +304,7 @@ func TestFindCommands(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cmds := FindCommands(tt.script, VariantBash, tt.cmdNames...)
 			if len(cmds) != tt.wantCount {
 				t.Errorf("FindCommands() returned %d commands, want %d", len(cmds), tt.wantCount)
@@ -307,6 +317,7 @@ func TestFindCommands(t *testing.T) {
 }
 
 func TestFindCommands_WithFlags(t *testing.T) {
+	t.Parallel()
 	script := "apt-get install -y -q curl"
 	cmds := FindCommands(script, VariantBash, "apt-get")
 
@@ -330,46 +341,48 @@ func TestFindCommands_WithFlags(t *testing.T) {
 }
 
 func TestFindCommands_SubcommandPosition(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name              string
-		script            string
-		cmdName           string
-		wantSubcmd        string
-		wantSubcmdLine    int
+		name               string
+		script             string
+		cmdName            string
+		wantSubcmd         string
+		wantSubcmdLine     int
 		wantSubcmdStartCol int
-		wantSubcmdEndCol  int
+		wantSubcmdEndCol   int
 	}{
 		{
-			name:              "apt-get install",
-			script:            "apt-get install curl",
-			cmdName:           "apt-get",
-			wantSubcmd:        "install",
-			wantSubcmdLine:    0,
+			name:               "apt-get install",
+			script:             "apt-get install curl",
+			cmdName:            "apt-get",
+			wantSubcmd:         "install",
+			wantSubcmdLine:     0,
 			wantSubcmdStartCol: 8,
-			wantSubcmdEndCol:  15,
+			wantSubcmdEndCol:   15,
 		},
 		{
-			name:              "apt-get with flags before subcommand",
-			script:            "apt-get -q install curl",
-			cmdName:           "apt-get",
-			wantSubcmd:        "install",
-			wantSubcmdLine:    0,
+			name:               "apt-get with flags before subcommand",
+			script:             "apt-get -q install curl",
+			cmdName:            "apt-get",
+			wantSubcmd:         "install",
+			wantSubcmdLine:     0,
 			wantSubcmdStartCol: 11,
-			wantSubcmdEndCol:  18,
+			wantSubcmdEndCol:   18,
 		},
 		{
-			name:              "yum install",
-			script:            "yum install httpd",
-			cmdName:           "yum",
-			wantSubcmd:        "install",
-			wantSubcmdLine:    0,
+			name:               "yum install",
+			script:             "yum install httpd",
+			cmdName:            "yum",
+			wantSubcmd:         "install",
+			wantSubcmdLine:     0,
 			wantSubcmdStartCol: 4,
-			wantSubcmdEndCol:  11,
+			wantSubcmdEndCol:   11,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cmds := FindCommands(tt.script, VariantBash, tt.cmdName)
 			if len(cmds) != 1 {
 				t.Fatalf("expected 1 command, got %d", len(cmds))
@@ -393,6 +406,7 @@ func TestFindCommands_SubcommandPosition(t *testing.T) {
 }
 
 func TestAptGetYesDetection(t *testing.T) {
+	t.Parallel()
 	// Test all the ways to specify "yes" for apt-get per DL3014
 	tests := []struct {
 		name    string
@@ -463,6 +477,7 @@ func TestAptGetYesDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cmds := FindCommands(tt.script, VariantBash, "apt-get")
 			if len(cmds) != 1 {
 				t.Fatalf("expected 1 command, got %d", len(cmds))

@@ -9,6 +9,7 @@ import (
 )
 
 func TestSecretsInCodeRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInCodeRule()
 	meta := r.Metadata()
 
@@ -26,6 +27,7 @@ func TestSecretsInCodeRule_Metadata(t *testing.T) {
 }
 
 func TestSecretsInCodeRule_Check_AWSKeyInHeredoc(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInCodeRule()
 
 	input := rules.LintInput{
@@ -69,6 +71,7 @@ AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`,
 }
 
 func TestSecretsInCodeRule_Check_PrivateKeyInCopyHeredoc(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInCodeRule()
 
 	input := rules.LintInput{
@@ -101,6 +104,7 @@ MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MaWdP0rPpJz5
 }
 
 func TestSecretsInCodeRule_Check_GitHubTokenInEnv(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInCodeRule()
 
 	input := rules.LintInput{
@@ -127,6 +131,7 @@ func TestSecretsInCodeRule_Check_GitHubTokenInEnv(t *testing.T) {
 }
 
 func TestSecretsInCodeRule_Check_NoSecrets(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInCodeRule()
 
 	input := rules.LintInput{
@@ -160,6 +165,7 @@ func TestSecretsInCodeRule_Check_NoSecrets(t *testing.T) {
 }
 
 func TestSecretsInCodeRule_Check_ARGDefaultWithSecret(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInCodeRule()
 
 	// gitleaks:allow
@@ -184,6 +190,7 @@ func TestSecretsInCodeRule_Check_ARGDefaultWithSecret(t *testing.T) {
 }
 
 func TestRedact(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -204,6 +211,7 @@ func TestRedact(t *testing.T) {
 }
 
 func TestSecretsInCodeRule_Check_SecretInRunCommand(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInCodeRule()
 
 	// gitleaks:allow

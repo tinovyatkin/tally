@@ -8,6 +8,7 @@ import (
 )
 
 func TestChain(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(rules.NewLineLocation("a.txt", 1), "rule1", "message1", rules.SeverityWarning),
 		rules.NewViolation(rules.NewLineLocation("b.txt", 2), "rule2", "message2", rules.SeverityError),
@@ -24,6 +25,7 @@ func TestChain(t *testing.T) {
 }
 
 func TestPathNormalization(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(rules.NewLineLocation("path\\to\\file.txt", 1), "rule1", "msg", rules.SeverityWarning),
 	}
@@ -41,6 +43,7 @@ func TestPathNormalization(t *testing.T) {
 }
 
 func TestDeduplication(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("file.txt", 1), "rule1", "msg1", rules.SeverityWarning),
@@ -65,6 +68,7 @@ func TestDeduplication(t *testing.T) {
 }
 
 func TestSorting(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(rules.NewLineLocation("b.txt", 2), "rule2", "msg", rules.SeverityWarning),
 		rules.NewViolation(rules.NewLineLocation("a.txt", 1), "rule1", "msg", rules.SeverityWarning),
@@ -96,6 +100,7 @@ func TestSorting(t *testing.T) {
 }
 
 func TestEnableFilter(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("file.txt", 1), "tally/max-lines", "msg", rules.SeverityWarning),
@@ -121,6 +126,7 @@ func TestEnableFilter(t *testing.T) {
 }
 
 func TestSeverityOverride(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("file.txt", 1), "tally/max-lines", "msg", rules.SeverityWarning),
@@ -148,6 +154,7 @@ func TestSeverityOverride(t *testing.T) {
 }
 
 func TestPathExclusionFilter(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("src/main.go", 1), "tally/test-rule", "msg", rules.SeverityWarning),
@@ -177,6 +184,7 @@ func TestPathExclusionFilter(t *testing.T) {
 }
 
 func TestSnippetAttachment(t *testing.T) {
+	t.Parallel()
 	source := []byte("line 1\nline 2\nline 3\n")
 	violations := []rules.Violation{
 		rules.NewViolation(rules.NewLineLocation("file.txt", 2), "rule1", "msg", rules.SeverityWarning),
@@ -195,6 +203,7 @@ func TestSnippetAttachment(t *testing.T) {
 }
 
 func TestEnableFilter_BuildKitRules(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 1), "buildkit/DuplicateStageName", "msg", rules.SeverityError),
@@ -219,6 +228,7 @@ func TestEnableFilter_BuildKitRules(t *testing.T) {
 }
 
 func TestSeverityOverride_BuildKitRules(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 1), "buildkit/DuplicateStageName", "msg", rules.SeverityError),
@@ -256,6 +266,7 @@ func (m *mockProcessor) Process(violations []rules.Violation, ctx *Context) []ru
 }
 
 func TestSeverityOverride_AutoEnableOffRules(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name    string
 		message string
@@ -266,6 +277,7 @@ func TestSeverityOverride_AutoEnableOffRules(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			registry := rules.NewRegistry()
 			mockRule := &mockRuleWithMetadata{
 				code:            "hadolint/DL3026",

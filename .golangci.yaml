@@ -23,10 +23,8 @@ linters:
     - nlreturn # newlines before returns - too opinionated
     - noctx # context in http - not applicable
     - noinlineerr # inline errors - too strict
-    - paralleltest # parallel tests - not needed
     - tagliatelle # struct tag naming - not needed
     - testpackage # separate test packages - not needed
-    - tparallel # t.Parallel() - not needed
     - varnamelen # variable name length - too strict
     - wastedassign # wasted assignments - too noisy
     - wrapcheck # wrap all errors - too strict for internal packages
@@ -137,6 +135,12 @@ linters:
           - gosec
         text: "G306"
         path: ".*_test\\.go"
+      # paralleltest/tparallel: subtests share tmpDir with file create/remove
+      - linters:
+          - paralleltest
+          - tparallel
+        path: "internal/config/config_test\\.go"
+        text: "TestDiscover|TestLoad"
       # dupl: allow duplicate code in tests (table-driven test patterns)
       - linters:
           - dupl

@@ -6,6 +6,7 @@ import (
 )
 
 func TestFixableRuleNames_IncludesJSONArgsRecommended(t *testing.T) {
+	t.Parallel()
 	names := FixableRuleNames()
 	if !slices.Contains(names, "JSONArgsRecommended") {
 		t.Fatalf("FixableRuleNames() missing JSONArgsRecommended: %v", names)

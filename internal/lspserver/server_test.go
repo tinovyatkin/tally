@@ -12,6 +12,7 @@ import (
 )
 
 func TestViolationRangeConversion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		location rules.Location
@@ -45,6 +46,7 @@ func TestViolationRangeConversion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			v := rules.Violation{Location: tt.location}
 			got := violationRange(v)
 			assert.Equal(t, tt.expected, got)
@@ -53,6 +55,7 @@ func TestViolationRangeConversion(t *testing.T) {
 }
 
 func TestSeverityConversion(t *testing.T) {
+	t.Parallel()
 	snaps.WithConfig(
 		snaps.JSON(snaps.JSONConfig{
 			SortKeys: true,
@@ -67,6 +70,7 @@ func TestSeverityConversion(t *testing.T) {
 }
 
 func TestURIToPath(t *testing.T) {
+	t.Parallel()
 	path := uriToPath("file:///tmp/Dockerfile")
 	assert.Equal(t, filepath.FromSlash("/tmp/Dockerfile"), path)
 }

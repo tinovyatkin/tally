@@ -9,6 +9,7 @@ import (
 )
 
 func TestDL3012_MultipleHealthcheck(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		dockerfile  string
@@ -78,6 +79,7 @@ HEALTHCHECK CMD /bin/check2`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Parse Dockerfile
 			result, err := dockerfile.Parse(strings.NewReader(tt.dockerfile), nil)
 			if err != nil {

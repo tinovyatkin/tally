@@ -9,6 +9,7 @@ import (
 )
 
 func TestDL3023_SelfReferencingCopy(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		dockerfile  string
@@ -68,6 +69,7 @@ COPY --from=0 /app .`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Parse Dockerfile
 			result, err := dockerfile.Parse(strings.NewReader(tt.dockerfile), nil)
 			if err != nil {

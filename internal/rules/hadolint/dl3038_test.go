@@ -163,6 +163,7 @@ RUN microdnf -y install httpd`,
 }
 
 func TestDL3038Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3038Rule()
 	meta := r.Metadata()
 

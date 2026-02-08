@@ -7,6 +7,7 @@ import (
 )
 
 func TestDefault(t *testing.T) {
+	t.Parallel()
 	cfg := Default()
 
 	if cfg.Output.Format != "text" {
@@ -20,6 +21,7 @@ func TestDefault(t *testing.T) {
 }
 
 func TestDiscover(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 
@@ -111,6 +113,7 @@ func TestDiscover(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
@@ -252,6 +255,7 @@ max = 100
 }
 
 func TestEnvKeyTransform(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -271,6 +275,7 @@ func TestEnvKeyTransform(t *testing.T) {
 }
 
 func TestRulesConfigIncludeExclude(t *testing.T) {
+	t.Parallel()
 	rc := &RulesConfig{
 		Include: []string{"buildkit/*", "tally/*", "hadolint/DL3026"},
 		Exclude: []string{"hadolint/DL3008"},
@@ -363,6 +368,7 @@ func TestRulesConfigIncludeExclude(t *testing.T) {
 }
 
 func TestRulesConfigGetOptionsTyped(t *testing.T) {
+	t.Parallel()
 	type opts struct {
 		MinCommands *int  `koanf:"min-commands"`
 		Enabled     *bool `koanf:"enabled"`

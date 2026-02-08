@@ -8,6 +8,7 @@ import (
 )
 
 func TestDL3002Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3002Rule()
 	meta := r.Metadata()
 
@@ -23,6 +24,7 @@ func TestDL3002Rule_Metadata(t *testing.T) {
 }
 
 func TestDL3002Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -169,6 +171,7 @@ RUN something else
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL3002Rule()
@@ -191,6 +194,7 @@ RUN something else
 }
 
 func TestIsRootUser(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		user string
 		want bool
@@ -207,13 +211,14 @@ func TestIsRootUser(t *testing.T) {
 		{"1000", false},
 		{"appuser:appgroup", false},
 		{"1000:1000", false},
-		{"  root  ", true},   // whitespace trimmed
+		{"  root  ", true}, // whitespace trimmed
 		{"nobody", false},
 		{"www-data", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.user, func(t *testing.T) {
+			t.Parallel()
 			got := isRootUser(tt.user)
 			if got != tt.want {
 				t.Errorf("isRootUser(%q) = %v, want %v", tt.user, got, tt.want)

@@ -9,6 +9,7 @@ import (
 )
 
 func TestSecretsInArgOrEnvRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInArgOrEnvRule()
 	meta := r.Metadata()
 
@@ -22,6 +23,7 @@ func TestSecretsInArgOrEnvRule_Metadata(t *testing.T) {
 }
 
 func TestSecretsInArgOrEnvRule_Check_ARGWithSecret(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInArgOrEnvRule()
 
 	input := rules.LintInput{
@@ -50,6 +52,7 @@ func TestSecretsInArgOrEnvRule_Check_ARGWithSecret(t *testing.T) {
 }
 
 func TestSecretsInArgOrEnvRule_Check_ENVWithSecret(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInArgOrEnvRule()
 
 	input := rules.LintInput{
@@ -74,6 +77,7 @@ func TestSecretsInArgOrEnvRule_Check_ENVWithSecret(t *testing.T) {
 }
 
 func TestSecretsInArgOrEnvRule_Check_MetaARGWithSecret(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInArgOrEnvRule()
 
 	val := "secretvalue"
@@ -96,6 +100,7 @@ func TestSecretsInArgOrEnvRule_Check_MetaARGWithSecret(t *testing.T) {
 }
 
 func TestSecretsInArgOrEnvRule_Check_NoSecrets(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInArgOrEnvRule()
 
 	input := rules.LintInput{
@@ -125,6 +130,7 @@ func TestSecretsInArgOrEnvRule_Check_NoSecrets(t *testing.T) {
 }
 
 func TestSecretsInArgOrEnvRule_Check_PublicKeyAllowed(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInArgOrEnvRule()
 
 	input := rules.LintInput{
@@ -149,6 +155,7 @@ func TestSecretsInArgOrEnvRule_Check_PublicKeyAllowed(t *testing.T) {
 }
 
 func TestIsSecretKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		key  string
 		want bool
@@ -191,6 +198,7 @@ func TestIsSecretKey(t *testing.T) {
 }
 
 func TestSecretsInArgOrEnvRule_Check_MultipleSecrets(t *testing.T) {
+	t.Parallel()
 	r := NewSecretsInArgOrEnvRule()
 
 	input := rules.LintInput{

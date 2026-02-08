@@ -7,6 +7,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	ctx, err := New(tmpDir, "")
@@ -24,6 +25,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestIsIgnored_NoIgnoreFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	ctx, err := New(tmpDir, "")
@@ -42,6 +44,7 @@ func TestIsIgnored_NoIgnoreFile(t *testing.T) {
 }
 
 func TestIsIgnored_WithIgnoreFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .dockerignore
@@ -85,6 +88,7 @@ temp/
 }
 
 func TestFileExists(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create some files
@@ -123,6 +127,7 @@ func TestFileExists(t *testing.T) {
 }
 
 func TestHeredocFiles(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	ctx, err := New(tmpDir, "")
@@ -144,6 +149,7 @@ func TestHeredocFiles(t *testing.T) {
 }
 
 func TestWithHeredocFiles(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	heredocs := map[string]bool{
@@ -168,6 +174,7 @@ func TestWithHeredocFiles(t *testing.T) {
 }
 
 func TestPatterns(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .dockerignore
@@ -190,6 +197,7 @@ temp/
 }
 
 func TestHasIgnoreFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	ctx, err := New(tmpDir, "")
@@ -217,6 +225,7 @@ func TestHasIgnoreFile(t *testing.T) {
 }
 
 func TestContainerignore(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .containerignore (Podman)

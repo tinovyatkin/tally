@@ -8,6 +8,7 @@ import (
 )
 
 func TestDL3021Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3021Rule()
 	meta := r.Metadata()
 
@@ -23,6 +24,7 @@ func TestDL3021Rule_Metadata(t *testing.T) {
 }
 
 func TestDL3021Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -130,6 +132,7 @@ COPY foo bar 'baz'
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL3021Rule()
@@ -151,4 +154,3 @@ COPY foo bar 'baz'
 		})
 	}
 }
-

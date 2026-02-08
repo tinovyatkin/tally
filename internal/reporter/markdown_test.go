@@ -9,6 +9,7 @@ import (
 )
 
 func TestMarkdownReporterSingleFile(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -83,6 +84,7 @@ func TestMarkdownReporterSingleFile(t *testing.T) {
 }
 
 func TestMarkdownReporterMultipleFiles(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -126,6 +128,7 @@ func TestMarkdownReporterMultipleFiles(t *testing.T) {
 }
 
 func TestMarkdownReporterEmpty(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	reporter := NewMarkdownReporter(&buf)
 
@@ -141,6 +144,7 @@ func TestMarkdownReporterEmpty(t *testing.T) {
 }
 
 func TestMarkdownReporterSeverityEmojis(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		severity rules.Severity
@@ -154,6 +158,7 @@ func TestMarkdownReporterSeverityEmojis(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := severityEmoji(tt.severity)
 			if result != tt.emoji {
 				t.Errorf("severityEmoji(%v) = %q, want %q", tt.severity, result, tt.emoji)
@@ -163,6 +168,7 @@ func TestMarkdownReporterSeverityEmojis(t *testing.T) {
 }
 
 func TestMarkdownReporterEscaping(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -200,6 +206,7 @@ func TestMarkdownReporterEscaping(t *testing.T) {
 }
 
 func TestMarkdownReporterFileLevelViolation(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.NewFileLocation("Dockerfile"),
@@ -226,6 +233,7 @@ func TestMarkdownReporterFileLevelViolation(t *testing.T) {
 }
 
 func TestSortViolationsBySeverity(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{File: "a.txt", Start: rules.Position{Line: 1}},
@@ -267,6 +275,7 @@ func TestSortViolationsBySeverity(t *testing.T) {
 }
 
 func TestParseFormatMarkdown(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected Format
@@ -278,6 +287,7 @@ func TestParseFormatMarkdown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			format, err := ParseFormat(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseFormat(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)

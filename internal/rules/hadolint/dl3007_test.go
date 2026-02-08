@@ -8,6 +8,7 @@ import (
 )
 
 func TestDL3007Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3007Rule()
 	meta := r.Metadata()
 
@@ -23,6 +24,7 @@ func TestDL3007Rule_Metadata(t *testing.T) {
 }
 
 func TestDL3007Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -129,6 +131,7 @@ FROM ${BASE_IMAGE}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL3007Rule()
@@ -151,6 +154,7 @@ FROM ${BASE_IMAGE}
 }
 
 func TestImageRefIsLatestTag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		image string
 		want  bool
@@ -169,6 +173,7 @@ func TestImageRefIsLatestTag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.image, func(t *testing.T) {
+			t.Parallel()
 			ref := parseImageRef(tt.image)
 			if ref == nil {
 				t.Fatalf("parseImageRef(%q) returned nil", tt.image)
@@ -182,6 +187,7 @@ func TestImageRefIsLatestTag(t *testing.T) {
 }
 
 func TestImageRefFamiliarName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		image string
 		want  string
@@ -196,6 +202,7 @@ func TestImageRefFamiliarName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.image, func(t *testing.T) {
+			t.Parallel()
 			ref := parseImageRef(tt.image)
 			if ref == nil {
 				t.Fatalf("parseImageRef(%q) returned nil", tt.image)

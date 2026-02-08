@@ -244,6 +244,7 @@ RUN apt-get install curl wget`,
 // TestDL3014AndDL3027CombinedFixes verifies that DL3027 and DL3014 can both
 // provide fixes on the same RUN command when it contains both "apt" and "apt-get install".
 func TestDL3014AndDL3027CombinedFixes(t *testing.T) {
+	t.Parallel()
 	// This Dockerfile has both:
 	// - apt update (triggers DL3027, wants to change apt -> apt-get)
 	// - apt-get install (triggers DL3014, wants to add -y)
@@ -309,10 +310,10 @@ RUN apt update && apt-get install python`
 func TestDL3014AndDL3027Interaction(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name         string
-		dockerfile   string
-		wantDL3014   int
-		wantDL3027   int
+		name       string
+		dockerfile string
+		wantDL3014 int
+		wantDL3027 int
 	}{
 		{
 			name: "apt install (both rules)",
@@ -366,6 +367,7 @@ RUN apt install -y python`,
 }
 
 func TestDL3014Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3014Rule()
 	meta := r.Metadata()
 

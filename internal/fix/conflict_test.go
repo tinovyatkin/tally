@@ -7,6 +7,7 @@ import (
 )
 
 func TestEditsOverlap(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		a    rules.TextEdit
@@ -71,6 +72,7 @@ func TestEditsOverlap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := editsOverlap(tt.a, tt.b); got != tt.want {
 				t.Errorf("editsOverlap() = %v, want %v", got, tt.want)
 			}
@@ -79,6 +81,7 @@ func TestEditsOverlap(t *testing.T) {
 }
 
 func TestCompareEdits(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		a    rules.TextEdit
@@ -107,6 +110,7 @@ func TestCompareEdits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := compareEdits(tt.a, tt.b); got != tt.want {
 				t.Errorf("compareEdits() = %v, want %v", got, tt.want)
 			}

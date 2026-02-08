@@ -2,6 +2,7 @@ package tally
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -10,10 +11,13 @@ import (
 	"github.com/tinovyatkin/tally/internal/rules"
 )
 
+var (
+	gitleaksOnce     sync.Once
+	gitleaksDetector *detect.Detector
+)
+
 // SecretsInCodeRule implements secret detection in Dockerfile content.
-type SecretsInCodeRule struct {
-	detector *detect.Detector
-}
+type SecretsInCodeRule struct{}
 
 // NewSecretsInCodeRule creates a new SecretsInCode rule instance.
 func NewSecretsInCodeRule() *SecretsInCodeRule {
@@ -35,14 +39,15 @@ func (r *SecretsInCodeRule) Metadata() rules.RuleMetadata {
 
 // Check scans the Dockerfile for hardcoded secrets.
 func (r *SecretsInCodeRule) Check(input rules.LintInput) []rules.Violation {
-	// Lazy-initialize detector
-	if r.detector == nil {
+	gitleaksOnce.Do(func() {
 		d, err := detect.NewDetectorDefaultConfig()
 		if err != nil {
-			// If we can't create detector, skip this rule silently
-			return nil
+			return
 		}
-		r.detector = d
+		gitleaksDetector = d
+	})
+	if gitleaksDetector == nil {
+		return nil
 	}
 
 	var violations []rules.Violation
@@ -186,7 +191,7 @@ func (r *SecretsInCodeRule) scanContent(
 		return nil
 	}
 
-	findings := r.detector.DetectString(content)
+	findings := gitleaksDetector.DetectString(content)
 	if len(findings) == 0 {
 		return nil
 	}

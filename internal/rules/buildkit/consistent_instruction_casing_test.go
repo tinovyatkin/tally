@@ -13,6 +13,7 @@ import (
 )
 
 func TestConsistentInstructionCasingRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 	meta := r.Metadata()
 
@@ -22,6 +23,7 @@ func TestConsistentInstructionCasingRule_Metadata(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingRule_Check_MajorityUppercase(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	// 2 uppercase (FROM, COPY), 1 lowercase (run) -> majority uppercase
@@ -48,6 +50,7 @@ func TestConsistentInstructionCasingRule_Check_MajorityUppercase(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingRule_Check_MajorityLowercase(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	// 1 uppercase (COPY), 2 lowercase (from, run) -> majority lowercase
@@ -74,6 +77,7 @@ func TestConsistentInstructionCasingRule_Check_MajorityLowercase(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingRule_Check_AllUppercase(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	input := rules.LintInput{
@@ -95,6 +99,7 @@ func TestConsistentInstructionCasingRule_Check_AllUppercase(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingRule_Check_AllLowercase(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	input := rules.LintInput{
@@ -116,6 +121,7 @@ func TestConsistentInstructionCasingRule_Check_AllLowercase(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingRule_Check_EqualCountPrefersUppercase(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	// 1 uppercase (FROM), 1 lowercase (run) -> tie, prefer uppercase
@@ -141,6 +147,7 @@ func TestConsistentInstructionCasingRule_Check_EqualCountPrefersUppercase(t *tes
 }
 
 func TestConsistentInstructionCasingRule_Check_MixedCaseIgnored(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	// "From" is mixed case - not counted for majority but still flagged
@@ -167,6 +174,7 @@ func TestConsistentInstructionCasingRule_Check_MixedCaseIgnored(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingRule_Check_MultipleStages(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	// Stage 1: FROM, RUN (2 upper)
@@ -202,6 +210,7 @@ func TestConsistentInstructionCasingRule_Check_MultipleStages(t *testing.T) {
 }
 
 func TestConsistentInstructionCasingRule_Check_MetaArgs(t *testing.T) {
+	t.Parallel()
 	r := NewConsistentInstructionCasingRule()
 
 	// MetaArgs: arg (lowercase), FROM and RUN are uppercase
@@ -223,29 +232,31 @@ RUN echo hello
 }
 
 func TestIsSelfConsistentCasing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  bool
 	}{
-		{"FROM", true},      // All uppercase
-		{"from", true},      // All lowercase
-		{"From", false},     // Mixed
-		{"FROM1", true},     // Uppercase with number
-		{"run", true},       // All lowercase
-		{"rUn", false},      // Mixed
-		{"WORKDIR", true},   // All uppercase
-		{"workdir", true},   // All lowercase
-		{"WorkDir", false},  // Mixed
-		{"copy", true},      // All lowercase
-		{"COPY", true},      // All uppercase
-		{"cOpY", false},     // Mixed
-		{"ADD", true},       // Short all uppercase
-		{"add", true},       // Short all lowercase
-		{"Add", false},      // Short mixed
+		{"FROM", true},     // All uppercase
+		{"from", true},     // All lowercase
+		{"From", false},    // Mixed
+		{"FROM1", true},    // Uppercase with number
+		{"run", true},      // All lowercase
+		{"rUn", false},     // Mixed
+		{"WORKDIR", true},  // All uppercase
+		{"workdir", true},  // All lowercase
+		{"WorkDir", false}, // Mixed
+		{"copy", true},     // All lowercase
+		{"COPY", true},     // All uppercase
+		{"cOpY", false},    // Mixed
+		{"ADD", true},      // Short all uppercase
+		{"add", true},      // Short all lowercase
+		{"Add", false},     // Short mixed
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := isSelfConsistentCasing(tt.input)
 			assert.Equal(t, tt.want, got)
 		})

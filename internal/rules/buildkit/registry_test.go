@@ -8,12 +8,14 @@ import (
 )
 
 func TestRegistryHas22Rules(t *testing.T) {
+	t.Parallel()
 	if len(Registry) != 22 {
 		t.Errorf("expected 22 BuildKit rules, got %d", len(Registry))
 	}
 }
 
 func TestGet(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		want bool
@@ -32,6 +34,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetMetadata(t *testing.T) {
+	t.Parallel()
 	meta := GetMetadata("StageNameCasing")
 	if meta == nil {
 		t.Fatal("GetMetadata(StageNameCasing) returned nil")
@@ -51,6 +54,7 @@ func TestGetMetadata(t *testing.T) {
 }
 
 func TestByCategory(t *testing.T) {
+	t.Parallel()
 	style := ByCategory("style")
 	if len(style) < 4 {
 		t.Errorf("expected at least 4 style rules, got %d", len(style))
@@ -63,6 +67,7 @@ func TestByCategory(t *testing.T) {
 }
 
 func TestCategories(t *testing.T) {
+	t.Parallel()
 	cats := Categories()
 	if len(cats) < 4 {
 		t.Errorf("expected at least 4 categories, got %d", len(cats))
@@ -90,6 +95,7 @@ func TestCategories(t *testing.T) {
 }
 
 func TestAllRulesHaveDocURL(t *testing.T) {
+	t.Parallel()
 	// Count rules without DocURL (only InvalidBaseImagePlatform is expected)
 	missingDocs := 0
 	for name, info := range Registry {
@@ -108,6 +114,7 @@ func TestAllRulesHaveDocURL(t *testing.T) {
 }
 
 func TestAll(t *testing.T) {
+	t.Parallel()
 	all := All()
 	if len(all) != len(Registry) {
 		t.Fatalf("len(All()) = %d, want %d", len(all), len(Registry))
@@ -120,6 +127,7 @@ func TestAll(t *testing.T) {
 }
 
 func TestCaptured(t *testing.T) {
+	t.Parallel()
 	captured := Captured()
 	if len(captured) != len(CapturedRuleNames) {
 		t.Fatalf("len(Captured()) = %d, want %d", len(captured), len(CapturedRuleNames))

@@ -7,6 +7,7 @@ import (
 )
 
 func TestParseDockerfile(t *testing.T) {
+	t.Parallel()
 	content := "FROM alpine\nRUN echo hello"
 	result := ParseDockerfile(t, content)
 
@@ -26,6 +27,7 @@ func TestParseDockerfile(t *testing.T) {
 }
 
 func TestMakeLintInput(t *testing.T) {
+	t.Parallel()
 	content := "FROM alpine\nRUN echo hello"
 	input := MakeLintInput(t, "test/Dockerfile", content)
 
@@ -55,6 +57,7 @@ func TestMakeLintInput(t *testing.T) {
 }
 
 func TestMakeLintInputWithConfig(t *testing.T) {
+	t.Parallel()
 	content := "FROM alpine"
 	config := struct{ Max int }{Max: 100}
 
@@ -73,12 +76,14 @@ func TestMakeLintInputWithConfig(t *testing.T) {
 }
 
 func TestAssertNoViolations(t *testing.T) {
+	t.Parallel()
 	// Test with empty violations (should pass)
 	AssertNoViolations(t, nil)
 	AssertNoViolations(t, []rules.Violation{})
 }
 
 func TestAssertViolationCount(t *testing.T) {
+	t.Parallel()
 	v := []rules.Violation{
 		rules.NewViolation(rules.NewLineLocation("test", 1), "test-rule", "msg", rules.SeverityError),
 	}

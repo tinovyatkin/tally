@@ -5,6 +5,7 @@ import (
 )
 
 func TestLintInput_SourceMap(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nRUN echo hello\nCMD [\"sh\"]")
 	input := LintInput{
 		Source: source,
@@ -25,6 +26,7 @@ func TestLintInput_SourceMap(t *testing.T) {
 }
 
 func TestLintInput_Snippet(t *testing.T) {
+	t.Parallel()
 	source := []byte("line0\nline1\nline2\nline3\nline4")
 	input := LintInput{
 		Source: source,
@@ -43,6 +45,7 @@ func TestLintInput_Snippet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := input.Snippet(tt.startLine, tt.endLine)
 			if got != tt.want {
 				t.Errorf("Snippet(%d, %d) = %q, want %q", tt.startLine, tt.endLine, got, tt.want)
@@ -52,6 +55,7 @@ func TestLintInput_Snippet(t *testing.T) {
 }
 
 func TestLintInput_SnippetForLocation(t *testing.T) {
+	t.Parallel()
 	// Source lines named to match 1-based line numbers
 	source := []byte("line1\nline2\nline3\nline4\nline5")
 	input := LintInput{
@@ -92,6 +96,7 @@ func TestLintInput_SnippetForLocation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := input.SnippetForLocation(tt.loc)
 			if got != tt.want {
 				t.Errorf("SnippetForLocation(%v) = %q, want %q", tt.loc, got, tt.want)
@@ -101,6 +106,7 @@ func TestLintInput_SnippetForLocation(t *testing.T) {
 }
 
 func TestLintInput_SnippetForLocation_EmptySource(t *testing.T) {
+	t.Parallel()
 	input := LintInput{
 		Source: []byte{},
 	}

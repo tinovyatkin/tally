@@ -9,6 +9,7 @@ import (
 )
 
 func TestSARIFReporter(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.Location{
@@ -120,6 +121,7 @@ func TestSARIFReporter(t *testing.T) {
 }
 
 func TestSARIFReporterSeverityMapping(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		severity rules.Severity
 		expected string
@@ -132,6 +134,7 @@ func TestSARIFReporterSeverityMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
+			t.Parallel()
 			result := severityToSARIFLevel(tt.severity)
 			if result != tt.expected {
 				t.Errorf("severityToSARIFLevel(%v) = %q, want %q", tt.severity, result, tt.expected)
@@ -141,6 +144,7 @@ func TestSARIFReporterSeverityMapping(t *testing.T) {
 }
 
 func TestSARIFReporterEmpty(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	reporter := NewSARIFReporter(&buf, "tally", "1.0.0", "")
 
@@ -176,6 +180,7 @@ func TestSARIFReporterEmpty(t *testing.T) {
 }
 
 func TestSARIFReporterColumnZero(t *testing.T) {
+	t.Parallel()
 	// Verify that column 0 (0-based) maps to SARIF column 1 (1-based)
 	violations := []rules.Violation{
 		{
@@ -246,6 +251,7 @@ func TestSARIFReporterColumnZero(t *testing.T) {
 }
 
 func TestSARIFReporterFileLevelViolation(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		{
 			Location: rules.NewFileLocation("Dockerfile"),

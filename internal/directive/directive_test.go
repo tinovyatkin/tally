@@ -9,6 +9,7 @@ import (
 )
 
 func TestParseTallyNextLine(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=DL3006
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -33,6 +34,7 @@ FROM ubuntu`
 }
 
 func TestParseTallyMultipleRules(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=DL3006,DL3008,max-lines
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -54,6 +56,7 @@ FROM ubuntu`
 }
 
 func TestParseTallyGlobal(t *testing.T) {
+	t.Parallel()
 	content := `# tally global ignore=max-lines
 FROM alpine
 RUN echo hello`
@@ -73,6 +76,7 @@ RUN echo hello`
 }
 
 func TestParseHadolint(t *testing.T) {
+	t.Parallel()
 	content := `# hadolint ignore=DL3006
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -91,6 +95,7 @@ FROM ubuntu`
 }
 
 func TestParseHadolintGlobal(t *testing.T) {
+	t.Parallel()
 	content := `# hadolint global ignore=DL3006,DL3008
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -109,6 +114,7 @@ FROM ubuntu`
 }
 
 func TestParseBuildx(t *testing.T) {
+	t.Parallel()
 	content := `# check=skip=DL3006,DL3008
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -127,6 +133,7 @@ FROM ubuntu`
 }
 
 func TestParseIgnoreAll(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=all
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -142,6 +149,7 @@ FROM ubuntu`
 }
 
 func TestParseCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	content := `# TALLY IGNORE=DL3006
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -153,6 +161,7 @@ FROM ubuntu`
 }
 
 func TestParseWithSpaces(t *testing.T) {
+	t.Parallel()
 	content := `#  tally   ignore=DL3006,DL3008
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -168,6 +177,7 @@ FROM ubuntu`
 }
 
 func TestParseDirectiveAtEOF(t *testing.T) {
+	t.Parallel()
 	content := `FROM ubuntu
 # tally ignore=DL3006`
 	sm := sourcemap.New([]byte(content))
@@ -184,6 +194,7 @@ func TestParseDirectiveAtEOF(t *testing.T) {
 }
 
 func TestParseMultipleDirectives(t *testing.T) {
+	t.Parallel()
 	content := `# tally global ignore=max-lines
 # hadolint ignore=DL3006
 FROM ubuntu
@@ -198,6 +209,7 @@ RUN echo hello`
 }
 
 func TestParseRegularComment(t *testing.T) {
+	t.Parallel()
 	content := `# This is a regular comment`
 	sm := sourcemap.New([]byte(content))
 	result := Parse(sm, nil)
@@ -208,6 +220,7 @@ func TestParseRegularComment(t *testing.T) {
 }
 
 func TestParseSkipsBlankLinesAndComments(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=DL3006
 
 # another comment
@@ -226,6 +239,7 @@ FROM ubuntu`
 }
 
 func TestParseEmptyRuleList(t *testing.T) {
+	t.Parallel()
 	// Test tally format with empty rule list (only commas)
 	content := `# tally ignore=,
 FROM ubuntu`
@@ -241,6 +255,7 @@ FROM ubuntu`
 }
 
 func TestParseEmptyRuleListHadolint(t *testing.T) {
+	t.Parallel()
 	// Test hadolint format with empty rule list
 	content := `# hadolint ignore=,,
 FROM ubuntu`
@@ -256,6 +271,7 @@ FROM ubuntu`
 }
 
 func TestParseEmptyRuleListBuildx(t *testing.T) {
+	t.Parallel()
 	// Test buildx format with empty rule list
 	content := `# check=skip=,
 FROM ubuntu`
@@ -271,6 +287,7 @@ FROM ubuntu`
 }
 
 func TestParseRuleListError(t *testing.T) {
+	t.Parallel()
 	// Directly test parseRuleList error cases
 	tests := []struct {
 		input   string
@@ -288,6 +305,7 @@ func TestParseRuleListError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			_, err := parseRuleList(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseRuleList(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
@@ -303,6 +321,7 @@ func TestParseRuleListError(t *testing.T) {
 }
 
 func TestParseWithValidation(t *testing.T) {
+	t.Parallel()
 	knownRules := map[string]bool{
 		"DL3006":    true,
 		"max-lines": true,
@@ -344,6 +363,7 @@ FROM ubuntu`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			sm := sourcemap.New([]byte(tt.content))
 			result := Parse(sm, validator)
 
@@ -356,6 +376,7 @@ FROM ubuntu`,
 }
 
 func TestFilterSuppressSingle(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 2),
@@ -385,6 +406,7 @@ func TestFilterSuppressSingle(t *testing.T) {
 }
 
 func TestFilterSuppressAll(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 2),
@@ -415,6 +437,7 @@ func TestFilterSuppressAll(t *testing.T) {
 }
 
 func TestFilterGlobalDirective(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 1),
@@ -449,6 +472,7 @@ func TestFilterGlobalDirective(t *testing.T) {
 }
 
 func TestFilterNextLineOnlyAffectsOneLine(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 2),
@@ -479,6 +503,7 @@ func TestFilterNextLineOnlyAffectsOneLine(t *testing.T) {
 }
 
 func TestFilterUnusedDirective(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 2),
@@ -505,6 +530,7 @@ func TestFilterUnusedDirective(t *testing.T) {
 }
 
 func TestFilterNoDirectives(t *testing.T) {
+	t.Parallel()
 	violations := []rules.Violation{
 		rules.NewViolation(
 			rules.NewLineLocation("Dockerfile", 1),
@@ -519,6 +545,7 @@ func TestFilterNoDirectives(t *testing.T) {
 }
 
 func TestFilterNoViolations(t *testing.T) {
+	t.Parallel()
 	directives := []Directive{
 		{Type: TypeGlobal, Rules: []string{"DL3006"}, AppliesTo: GlobalRange()},
 	}
@@ -533,6 +560,7 @@ func TestFilterNoViolations(t *testing.T) {
 }
 
 func TestDirectiveType_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		typ  DirectiveType
 		want string
@@ -551,6 +579,7 @@ func TestDirectiveType_String(t *testing.T) {
 }
 
 func TestLineRange_Contains(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		r      LineRange
@@ -570,6 +599,7 @@ func TestLineRange_Contains(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := tt.r.Contains(tt.line)
 			if got != tt.expect {
 				t.Errorf("LineRange{%d,%d}.Contains(%d) = %v, want %v",
@@ -580,6 +610,7 @@ func TestLineRange_Contains(t *testing.T) {
 }
 
 func TestParseTallyWithReason(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=DL3006;reason=Legacy base image required
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -595,6 +626,7 @@ FROM ubuntu`
 }
 
 func TestParseTallyGlobalWithReason(t *testing.T) {
+	t.Parallel()
 	content := `# tally global ignore=max-lines;reason=Generated file, size is expected
 FROM alpine`
 	sm := sourcemap.New([]byte(content))
@@ -613,6 +645,7 @@ FROM alpine`
 }
 
 func TestParseHadolintWithReason(t *testing.T) {
+	t.Parallel()
 	content := `# hadolint ignore=DL3006;reason=Using older ubuntu for compatibility
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -631,6 +664,7 @@ FROM ubuntu`
 }
 
 func TestParseBuildxWithReason(t *testing.T) {
+	t.Parallel()
 	// ;reason= is a tally extension for buildx format
 	content := `# check=skip=DL3006;reason=BuildKit silently ignores this
 FROM ubuntu`
@@ -650,6 +684,7 @@ FROM ubuntu`
 }
 
 func TestParseBuildxWithoutReason(t *testing.T) {
+	t.Parallel()
 	content := `# check=skip=DL3006
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -665,6 +700,7 @@ FROM ubuntu`
 }
 
 func TestParseTallyWithoutReason(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=DL3006
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -680,6 +716,7 @@ FROM ubuntu`
 }
 
 func TestParseReasonCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=DL3006;REASON=Some reason here
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -695,6 +732,7 @@ FROM ubuntu`
 }
 
 func TestParseReasonWithSpecialChars(t *testing.T) {
+	t.Parallel()
 	content := `# tally ignore=DL3006;reason=This is a reason with: colons, commas, and (parentheses)!
 FROM ubuntu`
 	sm := sourcemap.New([]byte(content))
@@ -711,6 +749,7 @@ FROM ubuntu`
 }
 
 func TestParseRulesWithSpacesAroundCommas(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -750,6 +789,7 @@ FROM ubuntu`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			sm := sourcemap.New([]byte(tt.content))
 			result := Parse(sm, nil)
 
@@ -771,6 +811,7 @@ FROM ubuntu`,
 }
 
 func TestParseShellDirective(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -823,6 +864,7 @@ func TestParseShellDirective(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			sm := sourcemap.New([]byte(tt.content))
 			result := Parse(sm, nil)
 
@@ -841,6 +883,7 @@ func TestParseShellDirective(t *testing.T) {
 }
 
 func TestParseShellDirectiveNoMatch(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -861,6 +904,7 @@ func TestParseShellDirectiveNoMatch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			sm := sourcemap.New([]byte(tt.content))
 			result := Parse(sm, nil)
 

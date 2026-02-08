@@ -9,6 +9,7 @@ import (
 )
 
 func TestDL3004Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3004Rule()
 	meta := r.Metadata()
 
@@ -24,6 +25,7 @@ func TestDL3004Rule_Metadata(t *testing.T) {
 }
 
 func TestDL3004Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -181,6 +183,7 @@ RUN env nice sudo apt-get update
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL3004Rule()
@@ -205,6 +208,7 @@ RUN env nice sudo apt-get update
 // TestContainsSudo verifies that shell.ContainsCommand correctly detects sudo.
 // This test ensures our integration with the shell package works as expected.
 func TestContainsSudo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		cmd  string
 		want bool
@@ -230,6 +234,7 @@ func TestContainsSudo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.cmd, func(t *testing.T) {
+			t.Parallel()
 			got := shell.ContainsCommand(tt.cmd, "sudo")
 			if got != tt.want {
 				t.Errorf("shell.ContainsCommand(%q, \"sudo\") = %v, want %v", tt.cmd, got, tt.want)

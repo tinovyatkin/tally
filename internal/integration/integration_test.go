@@ -30,31 +30,26 @@ func TestMain(m *testing.M) {
 	}
 	binaryPath = filepath.Join(tmpDir, binaryName)
 
-	// Create coverage directory in project root for persistent coverage data
-	// If GOCOVERDIR is set externally, use that; otherwise use "./coverage"
+	// Collect coverage only when GOCOVERDIR is set (Linux CI).
+	// Windows CI doesn't upload coverage, so skip instrumentation to avoid
+	// concurrent writes to the coverage directory from parallel subtests.
+	buildArgs := []string{"build"}
 	coverageDir = os.Getenv("GOCOVERDIR")
-	if coverageDir == "" {
-		// Get absolute path to project root (2 levels up from internal/integration)
-		wd, err := os.Getwd()
+	if coverageDir != "" {
+		coverageDir, err = filepath.Abs(coverageDir)
 		if err != nil {
 			_ = os.RemoveAll(tmpDir)
-			panic("failed to get working directory: " + err.Error())
+			panic("failed to get absolute coverage directory path: " + err.Error())
 		}
-		coverageDir = filepath.Join(wd, "..", "..", "coverage")
+		if err := os.MkdirAll(coverageDir, 0o750); err != nil {
+			_ = os.RemoveAll(tmpDir)
+			panic("failed to create coverage directory: " + err.Error())
+		}
+		buildArgs = append(buildArgs, "-cover")
 	}
-	// Make path absolute
-	coverageDir, err = filepath.Abs(coverageDir)
-	if err != nil {
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to get absolute coverage directory path: " + err.Error())
-	}
-	if err := os.MkdirAll(coverageDir, 0o750); err != nil {
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to create coverage directory: " + err.Error())
-	}
+	buildArgs = append(buildArgs, "-o", binaryPath, "github.com/tinovyatkin/tally")
 
-	// Build the module's main package with coverage instrumentation
-	cmd := exec.Command("go", "build", "-cover", "-o", binaryPath, "github.com/tinovyatkin/tally")
+	cmd := exec.Command("go", buildArgs...)
 	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(tmpDir)
@@ -82,6 +77,7 @@ func selectRules(rules ...string) []string {
 }
 
 func TestCheck(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name       string
 		dir        string
@@ -441,6 +437,7 @@ func TestCheck(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			testdataDir := filepath.Join("testdata", tc.dir)
 
 			args := make([]string, 0, 1+len(tc.args)+2)
@@ -517,6 +514,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command(binaryPath, "version")
 	cmd.Env = append(os.Environ(),
 		"GOCOVERDIR="+coverageDir,
@@ -533,6 +531,7 @@ func TestVersion(t *testing.T) {
 }
 
 func TestFix(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name        string
 		input       string // Input Dockerfile content
@@ -905,6 +904,7 @@ severity = "style"
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary directory with a Dockerfile
 			tmpDir := t.TempDir()
 			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
@@ -953,6 +953,7 @@ severity = "style"
 // from a public repository, verifying that multiple fixes apply correctly.
 // Source: https://github.com/tle211212/deepspeed_distributed_sagemaker_sample
 func TestFixRealWorld(t *testing.T) {
+	t.Parallel()
 	testdataDir := filepath.Join("testdata", "benchmark-real-world-fix")
 
 	// Read the original Dockerfile
@@ -1018,6 +1019,7 @@ func TestFixRealWorld(t *testing.T) {
 // enabled together on a multi-stage Dockerfile that also has consistent-indentation enabled.
 // The snapshot makes it easy to review the final fixed Dockerfile.
 func TestFixHeredocCombined(t *testing.T) {
+	t.Parallel()
 	testdataDir := filepath.Join("testdata", "heredoc-combined")
 
 	// Read the original Dockerfile
@@ -1085,6 +1087,7 @@ severity = "style"
 // on a multi-stage Dockerfile with multi-line continuation instructions.
 // The snapshot makes it easy to verify all continuation lines get aligned.
 func TestFixConsistentIndentation(t *testing.T) {
+	t.Parallel()
 	testdataDir := filepath.Join("testdata", "consistent-indentation")
 
 	originalContent, err := os.ReadFile(filepath.Join(testdataDir, "Dockerfile"))

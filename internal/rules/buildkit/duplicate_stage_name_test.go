@@ -9,6 +9,7 @@ import (
 )
 
 func TestDuplicateStageNameRule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDuplicateStageNameRule()
 	meta := r.Metadata()
 	if meta.Code != "buildkit/DuplicateStageName" {
@@ -20,6 +21,7 @@ func TestDuplicateStageNameRule_Metadata(t *testing.T) {
 }
 
 func TestDuplicateStageNameRule_Check(t *testing.T) {
+	t.Parallel()
 	r := NewDuplicateStageNameRule()
 
 	input := rules.LintInput{
@@ -41,6 +43,7 @@ func TestDuplicateStageNameRule_Check(t *testing.T) {
 }
 
 func TestDuplicateStageNameRule_Check_CaseInsensitive(t *testing.T) {
+	t.Parallel()
 	r := NewDuplicateStageNameRule()
 
 	input := rules.LintInput{
@@ -58,6 +61,7 @@ func TestDuplicateStageNameRule_Check_CaseInsensitive(t *testing.T) {
 }
 
 func TestDuplicateStageNameRule_Check_EmptyNameIgnored(t *testing.T) {
+	t.Parallel()
 	r := NewDuplicateStageNameRule()
 
 	input := rules.LintInput{

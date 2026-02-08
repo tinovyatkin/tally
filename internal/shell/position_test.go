@@ -5,6 +5,7 @@ import (
 )
 
 func TestFindCommandOccurrences_Simple(t *testing.T) {
+	t.Parallel()
 	script := "apt install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
 
@@ -31,6 +32,7 @@ func TestFindCommandOccurrences_Simple(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_WithPath(t *testing.T) {
+	t.Parallel()
 	script := "/usr/bin/apt-get install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
 
@@ -45,6 +47,7 @@ func TestFindCommandOccurrences_WithPath(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_Piped(t *testing.T) {
+	t.Parallel()
 	script := "apt update && apt install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
 
@@ -76,6 +79,7 @@ func TestFindCommandOccurrences_Piped(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_MultiLine(t *testing.T) {
+	t.Parallel()
 	script := "apt update\napt install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
 
@@ -98,6 +102,7 @@ func TestFindCommandOccurrences_MultiLine(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_WithEnvWrapper(t *testing.T) {
+	t.Parallel()
 	script := "env apt install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
 
@@ -128,6 +133,7 @@ func TestFindCommandOccurrences_WithEnvWrapper(t *testing.T) {
 }
 
 func TestFindCommandOccurrence_NotFound(t *testing.T) {
+	t.Parallel()
 	script := "apt-get install curl"
 	occ := FindCommandOccurrence(script, "apt", VariantBash)
 
@@ -137,6 +143,7 @@ func TestFindCommandOccurrence_NotFound(t *testing.T) {
 }
 
 func TestFindCommandOccurrence_Found(t *testing.T) {
+	t.Parallel()
 	script := "apt install curl && wget http://example.com"
 	occ := FindCommandOccurrence(script, "apt", VariantBash)
 
@@ -149,6 +156,7 @@ func TestFindCommandOccurrence_Found(t *testing.T) {
 }
 
 func TestFindAllCommandOccurrences(t *testing.T) {
+	t.Parallel()
 	script := "apt update && apt install curl"
 	occs := FindAllCommandOccurrences(script, "apt", VariantBash)
 
@@ -158,6 +166,7 @@ func TestFindAllCommandOccurrences(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_SubcommandWithFlags(t *testing.T) {
+	t.Parallel()
 	script := "apt install -y curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
 
@@ -173,6 +182,7 @@ func TestFindCommandOccurrences_SubcommandWithFlags(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_ParseError(t *testing.T) {
+	t.Parallel()
 	// Invalid shell syntax
 	script := "apt install ${"
 	occurrences := FindCommandOccurrences(script, VariantBash)
@@ -186,6 +196,7 @@ func TestFindCommandOccurrences_ParseError(t *testing.T) {
 // TestFindCommandOccurrences_EnvWithUnsetFlag tests that env wrapper correctly
 // skips the value of --unset flag and finds the wrapped command.
 func TestFindCommandOccurrences_EnvWithUnsetFlag(t *testing.T) {
+	t.Parallel()
 	// The --unset/-u flag takes a value, so "VAR" should NOT be treated as a command
 	script := "env --unset VAR apt install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
@@ -219,6 +230,7 @@ func TestFindCommandOccurrences_EnvWithUnsetFlag(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_EnvWithShortUnsetFlag(t *testing.T) {
+	t.Parallel()
 	// The -u flag takes a value, so "PATH" should NOT be treated as a command
 	script := "env -u PATH apt install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)
@@ -249,6 +261,7 @@ func TestFindCommandOccurrences_EnvWithShortUnsetFlag(t *testing.T) {
 }
 
 func TestFindCommandOccurrences_NiceWithAdjustment(t *testing.T) {
+	t.Parallel()
 	// The -n/--adjustment flag takes a value
 	script := "nice -n 10 apt install curl"
 	occurrences := FindCommandOccurrences(script, VariantBash)

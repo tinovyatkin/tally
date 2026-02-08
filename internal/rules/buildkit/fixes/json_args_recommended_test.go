@@ -7,6 +7,7 @@ import (
 )
 
 func TestFindDockerfileInlineCommentStart(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		line      string
@@ -53,6 +54,7 @@ func TestFindDockerfileInlineCommentStart(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			gotIdx, gotFound := findDockerfileInlineCommentStart([]byte(tt.line))
 			if gotFound != tt.wantFound {
 				t.Fatalf("found = %v, want %v (idx=%d)", gotFound, tt.wantFound, gotIdx)
@@ -65,6 +67,7 @@ func TestFindDockerfileInlineCommentStart(t *testing.T) {
 }
 
 func TestEnrichJSONArgsRecommendedFix_SkipsComplexShell(t *testing.T) {
+	t.Parallel()
 	df := "FROM alpine\nCMD echo *.txt\n"
 	source := []byte(df)
 
@@ -84,7 +87,9 @@ func TestEnrichJSONArgsRecommendedFix_SkipsComplexShell(t *testing.T) {
 }
 
 func TestEnrichJSONArgsRecommendedFix_EarlyReturns(t *testing.T) {
+	t.Parallel()
 	t.Run("line-number-missing", func(t *testing.T) {
+		t.Parallel()
 		source := []byte("FROM alpine\nCMD echo hi\n")
 		v := rules.NewViolation(rules.NewFileLocation("Dockerfile"), "buildkit/JSONArgsRecommended", "msg", rules.SeverityInfo)
 		v.Location = rules.NewRangeLocation("Dockerfile", 0, 0, 0, 0)
@@ -96,6 +101,7 @@ func TestEnrichJSONArgsRecommendedFix_EarlyReturns(t *testing.T) {
 	})
 
 	t.Run("line-out-of-bounds", func(t *testing.T) {
+		t.Parallel()
 		source := []byte("FROM alpine\nCMD echo hi\n")
 		v := rules.NewViolation(rules.NewFileLocation("Dockerfile"), "buildkit/JSONArgsRecommended", "msg", rules.SeverityInfo)
 		v.Location = rules.NewRangeLocation("Dockerfile", 99, 0, 99, 0)
@@ -107,6 +113,7 @@ func TestEnrichJSONArgsRecommendedFix_EarlyReturns(t *testing.T) {
 	})
 
 	t.Run("not-a-cmd-or-entrypoint", func(t *testing.T) {
+		t.Parallel()
 		source := []byte("FROM alpine\nRUN echo hi\n")
 		v := rules.NewViolation(rules.NewFileLocation("Dockerfile"), "buildkit/JSONArgsRecommended", "msg", rules.SeverityInfo)
 		v.Location = rules.NewRangeLocation("Dockerfile", 2, 0, 2, len("RUN echo hi"))
@@ -118,6 +125,7 @@ func TestEnrichJSONArgsRecommendedFix_EarlyReturns(t *testing.T) {
 	})
 
 	t.Run("missing-args", func(t *testing.T) {
+		t.Parallel()
 		source := []byte("FROM alpine\nCMD\n")
 		v := rules.NewViolation(rules.NewFileLocation("Dockerfile"), "buildkit/JSONArgsRecommended", "msg", rules.SeverityInfo)
 		v.Location = rules.NewRangeLocation("Dockerfile", 2, 0, 2, len("CMD"))
@@ -130,6 +138,7 @@ func TestEnrichJSONArgsRecommendedFix_EarlyReturns(t *testing.T) {
 }
 
 func TestEnrichJSONArgsRecommendedFix_Success(t *testing.T) {
+	t.Parallel()
 	source := []byte("FROM alpine\nCMD echo hi # comment\n")
 	v := rules.NewViolation(rules.NewFileLocation("Dockerfile"), "buildkit/JSONArgsRecommended", "msg", rules.SeverityInfo)
 	v.Location = rules.NewRangeLocation("Dockerfile", 2, 0, 2, len("CMD echo hi # comment"))

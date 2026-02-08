@@ -8,6 +8,7 @@ import (
 )
 
 func TestDL3020Rule_Metadata(t *testing.T) {
+	t.Parallel()
 	r := NewDL3020Rule()
 	meta := r.Metadata()
 
@@ -23,6 +24,7 @@ func TestDL3020Rule_Metadata(t *testing.T) {
 }
 
 func TestDL3020Rule_Check(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		dockerfile string
@@ -173,6 +175,7 @@ ADD "file.zip" /usr/src/app/
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL3020Rule()
@@ -195,6 +198,7 @@ ADD "file.zip" /usr/src/app/
 }
 
 func TestIsURLDL3020(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		src  string
 		want bool
@@ -212,6 +216,7 @@ func TestIsURLDL3020(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.src, func(t *testing.T) {
+			t.Parallel()
 			got := isURLDL3020(tt.src)
 			if got != tt.want {
 				t.Errorf("isURLDL3020(%q) = %v, want %v", tt.src, got, tt.want)
@@ -221,6 +226,7 @@ func TestIsURLDL3020(t *testing.T) {
 }
 
 func TestStripQuotes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -239,6 +245,7 @@ func TestStripQuotes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := stripQuotes(tt.input)
 			if got != tt.want {
 				t.Errorf("stripQuotes(%q) = %q, want %q", tt.input, got, tt.want)
@@ -248,6 +255,7 @@ func TestStripQuotes(t *testing.T) {
 }
 
 func TestIsTarArchiveDL3020(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		src  string
 		want bool
@@ -272,6 +280,7 @@ func TestIsTarArchiveDL3020(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.src, func(t *testing.T) {
+			t.Parallel()
 			got := isTarArchiveDL3020(tt.src)
 			if got != tt.want {
 				t.Errorf("isTarArchiveDL3020(%q) = %v, want %v", tt.src, got, tt.want)
