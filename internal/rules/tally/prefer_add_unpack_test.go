@@ -196,6 +196,28 @@ RUN curl ftp://mirror.example.com/data.tar.gz -o /tmp/data.tar.gz && tar -xf /tm
 `,
 			wantCount: 1,
 		},
+		// URL without archive extension, but output filename has one
+		{
+			name: "catch: curl -o archive name, URL has no extension",
+			dockerfile: `FROM ubuntu:22.04
+RUN curl https://foo.com/latest -o foo.tar && tar -xf foo.tar
+`,
+			wantCount: 1,
+		},
+		{
+			name: "catch: wget -O archive name, URL has no extension",
+			dockerfile: `FROM ubuntu:22.04
+RUN wget https://foo.com/latest -O /tmp/app.tar.gz && tar -xf /tmp/app.tar.gz -C /opt
+`,
+			wantCount: 1,
+		},
+		{
+			name: "ignore: curl -o non-archive name, URL has no extension",
+			dockerfile: `FROM ubuntu:22.04
+RUN curl https://foo.com/latest -o setup.sh && chmod +x setup.sh
+`,
+			wantCount: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -337,6 +359,24 @@ RUN curl -fsSL https://example.com/app.tar.gz | tar -xz
 			wantFix:  true,
 			wantURL:  "https://example.com/app.tar.gz",
 			wantDest: "/opt/myapp",
+		},
+		{
+			name: "curl -o archive name, URL has no extension",
+			dockerfile: `FROM ubuntu:22.04
+RUN curl https://foo.com/latest -o foo.tar && tar -xf foo.tar
+`,
+			wantFix:  true,
+			wantURL:  "https://foo.com/latest",
+			wantDest: "/",
+		},
+		{
+			name: "wget -O archive name, URL has no extension",
+			dockerfile: `FROM ubuntu:22.04
+RUN wget https://foo.com/latest -O /tmp/app.tar.gz && tar -xf /tmp/app.tar.gz -C /opt
+`,
+			wantFix:  true,
+			wantURL:  "https://foo.com/latest",
+			wantDest: "/opt",
 		},
 	}
 

@@ -138,6 +138,129 @@ func TestTarDestination(t *testing.T) {
 	}
 }
 
+func TestDownloadOutputFile(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		cmd  CommandInfo
+		want string
+	}{
+		{
+			"curl -o file",
+			CommandInfo{Name: "curl", Args: []string{"-o", "/tmp/app.tar.gz", "https://example.com/latest"}},
+			"/tmp/app.tar.gz",
+		},
+		{
+			"curl --output file",
+			CommandInfo{Name: "curl", Args: []string{"--output", "/tmp/app.tar", "https://example.com/dl"}},
+			"/tmp/app.tar",
+		},
+		{
+			"curl --output=file",
+			CommandInfo{Name: "curl", Args: []string{"--output=/tmp/app.tar.gz", "https://example.com/dl"}},
+			"/tmp/app.tar.gz",
+		},
+		{
+			"curl no -o",
+			CommandInfo{Name: "curl", Args: []string{"-fsSL", "https://example.com/app.tar.gz"}},
+			"",
+		},
+		{
+			"curl -o stdout",
+			CommandInfo{Name: "curl", Args: []string{"-o", "-", "https://example.com/app.tar.gz"}},
+			"",
+		},
+		{
+			"wget -O file",
+			CommandInfo{Name: "wget", Args: []string{"-O", "/tmp/data.tar", "https://example.com/dl"}},
+			"/tmp/data.tar",
+		},
+		{
+			"wget --output-document file",
+			CommandInfo{Name: "wget", Args: []string{"--output-document", "/tmp/data.tar", "https://example.com/dl"}},
+			"/tmp/data.tar",
+		},
+		{
+			"wget --output-document=file",
+			CommandInfo{Name: "wget", Args: []string{"--output-document=/tmp/data.tar", "https://example.com/dl"}},
+			"/tmp/data.tar",
+		},
+		{
+			"wget no -O",
+			CommandInfo{Name: "wget", Args: []string{"https://example.com/data.tar.gz"}},
+			"",
+		},
+		{
+			"wget -O stdout",
+			CommandInfo{Name: "wget", Args: []string{"-O", "-", "https://example.com/data.tar.gz"}},
+			"",
+		},
+		{
+			"other command",
+			CommandInfo{Name: "tar", Args: []string{"-xf", "app.tar"}},
+			"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := DownloadOutputFile(&tt.cmd); got != tt.want {
+				t.Errorf("DownloadOutputFile(%q %v) = %q, want %q", tt.cmd.Name, tt.cmd.Args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDownloadURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		cmd  CommandInfo
+		want string
+	}{
+		{
+			"curl with URL",
+			CommandInfo{Name: "curl", Args: []string{"-o", "/tmp/app.tar", "https://example.com/latest"}},
+			"https://example.com/latest",
+		},
+		{
+			"curl URL first",
+			CommandInfo{Name: "curl", Args: []string{"https://example.com/app.tar.gz", "-o", "/tmp/app.tar.gz"}},
+			"https://example.com/app.tar.gz",
+		},
+		{
+			"wget with URL",
+			CommandInfo{Name: "wget", Args: []string{"-O", "/tmp/data.tar", "https://example.com/dl"}},
+			"https://example.com/dl",
+		},
+		{
+			"ftp URL",
+			CommandInfo{Name: "curl", Args: []string{"ftp://mirror.example.com/data.tar.gz"}},
+			"ftp://mirror.example.com/data.tar.gz",
+		},
+		{
+			"http URL",
+			CommandInfo{Name: "curl", Args: []string{"http://example.com/app.tar.gz"}},
+			"http://example.com/app.tar.gz",
+		},
+		{
+			"no URL",
+			CommandInfo{Name: "curl", Args: []string{"-fsSL", "-o", "/tmp/file"}},
+			"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := DownloadURL(&tt.cmd); got != tt.want {
+				t.Errorf("DownloadURL(%q %v) = %q, want %q", tt.cmd.Name, tt.cmd.Args, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestBasename(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

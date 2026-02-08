@@ -180,10 +180,19 @@ func hasRemoteArchiveExtraction(cmdStr string, variant shell.Variant) bool {
 	return false
 }
 
-// hasArchiveURLArg checks if any download command has a URL pointing to an archive.
+// hasArchiveURLArg checks if any download command is downloading an archive.
+// An archive download is identified by either:
+//   - A URL argument with a recognized archive extension, or
+//   - An output filename (-o/-O) with a recognized archive extension.
 func hasArchiveURLArg(dlCmds []shell.CommandInfo) bool {
 	return slices.ContainsFunc(dlCmds, func(dl shell.CommandInfo) bool {
-		return slices.ContainsFunc(dl.Args, shell.IsArchiveURL)
+		if slices.ContainsFunc(dl.Args, shell.IsArchiveURL) {
+			return true
+		}
+		if outFile := shell.DownloadOutputFile(&dl); outFile != "" {
+			return shell.IsArchiveFilename(shell.Basename(outFile))
+		}
+		return false
 	})
 }
 
@@ -277,6 +286,21 @@ func extractFixData(cmdStr string, variant shell.Variant, workdir string) (strin
 					return "", "", false // multiple distinct archive URLs
 				}
 				archiveURL = arg
+			}
+		}
+	}
+	// If no archive URL found directly, check output filenames.
+	// E.g. curl https://example.com/latest -o app.tar.gz — the URL has no
+	// archive extension, but the -o filename reveals it's a tar archive.
+	if archiveURL == "" {
+		for i := range dlCmds {
+			if outFile := shell.DownloadOutputFile(&dlCmds[i]); outFile != "" && shell.IsArchiveFilename(shell.Basename(outFile)) {
+				if url := shell.DownloadURL(&dlCmds[i]); url != "" {
+					if archiveURL != "" && url != archiveURL {
+						return "", "", false
+					}
+					archiveURL = url
+				}
 			}
 		}
 	}

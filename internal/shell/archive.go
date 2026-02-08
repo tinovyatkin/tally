@@ -130,6 +130,49 @@ func DropQuotes(s string) string {
 	return s
 }
 
+// DownloadOutputFile extracts the output filename from a curl or wget CommandInfo.
+// For curl: -o <file>, --output <file>, --output=<file>
+// For wget: -O <file>, --output-document <file>, --output-document=<file>
+// Returns "" if no output file is specified or if output is stdout ("-").
+func DownloadOutputFile(cmd *CommandInfo) string {
+	var short, long string
+	switch cmd.Name {
+	case "curl":
+		short, long = "-o", "--output"
+	case "wget":
+		short, long = "-O", "--output-document"
+	default:
+		return ""
+	}
+	for i, arg := range cmd.Args {
+		if after, found := strings.CutPrefix(arg, long+"="); found {
+			if after == "-" {
+				return ""
+			}
+			return after
+		}
+		if (arg == short || arg == long) && i+1 < len(cmd.Args) {
+			val := cmd.Args[i+1]
+			if val == "-" {
+				return ""
+			}
+			return val
+		}
+	}
+	return ""
+}
+
+// DownloadURL extracts the first URL argument (http/https/ftp) from a download CommandInfo.
+// Returns "" if no URL is found.
+func DownloadURL(cmd *CommandInfo) string {
+	for _, arg := range cmd.Args {
+		if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") || strings.HasPrefix(arg, "ftp://") {
+			return arg
+		}
+	}
+	return ""
+}
+
 // Basename extracts the filename from a path, stripping quotes and handling
 // both Unix and Windows separators.
 func Basename(p string) string {
