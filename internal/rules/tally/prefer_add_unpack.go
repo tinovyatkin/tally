@@ -266,65 +266,105 @@ func buildAddUnpackFix(
 // Returns ("", "", false) if the command contains non-download/extract commands.
 func extractFixData(cmdStr string, variant shell.Variant, workdir string) (string, string, bool) {
 	// Check that ALL commands in the script are download or extraction commands
-	allNames := shell.CommandNamesWithVariant(cmdStr, variant)
-	for _, name := range allNames {
+	for _, name := range shell.CommandNamesWithVariant(cmdStr, variant) {
 		if !allowedFixCommands[name] {
 			return "", "", false
 		}
 	}
 
-	// Collect all distinct archive URLs from download commands.
-	// Bail out if there are multiple — we can't reliably match which
-	// URL corresponds to the tar extraction (e.g. curl a.tar.gz &&
-	// curl b.tar.gz && tar -xf b.tar.gz).
-	var archiveURL string
 	dlCmds := shell.FindCommands(cmdStr, variant, shell.DownloadCommands...)
+	archiveURL := findArchiveURL(dlCmds)
+	if archiveURL == "" {
+		return "", "", false
+	}
+
+	outFile := findDownloadOutputFile(dlCmds)
+	extractTar := findSingleExtractTar(cmdStr, variant)
+	if extractTar == nil {
+		return "", "", false
+	}
+
+	// When a download output file is present, verify the tar command
+	// references it (by full path or basename) to avoid matching a tar
+	// that operates on an unrelated file.
+	if outFile != "" &&
+		!slices.Contains(extractTar.Args, outFile) &&
+		!slices.Contains(extractTar.Args, shell.Basename(outFile)) {
+		return "", "", false
+	}
+
+	// Default to the effective WORKDIR; tar without -C extracts into cwd.
+	dest := workdir
+	if d := shell.TarDestination(extractTar); d != "" {
+		dest = d
+	}
+
+	return archiveURL, dest, true
+}
+
+// findArchiveURL finds a single archive URL from download commands.
+// Returns "" if none found or if multiple distinct archive URLs are present.
+// Checks URL arguments first, then falls back to output filenames.
+func findArchiveURL(dlCmds []shell.CommandInfo) string {
+	var archiveURL string
 	for _, dl := range dlCmds {
 		for _, arg := range dl.Args {
 			if shell.IsArchiveURL(arg) {
 				if archiveURL != "" && arg != archiveURL {
-					return "", "", false // multiple distinct archive URLs
+					return "" // multiple distinct archive URLs
 				}
 				archiveURL = arg
 			}
 		}
 	}
-	// If no archive URL found directly, check output filenames.
-	// E.g. curl https://example.com/latest -o app.tar.gz — the URL has no
-	// archive extension, but the -o filename reveals it's a tar archive.
+	// Fall back to output filenames: e.g. curl https://example.com/latest -o app.tar.gz
 	if archiveURL == "" {
 		for i := range dlCmds {
-			if outFile := shell.DownloadOutputFile(&dlCmds[i]); outFile != "" && shell.IsArchiveFilename(shell.Basename(outFile)) {
-				if url := shell.DownloadURL(&dlCmds[i]); url != "" {
-					if archiveURL != "" && url != archiveURL {
-						return "", "", false
-					}
-					archiveURL = url
+			outFile := shell.DownloadOutputFile(&dlCmds[i])
+			if outFile == "" || !shell.IsArchiveFilename(shell.Basename(outFile)) {
+				continue
+			}
+			if url := shell.DownloadURL(&dlCmds[i]); url != "" {
+				if archiveURL != "" && url != archiveURL {
+					return ""
 				}
+				archiveURL = url
 			}
 		}
 	}
-	if archiveURL == "" {
-		return "", "", false
-	}
+	return archiveURL
+}
 
-	// Only emit a fix when tar extraction is present.
-	// ADD --unpack only unpacks tar archives; single-file decompressors
-	// (gunzip, bunzip2, etc.) would produce an incorrect transformation.
-	tarCmds := shell.FindCommands(cmdStr, variant, "tar")
-	if len(tarCmds) == 0 {
-		return "", "", false
-	}
-	// Default to the effective WORKDIR; tar without -C extracts into cwd.
-	dest := workdir
-	for i := range tarCmds {
-		if d := shell.TarDestination(&tarCmds[i]); d != "" {
-			dest = d
-			break
+// findDownloadOutputFile returns the single output filename from download
+// commands. Returns "" if no output file is specified or if multiple distinct
+// output files are present.
+func findDownloadOutputFile(dlCmds []shell.CommandInfo) string {
+	var outFile string
+	for i := range dlCmds {
+		if f := shell.DownloadOutputFile(&dlCmds[i]); f != "" {
+			if outFile != "" && f != outFile {
+				return ""
+			}
+			outFile = f
 		}
 	}
+	return outFile
+}
 
-	return archiveURL, dest, true
+// findSingleExtractTar finds exactly one tar extraction command.
+// Returns nil if there are zero or multiple extract tars.
+func findSingleExtractTar(cmdStr string, variant shell.Variant) *shell.CommandInfo {
+	tarCmds := shell.FindCommands(cmdStr, variant, "tar")
+	var extractTar *shell.CommandInfo
+	for i := range tarCmds {
+		if shell.IsTarExtract(&tarCmds[i]) {
+			if extractTar != nil {
+				return nil // multiple extract tars — ambiguous
+			}
+			extractTar = &tarCmds[i]
+		}
+	}
+	return extractTar
 }
 
 // init registers the rule with the default registry.
