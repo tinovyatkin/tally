@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/tinovyatkin/tally/internal/rules"
-	"github.com/tinovyatkin/tally/internal/shell"
 	"github.com/tinovyatkin/tally/internal/testutil"
 )
 
@@ -227,66 +226,6 @@ RUN tar -xf /app.tar.gz
 				if violations[0].RuleCode != rules.HadolintRulePrefix+"DL3010" {
 					t.Errorf("RuleCode = %q, want %q", violations[0].RuleCode, rules.HadolintRulePrefix+"DL3010")
 				}
-			}
-		})
-	}
-}
-
-func TestIsArchiveFilename(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name string
-		want bool
-	}{
-		{"app.tar", true},
-		{"app.tar.gz", true},
-		{"app.tgz", true},
-		{"app.tar.bz2", true},
-		{"app.tbz2", true},
-		{"app.tar.xz", true},
-		{"app.txz", true},
-		{"app.gz", true},
-		{"app.bz2", true},
-		{"app.xz", true},
-		{"app.lz", true},
-		{"app.lzma", true},
-		{"app.Z", true},
-		{"app.tZ", true},
-		{"app.zip", false}, // .zip is not in hadolint's archive list
-		{"package.json", false},
-		{"README.md", false},
-		{"app.tar.gz.sig", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := shell.IsArchiveFilename(tt.name); got != tt.want {
-				t.Errorf("IsArchiveFilename(%q) = %v, want %v", tt.name, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBasename(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"/usr/src/app.tar", "app.tar"},
-		{"foo/bar/app.tar", "app.tar"},
-		{`build\foo\bar.tar.gz`, "bar.tar.gz"},
-		{`"C:\Program Files\foo.tar.gz"`, "foo.tar.gz"},
-		{"app.tar", "app.tar"},
-		{`"/some/path"`, "path"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-			if got := shell.Basename(tt.input); got != tt.want {
-				t.Errorf("Basename(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
