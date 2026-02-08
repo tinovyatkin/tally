@@ -278,6 +278,14 @@ RUN curl -o /tmp/app.tar.gz https://example.com/app.tar.gz && tar -xf /tmp/app.t
 			wantDest: "/opt/",
 		},
 		{
+			name: "no fix: --strip-components cannot be replicated",
+			dockerfile: `FROM ubuntu:22.04
+RUN wget https://nodejs.org/dist/v20.11.0/node-v20.11.0-linux-x64.tar.xz && \
+    tar -xJf node-v20.11.0-linux-x64.tar.xz -C /usr/local --strip-components=1
+`,
+			wantFix: false, // --strip-components changes semantics
+		},
+		{
 			name: "complex chain: extra commands beyond download+extract",
 			dockerfile: `FROM ubuntu:22.04
 RUN curl -fsSL https://example.com/app.tar.gz | tar -xz -C /opt/ && chmod +x /opt/app/bin/start

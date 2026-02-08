@@ -284,6 +284,12 @@ func extractFixData(cmdStr string, variant shell.Variant, workdir string) (strin
 		return "", "", false
 	}
 
+	// Bail out if tar has flags that alter extraction semantics in ways
+	// ADD --unpack cannot replicate (e.g. --strip-components, --transform).
+	if hasTarSemanticFlags(extractTar) {
+		return "", "", false
+	}
+
 	// When a download output file is present, verify the tar command
 	// references it (by full path or basename) to avoid matching a tar
 	// that operates on an unrelated file.
@@ -349,6 +355,20 @@ func findDownloadOutputFile(dlCmds []shell.CommandInfo) string {
 		}
 	}
 	return outFile
+}
+
+// hasTarSemanticFlags checks if a tar command has flags that alter extraction
+// semantics in ways ADD --unpack cannot replicate.
+func hasTarSemanticFlags(cmd *shell.CommandInfo) bool {
+	return slices.ContainsFunc(cmd.Args, func(arg string) bool {
+		return strings.HasPrefix(arg, "--strip-components") ||
+			strings.HasPrefix(arg, "--strip=") ||
+			strings.HasPrefix(arg, "--transform") ||
+			strings.HasPrefix(arg, "--xform") ||
+			strings.HasPrefix(arg, "--exclude") ||
+			strings.HasPrefix(arg, "--include") ||
+			strings.HasPrefix(arg, "--wildcards")
+	})
 }
 
 // findSingleExtractTar finds exactly one tar extraction command.
