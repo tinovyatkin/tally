@@ -7,6 +7,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/shell"
 )
 
 // DL3020Rule implements the DL3020 linting rule.
@@ -87,27 +88,15 @@ func (r *DL3020Rule) Check(input rules.LintInput) []rules.Violation {
 
 // isURLDL3020 checks if a source path is a URL.
 func isURLDL3020(src string) bool {
-	src = stripQuotes(strings.ToLower(src))
-	return strings.HasPrefix(src, "http://") ||
-		strings.HasPrefix(src, "https://") ||
-		strings.HasPrefix(src, "ftp://") ||
+	src = shell.DropQuotes(strings.ToLower(src))
+	return shell.IsURL(src) ||
 		strings.HasPrefix(src, "git://") ||
 		strings.HasPrefix(src, "git@")
 }
 
-// stripQuotes removes surrounding double or single quotes from a string.
-func stripQuotes(s string) string {
-	if len(s) >= 2 {
-		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
-}
-
 // isTarArchiveDL3020 checks if a source path is a tar archive that ADD would extract.
 func isTarArchiveDL3020(src string) bool {
-	src = stripQuotes(strings.ToLower(src))
+	src = shell.DropQuotes(strings.ToLower(src))
 	tarExtensions := []string{
 		".tar",
 		".tar.gz", ".tgz",
@@ -126,7 +115,7 @@ func isTarArchiveDL3020(src string) bool {
 
 // isHeredocDL3020 checks if a source is a heredoc marker.
 func isHeredocDL3020(src string) bool {
-	src = strings.TrimSpace(stripQuotes(src))
+	src = strings.TrimSpace(shell.DropQuotes(src))
 	return strings.HasPrefix(src, "<<")
 }
 

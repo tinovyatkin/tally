@@ -50,6 +50,33 @@ func TestIsArchiveFilename(t *testing.T) {
 	}
 }
 
+func TestIsURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"https://example.com/file", true},
+		{"http://example.com/file", true},
+		{"ftp://mirror.example.com/data", true},
+		{"https://example.com", true},
+		{"git://github.com/repo", false},
+		{"git@github.com:repo", false},
+		{"/local/path", false},
+		{"file.tar.gz", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			if got := IsURL(tt.input); got != tt.want {
+				t.Errorf("IsURL(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsArchiveURL(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

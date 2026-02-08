@@ -225,35 +225,6 @@ func TestIsURLDL3020(t *testing.T) {
 	}
 }
 
-func TestStripQuotes(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{`"file.txt"`, "file.txt"},
-		{`'file.txt'`, "file.txt"},
-		{`file.txt`, "file.txt"},
-		{`"http://example.com"`, "http://example.com"},
-		{`""`, ""},
-		{`"a"`, "a"},
-		{``, ""},
-		{`"`, `"`},
-		{`'`, `'`},
-		{`"mismatched'`, `"mismatched'`},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-			got := stripQuotes(tt.input)
-			if got != tt.want {
-				t.Errorf("stripQuotes(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestIsTarArchiveDL3020(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

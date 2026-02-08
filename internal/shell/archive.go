@@ -1,7 +1,9 @@
 package shell
 
 import (
+	"net/url"
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -56,29 +58,38 @@ var ExtractionCommands = []string{
 // Extensions are case-sensitive (e.g. .Z and .tZ use uppercase Z for Unix
 // compress format).
 func IsArchiveFilename(name string) bool {
-	for _, ext := range ArchiveExtensions {
-		if strings.HasSuffix(name, ext) {
-			return true
-		}
+	return slices.ContainsFunc(ArchiveExtensions, func(ext string) bool {
+		return strings.HasSuffix(name, ext)
+	})
+}
+
+// IsURL checks if a string is a valid URL with an http, https, or ftp scheme.
+func IsURL(s string) bool {
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
 	}
-	return false
+	switch u.Scheme {
+	case "http", "https", "ftp":
+		return u.Host != ""
+	default:
+		return false
+	}
 }
 
 // IsArchiveURL checks if a URL string points to an archive file.
 // Strips query/fragment before checking extension. Requires http/https/ftp scheme.
 func IsArchiveURL(s string) bool {
-	if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") &&
-		!strings.HasPrefix(s, "ftp://") {
+	u, err := url.Parse(s)
+	if err != nil {
 		return false
 	}
-	u := s
-	if i := strings.IndexByte(u, '?'); i >= 0 {
-		u = u[:i]
+	switch u.Scheme {
+	case "http", "https", "ftp":
+		return u.Host != "" && IsArchiveFilename(path.Base(u.Path))
+	default:
+		return false
 	}
-	if i := strings.IndexByte(u, '#'); i >= 0 {
-		u = u[:i]
-	}
-	return IsArchiveFilename(path.Base(u))
 }
 
 // IsTarExtract checks if a tar CommandInfo has extraction flags
@@ -165,10 +176,8 @@ func DownloadOutputFile(cmd *CommandInfo) string {
 // DownloadURL extracts the first URL argument (http/https/ftp) from a download CommandInfo.
 // Returns "" if no URL is found.
 func DownloadURL(cmd *CommandInfo) string {
-	for _, arg := range cmd.Args {
-		if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") || strings.HasPrefix(arg, "ftp://") {
-			return arg
-		}
+	if i := slices.IndexFunc(cmd.Args, IsURL); i >= 0 {
+		return cmd.Args[i]
 	}
 	return ""
 }
