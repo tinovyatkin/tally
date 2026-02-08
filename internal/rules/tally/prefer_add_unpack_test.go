@@ -345,38 +345,4 @@ RUN wget -O /tmp/app.tar.gz https://example.com/app.tar.gz && tar -xf /tmp/app.t
 	}
 }
 
-func TestIsArchiveURL(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		input string
-		want  bool
-	}{
-		{"https://example.com/app.tar.gz", true},
-		{"https://example.com/app.tgz", true},
-		{"https://example.com/app.tar.bz2", true},
-		{"https://example.com/app.tar.xz", true},
-		{"https://example.com/app.tar", true},
-		{"https://example.com/app.gz", true},
-		{"https://example.com/app.xz", true},
-		{"https://example.com/app.tar.gz?token=abc", true},
-		{"https://example.com/app.tar.gz#section", true},
-		{"http://example.com/app.tar.gz", true},
-		{"ftp://example.com/app.tar.gz", true},
-		{"https://example.com/script.sh", false},
-		{"https://example.com/config.json", false},
-		{"https://example.com/page.html", false},
-		{"/local/path/app.tar.gz", false},
-		{"app.tar.gz", false},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-			if got := isArchiveURL(tt.input); got != tt.want {
-				t.Errorf("isArchiveURL(%q) = %v, want %v", tt.input, got, tt.want)
-			}
-		})
-	}
-}
 

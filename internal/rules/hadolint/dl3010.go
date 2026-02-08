@@ -1,7 +1,6 @@
 package hadolint
 
 import (
-	"path"
 	"slices"
 	"strings"
 
@@ -34,39 +33,6 @@ func (r *DL3010Rule) Metadata() rules.RuleMetadata {
 		Category:        "performance",
 		IsExperimental:  false,
 	}
-}
-
-// archiveExtensions lists file extensions that indicate an archive file.
-// Matches hadolint's archiveFileFormatExtensions.
-var archiveExtensions = []string{
-	".tar",
-	".Z",
-	".bz2",
-	".gz",
-	".lz",
-	".lzma",
-	".tZ",
-	".tb2",
-	".tbz",
-	".tbz2",
-	".tgz",
-	".tlz",
-	".tpz",
-	".txz",
-	".xz",
-}
-
-// extractionCommands lists commands that extract archive files.
-var extractionCommands = []string{
-	"unzip",
-	"gunzip",
-	"bunzip2",
-	"unlzma",
-	"unxz",
-	"zgz",
-	"uncompress",
-	"zcat",
-	"gzcat",
 }
 
 // copiedArchive tracks an archive file copied via COPY instruction.
@@ -144,15 +110,15 @@ func collectCopiedArchives(c *instructions.CopyCommand, archives []copiedArchive
 
 	// Check if the target path itself is an archive
 	// (e.g., COPY foo.tar /foo.tar → target basename is "foo.tar")
-	destBase := basename(c.DestPath)
-	if isArchive(destBase) {
+	destBase := shell.Basename(c.DestPath)
+	if shell.IsArchiveFilename(destBase) {
 		return append(archives, copiedArchive{line: copyLine, basename: destBase})
 	}
 
 	// Check source paths for archive files
 	for _, src := range c.SourcePaths {
-		srcBase := basename(src)
-		if isArchive(srcBase) {
+		srcBase := shell.Basename(src)
+		if shell.IsArchiveFilename(srcBase) {
 			archives = append(archives, copiedArchive{line: copyLine, basename: srcBase})
 		}
 	}
@@ -164,7 +130,7 @@ func findExtractedArchives(archives []copiedArchive, cmdStr string, variant shel
 	// Find tar commands with extract flags
 	tarCmds := shell.FindCommands(cmdStr, variant, "tar")
 	// Find unzip-like commands
-	unzipCmds := shell.FindCommands(cmdStr, variant, extractionCommands...)
+	unzipCmds := shell.FindCommands(cmdStr, variant, shell.ExtractionCommands...)
 
 	if len(tarCmds) == 0 && len(unzipCmds) == 0 {
 		return nil
@@ -174,13 +140,13 @@ func findExtractedArchives(archives []copiedArchive, cmdStr string, variant shel
 	var extractionArgs []string
 
 	for _, tc := range tarCmds {
-		if !isTarExtractCommand(&tc) {
+		if !shell.IsTarExtract(&tc) {
 			continue
 		}
 		// Collect non-flag arguments as potential archive filenames
 		for _, arg := range tc.Args {
 			if !strings.HasPrefix(arg, "-") {
-				extractionArgs = append(extractionArgs, basename(arg))
+				extractionArgs = append(extractionArgs, shell.Basename(arg))
 			}
 		}
 	}
@@ -189,7 +155,7 @@ func findExtractedArchives(archives []copiedArchive, cmdStr string, variant shel
 		// All non-flag arguments could be archive filenames
 		for _, arg := range uc.Args {
 			if !strings.HasPrefix(arg, "-") {
-				extractionArgs = append(extractionArgs, basename(arg))
+				extractionArgs = append(extractionArgs, shell.Basename(arg))
 			}
 		}
 	}
@@ -208,57 +174,6 @@ func findExtractedArchives(archives []copiedArchive, cmdStr string, variant shel
 	}
 
 	return matched
-}
-
-// isTarExtractCommand checks if a tar command has extraction flags.
-func isTarExtractCommand(cmd *shell.CommandInfo) bool {
-	for _, arg := range cmd.Args {
-		if !strings.HasPrefix(arg, "-") {
-			continue
-		}
-		// Long flags
-		if arg == "--extract" || arg == "--get" {
-			return true
-		}
-		// Short flags: any flag starting with - that contains 'x'
-		if !strings.HasPrefix(arg, "--") && strings.Contains(arg, "x") {
-			return true
-		}
-	}
-	return false
-}
-
-// basename extracts the filename from a path, handling both Unix and Windows separators.
-// Also strips surrounding quotes.
-func basename(p string) string {
-	p = dropQuotes(p)
-	// Handle Windows backslash paths
-	if i := strings.LastIndexByte(p, '\\'); i >= 0 {
-		p = p[i+1:]
-	}
-	return path.Base(p)
-}
-
-// dropQuotes removes surrounding single or double quotes from a string.
-func dropQuotes(s string) string {
-	if len(s) >= 2 {
-		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
-}
-
-// isArchive checks if a filename has an archive extension.
-// Extensions are case-sensitive to match hadolint behavior
-// (e.g., .Z and .tZ use uppercase Z for Unix compress format).
-func isArchive(name string) bool {
-	for _, ext := range archiveExtensions {
-		if strings.HasSuffix(name, ext) {
-			return true
-		}
-	}
-	return false
 }
 
 // init registers the rule with the default registry.

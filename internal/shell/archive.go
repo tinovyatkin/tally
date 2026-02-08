@@ -1,0 +1,142 @@
+package shell
+
+import (
+	"path"
+	"strings"
+)
+
+// ArchiveExtensions is the unified superset of archive file extensions
+// recognized by both DL3010 (hadolint) and prefer-add-unpack (tally).
+// Sorted longest-first so suffix matching is greedy
+// (e.g. ".tar.gz" is checked before ".gz").
+var ArchiveExtensions = []string{
+	".tar.lzma",
+	".tar.bz2",
+	".tar.gz",
+	".tar.xz",
+	".tar.zst",
+	".tar.lz",
+	".tar.Z",
+	".lzma",
+	".tbz2",
+	".tzst",
+	".tar",
+	".tbz",
+	".tb2",
+	".tgz",
+	".tlz",
+	".tpz",
+	".txz",
+	".bz2",
+	".tZ",
+	".gz",
+	".lz",
+	".xz",
+	".Z",
+}
+
+// DownloadCommands lists commands that download remote files.
+var DownloadCommands = []string{"curl", "wget"}
+
+// ExtractionCommands lists commands that extract archive files
+// (excluding tar, which needs separate flag checking via IsTarExtract).
+var ExtractionCommands = []string{
+	"bunzip2",
+	"gzcat",
+	"gunzip",
+	"uncompress",
+	"unlzma",
+	"unxz",
+	"unzip",
+	"zcat",
+	"zgz",
+}
+
+// IsArchiveFilename checks if a filename has a recognized archive extension.
+// Extensions are case-sensitive (e.g. .Z and .tZ use uppercase Z for Unix
+// compress format).
+func IsArchiveFilename(name string) bool {
+	for _, ext := range ArchiveExtensions {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsArchiveURL checks if a URL string points to an archive file.
+// Strips query/fragment before checking extension. Requires http/https/ftp scheme.
+func IsArchiveURL(s string) bool {
+	if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") &&
+		!strings.HasPrefix(s, "ftp://") {
+		return false
+	}
+	u := s
+	if i := strings.IndexByte(u, '?'); i >= 0 {
+		u = u[:i]
+	}
+	if i := strings.IndexByte(u, '#'); i >= 0 {
+		u = u[:i]
+	}
+	return IsArchiveFilename(path.Base(u))
+}
+
+// IsTarExtract checks if a tar CommandInfo has extraction flags
+// (-x, --extract, --get).
+func IsTarExtract(cmd *CommandInfo) bool {
+	for _, arg := range cmd.Args {
+		if !strings.HasPrefix(arg, "-") {
+			continue
+		}
+		// Long flags
+		if arg == "--extract" || arg == "--get" {
+			return true
+		}
+		// Short flags: any flag starting with - (but not --) that contains 'x'
+		if !strings.HasPrefix(arg, "--") && strings.Contains(arg, "x") {
+			return true
+		}
+	}
+	return false
+}
+
+// TarDestination extracts the target directory from a tar CommandInfo.
+// Checks -C <dir>, --directory=<dir>, --directory <dir>. Returns "" if none found.
+func TarDestination(cmd *CommandInfo) string {
+	for i, arg := range cmd.Args {
+		// --directory=<value>
+		if after, found := strings.CutPrefix(arg, "--directory="); found {
+			return after
+		}
+		// --directory <value>
+		if arg == "--directory" && i+1 < len(cmd.Args) {
+			return cmd.Args[i+1]
+		}
+		// -C <value> (short flag — must not be a long flag)
+		if arg == "-C" && i+1 < len(cmd.Args) {
+			return cmd.Args[i+1]
+		}
+	}
+	return ""
+}
+
+// DropQuotes removes surrounding single or double quotes from a string.
+func DropQuotes(s string) string {
+	if len(s) >= 2 {
+		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
+}
+
+// Basename extracts the filename from a path, stripping quotes and handling
+// both Unix and Windows separators.
+func Basename(p string) string {
+	p = DropQuotes(p)
+	// Handle Windows backslash paths
+	if i := strings.LastIndexByte(p, '\\'); i >= 0 {
+		p = p[i+1:]
+	}
+	return path.Base(p)
+}

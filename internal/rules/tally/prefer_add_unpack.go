@@ -1,7 +1,6 @@
 package tally
 
 import (
-	"path"
 	"slices"
 	"strings"
 
@@ -78,35 +77,6 @@ func (r *PreferAddUnpackRule) ValidateConfig(config any) error {
 	return configutil.ValidateWithSchema(config, r.Schema())
 }
 
-// downloadCommands lists commands that download remote files.
-var downloadCommands = []string{"curl", "wget"}
-
-// archiveExtractionCommands lists commands that extract archive files
-// (excluding tar, which needs separate flag checking).
-var archiveExtractionCommands = []string{
-	"unzip", "gunzip", "bunzip2", "unlzma", "unxz",
-	"zgz", "uncompress", "zcat", "gzcat",
-}
-
-// addUnpackArchiveExtensions lists file extensions recognized by ADD --unpack.
-// These match common compressed tarball and archive formats.
-var addUnpackArchiveExtensions = []string{
-	".tar",
-	".tar.gz", ".tgz",
-	".tar.bz2", ".tbz2", ".tbz",
-	".tar.xz", ".txz",
-	".tar.lz", ".tlz",
-	".tar.lzma",
-	".tar.Z", ".tZ",
-	".tar.zst", ".tzst",
-	".gz",
-	".bz2",
-	".xz",
-	".lz",
-	".lzma",
-	".Z",
-}
-
 // Check runs the prefer-add-unpack rule.
 func (r *PreferAddUnpackRule) Check(input rules.LintInput) []rules.Violation {
 	cfg := r.resolveConfig(input.Config)
@@ -177,7 +147,7 @@ func (r *PreferAddUnpackRule) resolveConfig(config any) PreferAddUnpackConfig {
 //   - wget -qO- https://example.com/app.tar.gz | tar -xz
 //   - curl -o /tmp/app.tar.gz https://example.com/app.tar.gz && tar -xf /tmp/app.tar.gz
 func hasRemoteArchiveExtraction(cmdStr string, variant shell.Variant) bool {
-	dlCmds := shell.FindCommands(cmdStr, variant, downloadCommands...)
+	dlCmds := shell.FindCommands(cmdStr, variant, shell.DownloadCommands...)
 	if len(dlCmds) == 0 {
 		return false
 	}
@@ -190,62 +160,19 @@ func hasRemoteArchiveExtraction(cmdStr string, variant shell.Variant) bool {
 	// Check if the same RUN contains an extraction command
 	tarCmds := shell.FindCommands(cmdStr, variant, "tar")
 	for i := range tarCmds {
-		if isTarExtract(&tarCmds[i]) {
+		if shell.IsTarExtract(&tarCmds[i]) {
 			return true
 		}
 	}
 
-	return len(shell.FindCommands(cmdStr, variant, archiveExtractionCommands...)) > 0
+	return len(shell.FindCommands(cmdStr, variant, shell.ExtractionCommands...)) > 0
 }
 
 // hasArchiveURLArg checks if any download command has a URL pointing to an archive.
 func hasArchiveURLArg(dlCmds []shell.CommandInfo) bool {
 	return slices.ContainsFunc(dlCmds, func(dl shell.CommandInfo) bool {
-		return slices.ContainsFunc(dl.Args, isArchiveURL)
+		return slices.ContainsFunc(dl.Args, shell.IsArchiveURL)
 	})
-}
-
-// isArchiveURL checks if a string looks like a URL pointing to an archive file.
-func isArchiveURL(s string) bool {
-	if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") &&
-		!strings.HasPrefix(s, "ftp://") {
-		return false
-	}
-	// Strip query string and fragment before checking extension
-	u := s
-	if i := strings.IndexByte(u, '?'); i >= 0 {
-		u = u[:i]
-	}
-	if i := strings.IndexByte(u, '#'); i >= 0 {
-		u = u[:i]
-	}
-	return isRemoteArchive(path.Base(u))
-}
-
-// isRemoteArchive checks if a filename has an archive extension recognized by ADD --unpack.
-func isRemoteArchive(name string) bool {
-	for _, ext := range addUnpackArchiveExtensions {
-		if strings.HasSuffix(name, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-// isTarExtract checks if a tar command has extraction flags.
-func isTarExtract(cmd *shell.CommandInfo) bool {
-	for _, arg := range cmd.Args {
-		if !strings.HasPrefix(arg, "-") {
-			continue
-		}
-		if arg == "--extract" || arg == "--get" {
-			return true
-		}
-		if !strings.HasPrefix(arg, "--") && strings.Contains(arg, "x") {
-			return true
-		}
-	}
-	return false
 }
 
 // GetRunCommandString extracts the command string from a RUN instruction.
@@ -324,10 +251,10 @@ func extractFixData(cmdStr string, variant shell.Variant) (string, string, bool)
 
 	// Extract the archive URL from download commands
 	var archiveURL string
-	dlCmds := shell.FindCommands(cmdStr, variant, downloadCommands...)
+	dlCmds := shell.FindCommands(cmdStr, variant, shell.DownloadCommands...)
 	for _, dl := range dlCmds {
 		for _, arg := range dl.Args {
-			if isArchiveURL(arg) {
+			if shell.IsArchiveURL(arg) {
 				archiveURL = arg
 				break
 			}
@@ -344,33 +271,13 @@ func extractFixData(cmdStr string, variant shell.Variant) (string, string, bool)
 	dest := "/"
 	tarCmds := shell.FindCommands(cmdStr, variant, "tar")
 	for i := range tarCmds {
-		if d := extractTarDestination(&tarCmds[i]); d != "" {
+		if d := shell.TarDestination(&tarCmds[i]); d != "" {
 			dest = d
 			break
 		}
 	}
 
 	return archiveURL, dest, true
-}
-
-// extractTarDestination extracts the target directory from a tar command.
-// Checks -C <dir>, --directory=<dir>, and --directory <dir>.
-func extractTarDestination(cmd *shell.CommandInfo) string {
-	for i, arg := range cmd.Args {
-		// --directory=<value>
-		if after, found := strings.CutPrefix(arg, "--directory="); found {
-			return after
-		}
-		// --directory <value>
-		if arg == "--directory" && i+1 < len(cmd.Args) {
-			return cmd.Args[i+1]
-		}
-		// -C <value> (short flag — must not be a long flag)
-		if arg == "-C" && i+1 < len(cmd.Args) {
-			return cmd.Args[i+1]
-		}
-	}
-	return ""
 }
 
 // init registers the rule with the default registry.

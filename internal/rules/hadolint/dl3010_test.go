@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/tinovyatkin/tally/internal/rules"
+	"github.com/tinovyatkin/tally/internal/shell"
 	"github.com/tinovyatkin/tally/internal/testutil"
 )
 
@@ -231,7 +232,7 @@ RUN tar -xf /app.tar.gz
 	}
 }
 
-func TestIsArchive(t *testing.T) {
+func TestIsArchiveFilename(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name string
@@ -260,8 +261,8 @@ func TestIsArchive(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := isArchive(tt.name); got != tt.want {
-				t.Errorf("isArchive(%q) = %v, want %v", tt.name, got, tt.want)
+			if got := shell.IsArchiveFilename(tt.name); got != tt.want {
+				t.Errorf("IsArchiveFilename(%q) = %v, want %v", tt.name, got, tt.want)
 			}
 		})
 	}
@@ -284,8 +285,8 @@ func TestBasename(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			t.Parallel()
-			if got := basename(tt.input); got != tt.want {
-				t.Errorf("basename(%q) = %q, want %q", tt.input, got, tt.want)
+			if got := shell.Basename(tt.input); got != tt.want {
+				t.Errorf("Basename(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
