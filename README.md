@@ -39,7 +39,6 @@ uv/bun, line-length and layer optimizations).
 tally integrates rules from multiple sources:
 
 <!-- BEGIN RULES_TABLE -->
-
 | Source | Rules | Description |
 |--------|-------|-------------|
 | **[BuildKit](https://docs.docker.com/reference/build-checks/)** | 13/22 rules | Docker's official Dockerfile checks (captured + reimplemented) |

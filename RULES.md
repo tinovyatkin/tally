@@ -13,7 +13,6 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 ## Summary
 
 <!-- BEGIN RULES_SUMMARY -->
-
 | Namespace | Implemented | Covered by BuildKit | Total |
 |-----------|-------------|---------------------|-------|
 | tally | 7 | - | 7 |
