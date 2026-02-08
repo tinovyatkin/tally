@@ -5,6 +5,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 
+	"github.com/tinovyatkin/tally/internal/dockerfile"
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/shell"
 )
@@ -36,36 +37,39 @@ func (r *DL3003Rule) Metadata() rules.RuleMetadata {
 func (r *DL3003Rule) Check(input rules.LintInput) []rules.Violation {
 	meta := r.Metadata()
 
-	return ScanRunCommandsWithPOSIXShell(input, func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
-		cmdStr := GetRunCommandString(run)
+	return ScanRunCommandsWithPOSIXShell(
+		input,
+		func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
+			cmdStr := dockerfile.RunCommandString(run)
 
-		// Check if the command contains cd (handles subshells, etc.)
-		if !shell.ContainsCommandWithVariant(cmdStr, "cd", shellVariant) {
-			return nil
-		}
+			// Check if the command contains cd (handles subshells, etc.)
+			if !shell.ContainsCommandWithVariant(cmdStr, "cd", shellVariant) {
+				return nil
+			}
 
-		loc := rules.NewLocationFromRanges(file, run.Location())
+			loc := rules.NewLocationFromRanges(file, run.Location())
 
-		v := rules.NewViolation(
-			loc,
-			meta.Code,
-			"use WORKDIR to switch to a directory",
-			meta.DefaultSeverity,
-		).WithDocURL(meta.DocURL).WithDetail(
-			"The cd command in a RUN instruction only affects that single instruction. " +
-				"Use WORKDIR to set the working directory persistently for subsequent instructions. " +
-				"Alternatively, use absolute paths in your commands.",
-		)
+			v := rules.NewViolation(
+				loc,
+				meta.Code,
+				"use WORKDIR to switch to a directory",
+				meta.DefaultSeverity,
+			).WithDocURL(meta.DocURL).WithDetail(
+				"The cd command in a RUN instruction only affects that single instruction. " +
+					"Use WORKDIR to set the working directory persistently for subsequent instructions. " +
+					"Alternatively, use absolute paths in your commands.",
+			)
 
-		// Try to generate auto-fix for simple cases
-		// Use FindCdCommands for detailed analysis (may not find cd in complex structures)
-		cdCommands := shell.FindCdCommands(cmdStr, shellVariant)
-		if fix := r.generateFix(input, run, cdCommands, file, shellVariant); fix != nil {
-			v = v.WithSuggestedFix(fix)
-		}
+			// Try to generate auto-fix for simple cases
+			// Use FindCdCommands for detailed analysis (may not find cd in complex structures)
+			cdCommands := shell.FindCdCommands(cmdStr, shellVariant)
+			if fix := r.generateFix(input, run, cdCommands, file, shellVariant); fix != nil {
+				v = v.WithSuggestedFix(fix)
+			}
 
-		return []rules.Violation{v}
-	})
+			return []rules.Violation{v}
+		},
+	)
 }
 
 // generateFix attempts to generate an auto-fix for cd usage.
@@ -92,7 +96,7 @@ func (r *DL3003Rule) generateFix(
 	// skip the fix - heredoc conversion handles cd correctly and is preferable
 	// to splitting the RUN into multiple instructions.
 	if input.IsRuleEnabled(rules.HeredocRuleCode) {
-		cmdStr := GetRunCommandString(run)
+		cmdStr := dockerfile.RunCommandString(run)
 		if shell.IsHeredocCandidate(cmdStr, shellVariant, input.GetHeredocMinCommands()) {
 			return nil
 		}
@@ -121,7 +125,7 @@ func (r *DL3003Rule) generateFix(
 	endCol := lastRange.End.Character
 
 	if endLine == runLoc[0].Start.Line && endCol == runLoc[0].Start.Character {
-		cmdStr := GetRunCommandString(run)
+		cmdStr := dockerfile.RunCommandString(run)
 		fullInstr := "RUN " + cmdStr
 		endCol = runLoc[0].Start.Character + len(fullInstr)
 	}

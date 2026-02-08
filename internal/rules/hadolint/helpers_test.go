@@ -5,12 +5,13 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 
+	"github.com/tinovyatkin/tally/internal/dockerfile"
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/shell"
 	"github.com/tinovyatkin/tally/internal/testutil"
 )
 
-func TestGetRunCommandString(t *testing.T) {
+func TestRunCommandString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name       string
@@ -51,9 +52,9 @@ RUN apt-get update && \
 				t.Fatal("expected RUN command")
 			}
 
-			got := GetRunCommandString(run)
+			got := dockerfile.RunCommandString(run)
 			if got != tt.want {
-				t.Errorf("GetRunCommandString() = %q, want %q", got, tt.want)
+				t.Errorf("dockerfile.RunCommandString() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -115,19 +116,22 @@ RUN Write-Host "hello"`,
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
 			callCount := 0
-			ScanRunCommandsWithPOSIXShell(input, func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
-				callCount++
+			ScanRunCommandsWithPOSIXShell(
+				input,
+				func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
+					callCount++
 
-				// Verify the callback receives valid arguments
-				if run == nil {
-					t.Error("callback received nil RUN command")
-				}
-				if file == "" {
-					t.Error("callback received empty file path")
-				}
+					// Verify the callback receives valid arguments
+					if run == nil {
+						t.Error("callback received nil RUN command")
+					}
+					if file == "" {
+						t.Error("callback received empty file path")
+					}
 
-				return nil
-			})
+					return nil
+				},
+			)
 
 			if callCount != tt.wantCallCount {
 				t.Errorf("callback called %d times, want %d", callCount, tt.wantCallCount)
@@ -172,12 +176,15 @@ RUN echo hello`,
 			t.Parallel()
 			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
 
-			ScanRunCommandsWithPOSIXShell(input, func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
-				if shellVariant != tt.wantVariant {
-					t.Errorf("got shell variant %v, want %v", shellVariant, tt.wantVariant)
-				}
-				return nil
-			})
+			ScanRunCommandsWithPOSIXShell(
+				input,
+				func(run *instructions.RunCommand, shellVariant shell.Variant, file string) []rules.Violation {
+					if shellVariant != tt.wantVariant {
+						t.Errorf("got shell variant %v, want %v", shellVariant, tt.wantVariant)
+					}
+					return nil
+				},
+			)
 		})
 	}
 }

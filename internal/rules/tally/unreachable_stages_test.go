@@ -4,40 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tinovyatkin/tally/internal/dockerfile"
+	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/tinovyatkin/tally/internal/rules"
-	"github.com/tinovyatkin/tally/internal/semantic"
+	"github.com/tinovyatkin/tally/internal/testutil"
 )
-
-// helper to create LintInput from Dockerfile content
-func makeLintInput(t *testing.T, content string) rules.LintInput {
-	t.Helper()
-	pr, err := dockerfile.Parse(strings.NewReader(content), nil)
-	if err != nil {
-		t.Fatalf("failed to parse: %v", err)
-	}
-	sem := semantic.NewModel(pr, nil, "Dockerfile")
-	return rules.LintInput{
-		File:     "Dockerfile",
-		AST:      pr.AST,
-		Stages:   pr.Stages,
-		MetaArgs: pr.MetaArgs,
-		Source:   pr.Source,
-		Semantic: sem,
-	}
-}
 
 func TestUnreachableStagesRule_Metadata(t *testing.T) {
 	t.Parallel()
-	r := NewUnreachableStagesRule()
-	meta := r.Metadata()
-
-	if meta.Code != "tally/no-unreachable-stages" {
-		t.Errorf("expected code 'tally/no-unreachable-stages', got %q", meta.Code)
-	}
-	if meta.DefaultSeverity != rules.SeverityWarning {
-		t.Errorf("expected warning severity, got %v", meta.DefaultSeverity)
-	}
+	snaps.MatchStandaloneJSON(t, NewUnreachableStagesRule().Metadata())
 }
 
 func TestUnreachableStagesRule_SingleStage_NoViolation(t *testing.T) {
@@ -45,7 +19,7 @@ func TestUnreachableStagesRule_SingleStage_NoViolation(t *testing.T) {
 	content := `FROM alpine:3.18
 RUN echo "hello"
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 
@@ -62,7 +36,7 @@ RUN go build -o /app
 FROM alpine:3.18
 COPY --from=builder /app /app
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 
@@ -82,7 +56,7 @@ RUN echo "this is never used"
 FROM alpine:3.18
 COPY --from=builder /app /app
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 
@@ -120,7 +94,7 @@ RUN echo "this is never used"
 FROM alpine:3.18
 COPY --from=builder /app /app
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 
@@ -153,7 +127,7 @@ RUN echo "second unused"
 FROM alpine:3.18
 COPY --from=builder /app /app
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 
@@ -182,7 +156,7 @@ RUN go build -o /app
 FROM alpine:3.18
 COPY --from=builder /app /app
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 
@@ -203,7 +177,7 @@ RUN go build -o /app
 FROM alpine:3.18
 RUN echo "final stage with no COPY --from"
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 
@@ -220,21 +194,9 @@ RUN echo "final stage with no COPY --from"
 func TestUnreachableStagesRule_NoSemanticModel_NoViolation(t *testing.T) {
 	t.Parallel()
 	// Test graceful handling when semantic model is nil
-	pr, err := dockerfile.Parse(strings.NewReader(`FROM alpine:3.18
+	input := testutil.MakeLintInput(t, "Dockerfile", `FROM alpine:3.18
 RUN echo "hello"
-`), nil)
-	if err != nil {
-		t.Fatalf("failed to parse: %v", err)
-	}
-
-	input := rules.LintInput{
-		File:     "Dockerfile",
-		AST:      pr.AST,
-		Stages:   pr.Stages,
-		MetaArgs: pr.MetaArgs,
-		Source:   pr.Source,
-		Semantic: nil, // No semantic model
-	}
+`)
 
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
@@ -252,7 +214,7 @@ RUN echo "never used"
 FROM alpine:3.18
 RUN echo "final"
 `
-	input := makeLintInput(t, content)
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", content)
 	r := NewUnreachableStagesRule()
 	violations := r.Check(input)
 

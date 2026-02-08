@@ -10,6 +10,7 @@
     "codecov.codecov",
     "ast-grep.ast-grep-vscode",
     "redhat.vscode-yaml",
-    "jasonheld.yamllint-ts"
+    "jasonheld.yamllint-ts",
+    "ms-sarifvscode.sarif-viewer"
   ]
 }

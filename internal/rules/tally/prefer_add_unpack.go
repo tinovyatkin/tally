@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 
+	"github.com/tinovyatkin/tally/internal/dockerfile"
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/rules/configutil"
 	"github.com/tinovyatkin/tally/internal/semantic"
@@ -124,7 +125,7 @@ func (r *PreferAddUnpackRule) Check(input rules.LintInput) []rules.Violation {
 				continue
 			}
 
-			cmdStr := GetRunCommandString(run)
+			cmdStr := dockerfile.RunCommandString(run)
 			if hasRemoteArchiveExtraction(cmdStr, shellVariant) {
 				loc := rules.NewLocationFromRanges(input.File, run.Location())
 				v := rules.NewViolation(
@@ -132,8 +133,8 @@ func (r *PreferAddUnpackRule) Check(input rules.LintInput) []rules.Violation {
 					"use `ADD --unpack <url> <dest>` instead of downloading and extracting in `RUN`",
 					meta.DefaultSeverity,
 				).WithDetail(
-					"Instead of using curl/wget to download an archive and extracting it in a `RUN` command, "+
-						"use `ADD --unpack <url> <dest>` which downloads and extracts in a single layer. "+
+					"Instead of using curl/wget to download an archive and extracting it in a `RUN` command, " +
+						"use `ADD --unpack <url> <dest>` which downloads and extracts in a single layer. " +
 						"This reduces image size and build complexity. Requires BuildKit.",
 				)
 
@@ -194,12 +195,6 @@ func hasArchiveURLArg(dlCmds []shell.CommandInfo) bool {
 		}
 		return false
 	})
-}
-
-// GetRunCommandString extracts the command string from a RUN instruction.
-// Re-exported here for use within the tally package.
-func GetRunCommandString(run *instructions.RunCommand) string {
-	return strings.Join(run.CmdLine, " ")
 }
 
 // allowedFixCommands is the set of command names that are allowed in a "simple"
