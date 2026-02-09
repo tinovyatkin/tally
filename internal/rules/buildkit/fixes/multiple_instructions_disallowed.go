@@ -16,6 +16,11 @@ var multiInstrRegex = regexp.MustCompile(`^Multiple (\w+) instructions`)
 // Docker ignores all but the last CMD/ENTRYPOINT in a stage, so the fix comments out the
 // earlier (ignored) instructions.
 //
+// Cross-rule interactions:
+//   - DL3012 (multiple HEALTHCHECK): Handled separately; no overlap.
+//   - JSONArgsRecommended, ConsistentInstructionCasing: Commented lines are excluded from these checks.
+//     Fix uses priority -1 to apply before those cosmetic fixes on the same line.
+//
 // Example:
 //
 //	CMD echo "first"
