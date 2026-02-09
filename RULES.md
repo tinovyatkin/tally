@@ -17,7 +17,7 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 |-----------|-------------|---------------------|-------|
 | tally | 7 | - | 7 |
 | buildkit | 8 + 5 captured | - | 22 |
-| hadolint | 21 | 9 | 66 |
+| hadolint | 20 | 10 | 66 |
 <!-- END RULES_SUMMARY -->
 
 ---
@@ -315,7 +315,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL3009](https://github.com/hadolint/hadolint/wiki/DL3009) | Delete the apt-get lists after installing something. | Info | ⏳ |
 | [DL3010](https://github.com/hadolint/hadolint/wiki/DL3010) | Use ADD for extracting archives into an image. | Info | ✅ `hadolint/DL3010` |
 | [DL3011](https://github.com/hadolint/hadolint/wiki/DL3011) | Valid UNIX ports range from 0 to 65535. | Error | ⏳ |
-| [DL3012](https://github.com/hadolint/hadolint/wiki/DL3012) | Multiple `HEALTHCHECK` instructions. | Error | ✅ `hadolint/DL3012` |
+| [DL3012](https://github.com/hadolint/hadolint/wiki/DL3012) | Multiple `HEALTHCHECK` instructions. | Error | 🔄 `buildkit/MultipleInstructionsDisallowed` |
 | [DL3013](https://github.com/hadolint/hadolint/wiki/DL3013) | Pin versions in pip. | Warning | ⏳ |
 | [DL3014](https://github.com/hadolint/hadolint/wiki/DL3014) | Use the `-y` switch. | Warning | ✅🔧 `hadolint/DL3014` |
 | [DL3015](https://github.com/hadolint/hadolint/wiki/DL3015) | Avoid additional packages by specifying --no-install-recommends. | Info | ⏳ |

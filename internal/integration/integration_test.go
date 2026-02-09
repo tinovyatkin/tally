@@ -177,6 +177,13 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 
+		{
+			name:     "multiple-instructions-disallowed",
+			dir:      "multiple-instructions-disallowed",
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/MultipleInstructionsDisallowed")...),
+			wantExit: 1,
+		},
+
 		// Semantic model construction-time violations
 		// Note: These violations come from semantic analysis, not the rule registry.
 		// We don't filter rules here because semantic violations would be filtered out.
@@ -825,6 +832,71 @@ FROM scratch AS base
 			config: `[rules.buildkit.InvalidDefinitionDescription]
 severity = "error"
 `,
+		},
+
+		// MultipleInstructionsDisallowed: Comment out duplicate CMD/ENTRYPOINT
+		{
+			name:  "multiple-cmd-fix",
+			input: "FROM alpine:3.21\nCMD echo \"first\"\nRUN echo hello\nCMD echo \"second\"\n",
+			args: []string{
+				"--fix",
+				"--ignore", "*",
+				"--select", "buildkit/MultipleInstructionsDisallowed",
+			},
+			wantApplied: 1,
+		},
+		{
+			name:  "multiple-entrypoint-fix",
+			input: "FROM alpine:3.21\nENTRYPOINT [\"/bin/bash\"]\nENTRYPOINT [\"/bin/sh\"]\n",
+			args: []string{
+				"--fix",
+				"--ignore", "*",
+				"--select", "buildkit/MultipleInstructionsDisallowed",
+			},
+			wantApplied: 1,
+		},
+		{
+			name:  "multiple-cmd-three",
+			input: "FROM alpine:3.21\nCMD echo first\nCMD echo second\nCMD echo third\n",
+			args: []string{
+				"--fix",
+				"--ignore", "*",
+				"--select", "buildkit/MultipleInstructionsDisallowed",
+			},
+			wantApplied: 2,
+		},
+		{
+			name:  "multiple-healthcheck-fix",
+			input: "FROM alpine:3.21\nHEALTHCHECK CMD curl -f http://localhost/\nHEALTHCHECK --interval=60s CMD wget -qO- http://localhost/\n",
+			args: []string{
+				"--fix",
+				"--ignore", "*",
+				"--select", "buildkit/MultipleInstructionsDisallowed",
+			},
+			wantApplied: 1,
+		},
+		// Cross-rule interaction: MultipleInstructionsDisallowed + ConsistentInstructionCasing + JSONArgsRecommended
+		// all fire on the same duplicate CMD line. MultipleInstructionsDisallowed has priority -1 (applied
+		// before cosmetic fixes at priority 0), so it comments out the earlier cmd on line 2 first.
+		// Casing and JSON fixes on line 2 are then skipped (conflict with the whole-line edit).
+		// Remaining non-conflicting fixes still apply on other lines.
+		//   Line 2: commented out by MultipleInstructionsDisallowed (priority -1)
+		//   Line 3: JSON fix (echo second→["echo","second"])
+		//   Line 4: casing fix (entrypoint→ENTRYPOINT)
+		//   Skipped: ConsistentInstructionCasing + JSONArgsRecommended on line 2 (conflict)
+		{
+			name: "multiple-instructions-cross-rules",
+			input: "FROM alpine:3.21\n" +
+				"cmd echo first\n" +
+				"CMD echo second\n" +
+				"entrypoint [\"/bin/sh\"]\n",
+			args: append([]string{"--fix", "--fix-unsafe", "--fail-level", "none"},
+				selectRules(
+					"buildkit/MultipleInstructionsDisallowed",
+					"buildkit/ConsistentInstructionCasing",
+					"buildkit/JSONArgsRecommended",
+				)...),
+			wantApplied: 3, // comment-out line 2 + JSON line 3 + casing line 4
 		},
 
 		// === Heredoc fix tests ===

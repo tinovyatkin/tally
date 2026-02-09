@@ -175,9 +175,32 @@ func (b *Builder) processBaseImage(stage *instructions.Stage, stageIndex int, gr
 	return ref
 }
 
+// checkDuplicateInstruction reports a MultipleInstructionsDisallowed violation for the
+// previous location when a duplicate instruction is found. Returns the updated location.
+// Following BuildKit convention: the previous instruction is reported (the one Docker ignores).
+func (b *Builder) checkDuplicateInstruction(prevLoc *parser.Range, cmd instructions.Command) *parser.Range {
+	instrName := cmd.Name()
+	if prevLoc != nil {
+		issue := newIssue(
+			b.file,
+			*prevLoc,
+			rules.BuildKitRulePrefix+"MultipleInstructionsDisallowed",
+			"Multiple "+instrName+" instructions should not be used in the same stage because only the last one will be used",
+			"https://docs.docker.com/go/dockerfile/rule/multiple-instructions-disallowed/",
+		)
+		issue.Severity = rules.SeverityWarning
+		b.issues = append(b.issues, issue)
+	}
+	if ranges := cmd.Location(); len(ranges) > 0 {
+		loc := ranges[0]
+		return &loc
+	}
+	return prevLoc
+}
+
 // processStageCommands analyzes commands within a stage.
 func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInfo, graph *StageGraph) {
-	seenHealthcheck := false
+	var lastCmdLoc, lastEntrypointLoc, lastHealthcheckLoc *parser.Range
 	normalizedStageName := normalizeStageRef(stage.Name)
 
 	for _, cmd := range stage.Commands {
@@ -188,23 +211,14 @@ func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInf
 		case *instructions.EnvCommand:
 			info.Variables.AddEnvCommand(c)
 
+		case *instructions.CmdCommand:
+			lastCmdLoc = b.checkDuplicateInstruction(lastCmdLoc, c)
+
+		case *instructions.EntrypointCommand:
+			lastEntrypointLoc = b.checkDuplicateInstruction(lastEntrypointLoc, c)
+
 		case *instructions.HealthCheckCommand:
-			// DL3012: Multiple HEALTHCHECK instructions in a single stage.
-			if seenHealthcheck {
-				var loc parser.Range
-				if ranges := c.Location(); len(ranges) > 0 {
-					loc = ranges[0]
-				}
-				b.issues = append(b.issues, newIssue(
-					b.file,
-					loc,
-					rules.HadolintRulePrefix+"DL3012",
-					"Multiple `HEALTHCHECK` instructions",
-					"https://github.com/hadolint/hadolint/wiki/DL3012",
-				))
-			} else {
-				seenHealthcheck = true
-			}
+			lastHealthcheckLoc = b.checkDuplicateInstruction(lastHealthcheckLoc, c)
 
 		case *instructions.ShellCommand:
 			// Update active shell for this stage.

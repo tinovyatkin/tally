@@ -150,7 +150,7 @@ RUN echo "third"
 	}
 }
 
-func TestDL3012MultipleHealthcheck(t *testing.T) {
+func TestMultipleHealthcheckDetection(t *testing.T) {
 	t.Parallel()
 	content := `FROM alpine:3.18
 HEALTHCHECK CMD echo ok
@@ -163,15 +163,17 @@ HEALTHCHECK NONE
 	if len(violations) != 1 {
 		t.Fatalf("expected 1 violation, got %d", len(violations))
 	}
-	if violations[0].Code != "hadolint/DL3012" {
-		t.Errorf("expected hadolint/DL3012, got %q", violations[0].Code)
+	// Now reported as MultipleInstructionsDisallowed (not DL3012)
+	if violations[0].Code != "buildkit/MultipleInstructionsDisallowed" {
+		t.Errorf("expected buildkit/MultipleInstructionsDisallowed, got %q", violations[0].Code)
 	}
-	if violations[0].Location.Start.Line != 3 {
-		t.Errorf("expected violation on line 3, got %d", violations[0].Location.Start.Line)
+	// BuildKit convention: report the earlier (ignored) instruction
+	if violations[0].Location.Start.Line != 2 {
+		t.Errorf("expected violation on line 2, got %d", violations[0].Location.Start.Line)
 	}
 }
 
-func TestDL3012ResetsPerStage(t *testing.T) {
+func TestMultipleHealthcheckResetsPerStage(t *testing.T) {
 	t.Parallel()
 	content := `FROM alpine:3.18
 HEALTHCHECK NONE

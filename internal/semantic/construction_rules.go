@@ -8,7 +8,7 @@ import "github.com/tinovyatkin/tally/internal/rules"
 // enable/disable and severity override pipeline as normal violations.
 func ConstructionRuleCodes() []string {
 	return []string{
-		rules.HadolintRulePrefix + "DL3012",
+		rules.BuildKitRulePrefix + "MultipleInstructionsDisallowed",
 		rules.HadolintRulePrefix + "DL3023",
 		rules.HadolintRulePrefix + "DL3043",
 		rules.HadolintRulePrefix + "DL3061",

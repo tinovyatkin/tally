@@ -32,8 +32,9 @@
       "tally_rule": "hadolint/DL3010"
     },
     "DL3012": {
-      "status": "implemented",
-      "tally_rule": "hadolint/DL3012"
+      "status": "covered_by_buildkit",
+      "buildkit_rule": "MultipleInstructionsDisallowed",
+      "fixable": true
     },
     "DL3014": {
       "status": "implemented",
@@ -123,11 +124,13 @@
     },
     "DL4003": {
       "status": "covered_by_buildkit",
-      "buildkit_rule": "MultipleInstructionsDisallowed"
+      "buildkit_rule": "MultipleInstructionsDisallowed",
+      "fixable": true
     },
     "DL4004": {
       "status": "covered_by_buildkit",
-      "buildkit_rule": "MultipleInstructionsDisallowed"
+      "buildkit_rule": "MultipleInstructionsDisallowed",
+      "fixable": true
     }
   }
 }
