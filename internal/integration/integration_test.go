@@ -743,6 +743,18 @@ RUN apt install curl
 			args:        []string{"--fix"},
 			wantApplied: 2, // One violation per non-lowercase port, matching BuildKit behavior
 		},
+		// ExposeProtoCasing + ConsistentInstructionCasing overlap: both rules edit the same EXPOSE line
+		{
+			name:  "expose-proto-casing-with-instruction-casing",
+			input: "FROM alpine:3.18\nexpose 8080/TCP\n",
+			args: []string{
+				"--fix",
+				"--ignore", "*",
+				"--select", "buildkit/ExposeProtoCasing",
+				"--select", "buildkit/ConsistentInstructionCasing",
+			},
+			wantApplied: 2, // instruction casing + protocol casing
+		},
 		// MaintainerDeprecated: Replace MAINTAINER with LABEL
 		{
 			name:        "maintainer-deprecated",
