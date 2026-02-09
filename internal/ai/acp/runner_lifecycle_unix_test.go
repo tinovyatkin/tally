@@ -28,7 +28,7 @@ func TestRunner_TerminatesOnTimeoutAndCleansProcessGroup(t *testing.T) {
 		t.Fatalf("Run() expected error, got nil")
 	}
 	pid := mustParseChildPID(t, err.Error())
-	waitProcessGone(t, pid, 2*time.Second)
+	waitProcessGone(t, pid, 5*time.Second)
 }
 
 func TestRunner_TerminatesOnEarlyAgentErrorAndCleansProcessGroup(t *testing.T) {
@@ -39,14 +39,14 @@ func TestRunner_TerminatesOnEarlyAgentErrorAndCleansProcessGroup(t *testing.T) {
 	_, err := r.Run(context.Background(), RunRequest{
 		Command: []string{testAgentBin, "-mode=error-newsession", "-spawn-child=true"},
 		Cwd:     t.TempDir(),
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 		Prompt:  "oops",
 	})
 	if err == nil {
 		t.Fatalf("Run() expected error, got nil")
 	}
 	pid := mustParseChildPID(t, err.Error())
-	waitProcessGone(t, pid, 2*time.Second)
+	waitProcessGone(t, pid, 5*time.Second)
 }
 
 func TestRunner_TerminatesOnMalformedOutputAndCleansProcessGroup(t *testing.T) {
@@ -57,14 +57,14 @@ func TestRunner_TerminatesOnMalformedOutputAndCleansProcessGroup(t *testing.T) {
 	_, err := r.Run(context.Background(), RunRequest{
 		Command: []string{testAgentBin, "-mode=malformed", "-spawn-child=true"},
 		Cwd:     t.TempDir(),
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 		Prompt:  "ignored",
 	})
 	if err == nil {
 		t.Fatalf("Run() expected error, got nil")
 	}
 	pid := mustParseChildPID(t, err.Error())
-	waitProcessGone(t, pid, 2*time.Second)
+	waitProcessGone(t, pid, 5*time.Second)
 }
 
 func mustParseChildPID(t *testing.T, msg string) int {

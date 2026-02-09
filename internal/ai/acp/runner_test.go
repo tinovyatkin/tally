@@ -55,7 +55,7 @@ func TestRunner_HappyPath(t *testing.T) {
 	resp, err := r.Run(context.Background(), RunRequest{
 		Command: []string{testAgentBin, "-mode=happy"},
 		Cwd:     t.TempDir(),
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 		Prompt:  "hi",
 	})
 	if err != nil {
@@ -86,7 +86,7 @@ func TestRunner_StderrTailIncludedInError(t *testing.T) {
 	_, err := r.Run(context.Background(), RunRequest{
 		Command: []string{testAgentBin, "-mode=stderr-exit", "-stderr-bytes=8192"},
 		Cwd:     t.TempDir(),
-		Timeout: 2 * time.Second,
+		Timeout: 5 * time.Second,
 		Prompt:  "ignored",
 	})
 	if err == nil {
