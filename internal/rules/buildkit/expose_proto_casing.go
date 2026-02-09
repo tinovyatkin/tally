@@ -37,6 +37,10 @@ func (r *ExposeProtoCasingRule) Metadata() rules.RuleMetadata {
 
 // Check runs the ExposeProtoCasing rule.
 // It scans EXPOSE instructions for port specifications with non-lowercase protocols.
+// One violation is reported per non-lowercase port, matching BuildKit's behavior.
+//
+// Original source:
+// https://github.com/moby/buildkit/blob/master/frontend/dockerfile/dockerfile2llb/convert_expose.go
 func (r *ExposeProtoCasingRule) Check(input rules.LintInput) []rules.Violation {
 	var violations []rules.Violation
 
@@ -61,7 +65,6 @@ func (r *ExposeProtoCasingRule) Check(input rules.LintInput) []rules.Violation {
 				violations = append(violations, rules.NewViolation(
 					loc, r.Metadata().Code, msg, r.Metadata().DefaultSeverity,
 				).WithDocURL(r.Metadata().DocURL))
-				break // one violation per EXPOSE instruction, matching BuildKit behavior
 			}
 		}
 	}

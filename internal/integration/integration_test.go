@@ -741,7 +741,7 @@ RUN apt install curl
 			name:        "expose-proto-casing-multiple-ports",
 			input:       "FROM alpine:3.18\nEXPOSE 80/TCP 443/UDP\n",
 			args:        []string{"--fix"},
-			wantApplied: 1, // One EXPOSE instruction = one violation with multiple edits
+			wantApplied: 2, // One violation per non-lowercase port, matching BuildKit behavior
 		},
 		// MaintainerDeprecated: Replace MAINTAINER with LABEL
 		{
