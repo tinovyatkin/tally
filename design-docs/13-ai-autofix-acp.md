@@ -541,6 +541,44 @@ Per round workflow:
 This loop bounds cost and latency (max 2 prompts per file, plus a single retry for malformed output), while ensuring we do not apply a syntactically
 invalid or semantically broken Dockerfile.
 
+### 9.7 Multi-objective AI batching (future-proofing)
+
+In MVP we only have one AI-enabled rule (`tally/prefer-multi-stage-build`), so resolving one `SuggestedFix` per violation is acceptable.
+
+Once tally gains multiple AI-enabled rules (e.g., “prefer multi-stage build” and “prefer distroless base image”), resolving each violation as a
+separate agent call becomes impractical: it is expensive, slow, and full-file rewrites would conflict anyway.
+
+Therefore AI fixes must be explicitly identifiable and batchable.
+
+Identification (MVP):
+
+- AI fixes are the subset of async fixes where `SuggestedFix.NeedsResolve=true` and `SuggestedFix.ResolverID == "ai-autofix"`.
+- This `ResolverID` acts as the “flag” that a fix is AI-powered and can participate in batching.
+
+Batching model (post-MVP):
+
+- Each AI-enabled rule emits a `SuggestedFix` whose `ResolverData` is a typed “objective”:
+  - `RuleCode`, `ObjectiveKind` (e.g., `multi_stage`, `distroless`), `Signals` (evidence + line numbers), and optional `Constraints`.
+- During async resolution, **group all eligible AI fixes per file** into a single “AI batch” and call the agent once.
+- The agent receives a single prompt containing:
+  - the current Dockerfile (after sync fixes)
+  - an ordered list of objectives (stable sort by `SuggestedFix.Priority`, then by rule code)
+  - constraints and the output contract (same as MVP)
+- The resolver returns one whole-file `TextEdit` and the agent loop (§9.6) runs once for the batch, not per objective.
+
+Implementation sketch:
+
+- Extend `internal/fix` with optional batching support:
+  - Add a new interface (e.g., `FixBatchResolver`) implemented by the AI resolver.
+  - Update `Fixer.resolveAsyncFixes` to, for each file, batch candidates by `(ResolverID)` when the resolver supports batching.
+- Accounting:
+  - Record all member rule codes as “applied” when the batch edit is accepted, or “skipped” with a reason like `SkipBatched` if the batch fails.
+- Ordering:
+  - Keep AI batch priority high (AI is a whole-file rewrite), and ensure async candidates are resolved in `SuggestedFix.Priority` order so the AI
+    batch runs last for a given file.
+
+This keeps user cost predictable: one agent session per file per run, even if multiple AI rules contribute objectives.
+
 ## 10. Validation Strategy
 
 ### 10.1 Syntactic validation (required)
