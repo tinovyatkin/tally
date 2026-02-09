@@ -80,6 +80,45 @@
             "isPreferred": true,
             "priority": -1
           }
+        },
+        {
+          "docUrl": "https://docs.docker.com/go/dockerfile/rule/multiple-instructions-disallowed/",
+          "location": {
+            "end": {
+              "column": 0,
+              "line": 8
+            },
+            "file": "testdata/multiple-instructions-disallowed/Dockerfile",
+            "start": {
+              "column": 0,
+              "line": 8
+            }
+          },
+          "message": "Multiple HEALTHCHECK instructions should not be used in the same stage because only the last one will be used",
+          "rule": "buildkit/MultipleInstructionsDisallowed",
+          "severity": "warning",
+          "sourceCode": "HEALTHCHECK CMD curl -f http://localhost/",
+          "suggestedFix": {
+            "description": "Comment out duplicate HEALTHCHECK instruction (only the last one takes effect)",
+            "edits": [
+              {
+                "location": {
+                  "end": {
+                    "column": 41,
+                    "line": 8
+                  },
+                  "file": "testdata/multiple-instructions-disallowed/Dockerfile",
+                  "start": {
+                    "column": 0,
+                    "line": 8
+                  }
+                },
+                "newText": "# [commented out by tally - Docker will ignore all but last HEALTHCHECK]: HEALTHCHECK CMD curl -f http://localhost/"
+              }
+            ],
+            "isPreferred": true,
+            "priority": -1
+          }
         }
       ]
     }
@@ -91,7 +130,7 @@
     "files": 1,
     "info": 0,
     "style": 0,
-    "total": 2,
-    "warnings": 2
+    "total": 3,
+    "warnings": 3
   }
 }

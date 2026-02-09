@@ -865,6 +865,16 @@ severity = "error"
 			},
 			wantApplied: 2,
 		},
+		{
+			name:  "multiple-healthcheck-fix",
+			input: "FROM alpine:3.21\nHEALTHCHECK CMD curl -f http://localhost/\nHEALTHCHECK --interval=60s CMD wget -qO- http://localhost/\n",
+			args: []string{
+				"--fix",
+				"--ignore", "*",
+				"--select", "buildkit/MultipleInstructionsDisallowed",
+			},
+			wantApplied: 1,
+		},
 		// Cross-rule interaction: MultipleInstructionsDisallowed + ConsistentInstructionCasing + JSONArgsRecommended
 		// all fire on the same duplicate CMD line. MultipleInstructionsDisallowed has priority -1 (applied
 		// before cosmetic fixes at priority 0), so it comments out the earlier cmd on line 2 first.

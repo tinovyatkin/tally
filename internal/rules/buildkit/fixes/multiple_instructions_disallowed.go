@@ -17,7 +17,7 @@ var multiInstrRegex = regexp.MustCompile(`^Multiple (\w+) instructions`)
 // earlier (ignored) instructions.
 //
 // Cross-rule interactions:
-//   - DL3012 (multiple HEALTHCHECK): Handled separately; no overlap.
+//   - Covers CMD (DL4003), ENTRYPOINT (DL4004), and HEALTHCHECK (DL3012).
 //   - JSONArgsRecommended, ConsistentInstructionCasing: Commented lines are excluded from these checks.
 //     Fix uses priority -1 to apply before those cosmetic fixes on the same line.
 //

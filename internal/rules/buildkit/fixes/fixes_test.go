@@ -1066,6 +1066,21 @@ func TestMultipleInstructionsDisallowedFix(t *testing.T) {
 			wantFix:  true,
 			wantText: `# [commented out by tally - Docker will ignore all but last CMD]:   CMD echo hello`,
 		},
+		{
+			name:     "HEALTHCHECK CMD form",
+			source:   `HEALTHCHECK CMD /bin/check`,
+			message:  "Multiple HEALTHCHECK instructions should not be used in the same stage because only the last one will be used",
+			wantFix:  true,
+			wantText: `# [commented out by tally - Docker will ignore all but last HEALTHCHECK]: HEALTHCHECK CMD /bin/check`,
+		},
+		{
+			name:    "HEALTHCHECK with options",
+			source:  `HEALTHCHECK --interval=30s CMD curl -f http://localhost/`,
+			message: "Multiple HEALTHCHECK instructions should not be used in the same stage because only the last one will be used",
+			wantFix: true,
+			wantText: "# [commented out by tally - Docker will ignore all but last HEALTHCHECK]: " +
+				"HEALTHCHECK --interval=30s CMD curl -f http://localhost/",
+		},
 	}
 
 	for _, tt := range tests {

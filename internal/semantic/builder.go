@@ -200,8 +200,7 @@ func (b *Builder) checkDuplicateInstruction(prevLoc *parser.Range, cmd instructi
 
 // processStageCommands analyzes commands within a stage.
 func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInfo, graph *StageGraph) {
-	seenHealthcheck := false
-	var lastCmdLoc, lastEntrypointLoc *parser.Range
+	var lastCmdLoc, lastEntrypointLoc, lastHealthcheckLoc *parser.Range
 	normalizedStageName := normalizeStageRef(stage.Name)
 
 	for _, cmd := range stage.Commands {
@@ -219,22 +218,7 @@ func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInf
 			lastEntrypointLoc = b.checkDuplicateInstruction(lastEntrypointLoc, c)
 
 		case *instructions.HealthCheckCommand:
-			// DL3012: Multiple HEALTHCHECK instructions in a single stage.
-			if seenHealthcheck {
-				var loc parser.Range
-				if ranges := c.Location(); len(ranges) > 0 {
-					loc = ranges[0]
-				}
-				b.issues = append(b.issues, newIssue(
-					b.file,
-					loc,
-					rules.HadolintRulePrefix+"DL3012",
-					"Multiple `HEALTHCHECK` instructions",
-					"https://github.com/hadolint/hadolint/wiki/DL3012",
-				))
-			} else {
-				seenHealthcheck = true
-			}
+			lastHealthcheckLoc = b.checkDuplicateInstruction(lastHealthcheckLoc, c)
 
 		case *instructions.ShellCommand:
 			// Update active shell for this stage.
