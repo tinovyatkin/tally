@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 
 	acpsdk "github.com/coder/acp-go-sdk"
@@ -151,7 +152,18 @@ func (a *testAgent) SetSessionMode(ctx context.Context, params acpsdk.SetSession
 }
 
 func startChild() error {
-	cmd := exec.Command("sleep", "10000")
+	var command string
+	var args []string
+	if runtime.GOOS == "windows" {
+		// Use a Windows-friendly long-running command.
+		command = "ping"
+		args = []string{"-n", "10000", "127.0.0.1"}
+	} else {
+		command = "sleep"
+		args = []string{"10000"}
+	}
+
+	cmd := exec.Command(command, args...)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	if err := cmd.Start(); err != nil {
