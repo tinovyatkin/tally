@@ -28,6 +28,8 @@ an ACP-capable agent and returns `TextEdit` edits.
 2. Running `docker build` or executing commands to verify build correctness.
 3. Multi-file edits (only the current Dockerfile is edited in MVP).
 4. Long-lived ACP agent pooling (start-per-fix first; pooling can be a later optimization).
+5. AI-powered “detection rules” (AI-only findings without heuristic triggers).
+6. Context exploration via filesystem/terminal access (agent reading repo/build context on demand).
 
 ## 3. UX Contract (CLI)
 
@@ -86,6 +88,7 @@ redact-secrets = true
 
 # ACP-capable agent program (stdio). This selects which agent to use.
 # Example values here are illustrative; agent CLIs/flags vary.
+# Registry of known ACP-capable agents: https://agentclientprotocol.com/get-started/registry
 command = ["<acp-agent>", "..."]
 ```
 
@@ -164,6 +167,10 @@ Future extension (optional):
 
 - Allow a “restricted filesystem” mode to read only the Dockerfile, still disallowing writes.
 - Keep terminal disabled unless the user explicitly opts in.
+
+Important: ACP is a protocol, not a sandbox. Disabling ACP filesystem/terminal capabilities prevents the agent from requesting those resources
+through ACP, but it does not stop an arbitrary local agent process from accessing the host OS directly. If we ever enable context exploration, we
+must treat it as explicit permission delegation and (optionally) enforce OS-level sandboxing (see §15.2).
 
 ### 5.3 Resource limits and timeouts
 
@@ -720,3 +727,78 @@ Implement the full golden path with tight guardrails. Suggested incremental PR s
 2. Add LSP code actions (async resolve + progress + preview/diff).
 3. Add named agent profiles in config (opt-in; MVP keeps a single `ai.command`).
 4. Improve diff quality (compute minimal edits instead of full-file replacement).
+
+## 15. Future Hallways (Post-MVP)
+
+This section captures future growth paths that are out of scope for MVP but should be explicitly supported by the architecture.
+
+### 15.1 AI detection rules (analysis-only)
+
+Motivation:
+
+- Some high-value issues are hard to detect with heuristics (e.g., CUDA/tensorflow usage pitfalls, non-obvious dependency bootstrap problems).
+- These “AI detectors” can add value even when no auto-fix is applied.
+
+Hallway:
+
+- Introduce an explicit AI analysis mode that can produce additional findings:
+  - A new command (`tally analyze --ai`) or an explicit flag (`tally check --ai-detect`) so it is never surprising or enabled in CI by default.
+  - Output is a set of extra `rules.Violation` entries with stable, configurable rule codes (so users can filter/ignore them like normal rules).
+- Implementation sketch:
+  - Add `internal/ai/detect` with a small `Detector` interface that runs per file (and optionally per repo) and returns violations.
+  - Reuse the same ACP runner (`internal/ai/acp`) but a different prompt contract: “analyze and return structured findings”.
+  - Optionally allow detectors to emit “objectives” that feed into the batched AI AutoFix path (§9.7) so one agent call can both detect and fix.
+- Guardrails:
+  - Hard opt-in (separate from fixes) and clear output labeling (“AI detection”).
+  - Caching keyed by file hash + detector version to avoid repeated paid calls in the same run.
+
+### 15.2 Context-aware AI (build context access) and sandboxing
+
+Motivation:
+
+- Context-aware linting is a core direction (see `design-docs/07-context-aware-foundation.md`).
+- Many AI fixes and AI detections improve dramatically if the agent can inspect the build context (e.g., `go.mod`, `package.json`, requirements,
+  vendored deps, entrypoints).
+
+Constraints:
+
+- Build contexts can be large (too big to embed in a prompt).
+- Exposing the host filesystem or terminal to an agent can leak secrets and is hard to sandbox portably.
+
+Recommended growth path:
+
+1. Snapshot context (safe, limited):
+   - Provide a bounded summary in the prompt: file tree (depth/size capped), key manifest files by allowlist, `.dockerignore` patterns.
+   - Keep filesystem and terminal ACP capabilities disabled.
+
+2. Client-mediated read-only access (more powerful, still controlled):
+   - Implement ACP filesystem methods and restrict them to a build-context root (read-only).
+   - Enforce:
+     - path canonicalization and root restriction (no `..`, no symlink escapes)
+     - allowlist/denylist (exclude `.git`, binaries, and large files)
+     - strict quotas (max bytes read per session, max file size, max number of reads)
+     - optional gitleaks-based redaction before returning file contents when `ai.redact-secrets=true`
+   - Use ACP permission flow (`session/request_permission`) conceptually, but in CLI mode apply a non-interactive policy:
+     - default deny
+     - allow only when explicitly enabled in config and/or via a dedicated CLI gate (e.g., `--ai-allow-fs`)
+
+3. Delegated “agent can grep” mode (highest risk, highest capability):
+   - If we want the agent to run `grep`/`rg` itself, we must enable terminal capability and/or rely on the agent process reading the filesystem.
+   - ACP does not sandbox the agent process. For real enforcement, run the agent inside an OS-level sandbox:
+     - Recommended: a container-based runner that mounts the build context read-only and limits what is visible outside it.
+   - Treat this as explicit permission delegation from the user, not as a secure-by-default feature.
+
+ACP references for these capabilities:
+
+- File system methods: <https://agentclientprotocol.com/protocol/file-system>
+- Terminal methods: <https://agentclientprotocol.com/protocol/terminals>
+- Tool calls and permission requests: <https://agentclientprotocol.com/protocol/tool-calls>
+
+## 16. External References
+
+- ACP agent registry: <https://agentclientprotocol.com/get-started/registry>
+- ACP protocol overview: <https://agentclientprotocol.com/protocol/overview>
+- ACP file system methods: <https://agentclientprotocol.com/protocol/file-system>
+- ACP terminal methods: <https://agentclientprotocol.com/protocol/terminals>
+- ACP tool calls and permission requests: <https://agentclientprotocol.com/protocol/tool-calls>
+- Go SDK (client + agent side): <https://github.com/coder/acp-go-sdk>
