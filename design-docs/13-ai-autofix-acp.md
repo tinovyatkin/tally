@@ -676,6 +676,20 @@ MVP recommendation: ship CLI support first, then add LSP actions once the resolv
    - Accept `NO_CHANGE`
    - Reject multiple code blocks / malformed output
 
+4. **ACP runner lifecycle (critical)**
+   - Unit-test `internal/ai/acp` independently of the full integration path.
+   - Use a small test helper agent binary that can:
+     - hang (to trigger timeouts)
+     - exit non-zero after writing to stderr
+     - emit malformed ACP output (protocol/framing error)
+     - spawn a long-lived child process (to validate process-group cleanup)
+   - Assertions (at minimum):
+     - Agent process is terminated on timeout (`context.WithTimeout` / context cancellation).
+     - Agent process is terminated on early runner error (e.g., ACP init/session failure).
+     - Agent process is terminated on malformed ACP output / parsing failures.
+     - Process-group cleanup kills orphaned child processes (no leaked `sleep`/`tail`-style subprocesses).
+     - Stderr is captured to a bounded buffer and surfaced in the returned error (last N bytes only; avoid corrupting JSON/SARIF output).
+
 ### 13.2 Fake ACP agent for integration tests (required)
 
 Implement a minimal ACP agent (Go) used only in tests:
