@@ -1,0 +1,4 @@
+FROM ubuntu:22.04
+ADD --unpack http://example.com/archive.tar.gz /opt
+RUN wget --progress=dot:giga http://example.com/config.json -O /etc/app/config.json
+RUN curl -fsSL http://example.com/script.sh | sh

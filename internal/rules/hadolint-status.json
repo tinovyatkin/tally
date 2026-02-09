@@ -96,6 +96,11 @@
       "status": "implemented",
       "tally_rule": "hadolint/DL3043"
     },
+    "DL3047": {
+      "status": "implemented",
+      "tally_rule": "hadolint/DL3047",
+      "fixable": true
+    },
     "DL3044": {
       "status": "covered_by_buildkit",
       "buildkit_rule": "UndefinedVar"
