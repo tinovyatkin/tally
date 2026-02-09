@@ -13,6 +13,14 @@ import (
 // DL3047Rule implements the DL3047 linting rule.
 // It warns when wget is used without a progress indicator flag,
 // which causes excessively bloated build logs for large downloads.
+//
+// Cross-rule interactions:
+//   - tally/prefer-add-unpack: also matches wget/curl download-then-extract
+//     patterns and suggests using ADD instead. DL3047 is complementary — it
+//     only advises on progress-bar usage and does not suggest replacing wget.
+//   - hadolint/DL4001: warns when both wget and curl are present in the same
+//     image. DL3047 fires independently per wget invocation and its auto-fix
+//     (--progress=dot:giga) does not affect DL4001 findings.
 type DL3047Rule struct{}
 
 // NewDL3047Rule creates a new DL3047 rule instance.
@@ -30,6 +38,10 @@ func (r *DL3047Rule) Metadata() rules.RuleMetadata {
 		DefaultSeverity: rules.SeverityInfo,
 		Category:        "best-practice",
 		IsExperimental:  false,
+		// FixPriority 96 ensures prefer-add-unpack (priority 95) applies first.
+		// When wget|tar is replaced by ADD --unpack, the progress-bar fix becomes
+		// moot and is harmlessly skipped. For standalone wget the fix still applies.
+		FixPriority: 96,
 	}
 }
 
@@ -118,6 +130,7 @@ func (r *DL3047Rule) Check(input rules.LintInput) []rules.Violation {
 							v = v.WithSuggestedFix(&rules.SuggestedFix{
 								Description: "Add --progress=dot:giga to wget",
 								Safety:      rules.FixSafe,
+								Priority:    meta.FixPriority,
 								Edits: []rules.TextEdit{{
 									Location: rules.NewRangeLocation(file, editLine, insertCol, editLine, insertCol),
 									NewText:  " --progress=dot:giga",

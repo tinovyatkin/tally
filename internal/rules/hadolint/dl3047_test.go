@@ -91,6 +91,9 @@ RUN wget -a /tmp/wget.log my.xyz`,
 RUN apt-get update`,
 			wantCount: 0,
 		},
+		// The following pipeline/chain cases also overlap with tally/prefer-add-unpack
+		// (which suggests replacing wget|tar with ADD) and hadolint/DL4001 (which
+		// warns when both wget and curl are present). DL3047 fires independently.
 		{
 			name: "wget in pipeline",
 			dockerfile: `FROM ubuntu

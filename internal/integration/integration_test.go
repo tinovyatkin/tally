@@ -309,6 +309,14 @@ func TestCheck(t *testing.T) {
 			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3047")...),
 			wantExit: 1,
 		},
+		// Combined: DL3047 + DL4001 + prefer-add-unpack (all fire on same wget usage)
+		{
+			name: "dl3047-cross-rules",
+			dir:  "dl3047-cross-rules",
+			args: append([]string{"--format", "json"},
+				selectRules("hadolint/DL3047", "hadolint/DL4001", "tally/prefer-add-unpack")...),
+			wantExit: 1,
+		},
 		{
 			name: "inline-ignore-multiple-max-lines",
 			dir:  "inline-ignore-multiple",
@@ -621,6 +629,20 @@ func TestFix(t *testing.T) {
 			input:       "FROM ubuntu:22.04\nRUN wget http://example.com/file.tar.gz\n",
 			args:        []string{"--fix"},
 			wantApplied: 1,
+		},
+		// DL3047 + DL4001 + prefer-add-unpack: all three cooperating rules fire.
+		// prefer-add-unpack (priority 95) applies first and replaces the wget|tar
+		// with ADD --unpack, making DL3047 (priority 96) moot on that line.
+		// The standalone wget (no tar) only triggers DL3047 → --progress inserted.
+		// DL4001 has no fix. --fail-level=none prevents unfixed DL4001 from failing.
+		{
+			name: "dl3047-cross-rules",
+			input: "FROM ubuntu:22.04\n" +
+				"RUN wget http://example.com/archive.tar.gz | tar -xz -C /opt\n" +
+				"RUN wget http://example.com/config.json -O /etc/app/config.json\n" +
+				"RUN curl -fsSL http://example.com/script.sh | sh\n",
+			args:        []string{"--fix", "--fix-unsafe", "--fail-level", "none"},
+			wantApplied: 2, // prefer-add-unpack on wget|tar + DL3047 on standalone wget
 		},
 		// DL3003: cd -> WORKDIR (regression test for line number consistency)
 		{
