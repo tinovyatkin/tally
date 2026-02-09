@@ -304,6 +304,12 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 		{
+			name:     "dl3047",
+			dir:      "dl3047",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3047")...),
+			wantExit: 1,
+		},
+		{
 			name: "inline-ignore-multiple-max-lines",
 			dir:  "inline-ignore-multiple",
 			args: append([]string{"--format", "json"}, selectRules("tally/max-lines", "hadolint/DL3006")...),
@@ -608,6 +614,13 @@ func TestFix(t *testing.T) {
 			input:       "FROM ubuntu:22.04\nRUN apt update && apt install -y curl\n",
 			args:        []string{"--fix"},
 			wantApplied: 1, // Single violation with multiple edits
+		},
+		// DL3047: wget -> wget --progress=dot:giga
+		{
+			name:        "dl3047-wget-progress",
+			input:       "FROM ubuntu:22.04\nRUN wget http://example.com/file.tar.gz\n",
+			args:        []string{"--fix"},
+			wantApplied: 1,
 		},
 		// DL3003: cd -> WORKDIR (regression test for line number consistency)
 		{
