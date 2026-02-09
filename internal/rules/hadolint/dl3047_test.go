@@ -124,8 +124,11 @@ RUN wget http://a.com/a.tar.gz && wget http://b.com/b.tar.gz`,
 RUN wget --progress=dot:giga http://a.com/a.tar.gz && wget http://b.com/b.tar.gz`,
 			wantCount: 1,
 		},
+		// Exec-form tests: upstream Hadolint skips exec-form (no shell AST),
+		// but tally intentionally extends coverage since the bloated-log problem
+		// applies equally to RUN ["wget", ...].
 		{
-			name: "exec form wget without progress",
+			name: "exec form wget without progress (tally extension)",
 			dockerfile: `FROM ubuntu
 RUN ["wget", "http://example.com/file.tar.gz"]`,
 			wantCount: 1,
@@ -220,10 +223,10 @@ RUN wget http://example.com/file.tar.gz`,
 			wantNewText:   " --progress=dot:giga",
 		},
 		{
-			name: "exec form wget (no fix)",
+			name: "exec form wget (detected but no auto-fix)",
 			dockerfile: `FROM ubuntu
 RUN ["wget", "http://example.com/file.tar.gz"]`,
-			wantFix: false,
+			wantFix: false, // Exec form: positions don't map to source
 		},
 	}
 

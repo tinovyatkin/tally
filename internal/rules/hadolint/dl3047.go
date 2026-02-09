@@ -89,6 +89,7 @@ func (r *DL3047Rule) Check(input rules.LintInput) []rules.Violation {
 			var runStartLine int
 
 			if run.PrependShell {
+				// Shell form: parse original source preserving column positions.
 				script, startLine := getRunSourceScript(run, sm)
 				if script == "" {
 					return nil
@@ -96,6 +97,11 @@ func (r *DL3047Rule) Check(input rules.LintInput) []rules.Violation {
 				runStartLine = startLine
 				cmds = shell.FindCommands(script, shellVariant, "wget")
 			} else {
+				// Exec form: reconstruct a shell string from the JSON array.
+				// NOTE: Upstream Hadolint DL3047 skips exec-form because it only
+				// parses shell AST, which exec-form lacks. We intentionally extend
+				// coverage to exec-form since RUN ["wget", ...] still produces
+				// bloated logs. No auto-fix is offered (positions don't map to source).
 				cmdStr := dockerfile.RunCommandString(run)
 				cmds = shell.FindCommands(cmdStr, shellVariant, "wget")
 			}
