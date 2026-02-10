@@ -140,8 +140,58 @@ async function runSmoke() {
   await vscode.commands.executeCommand('workbench.action.files.revert');
 }
 
+async function runFixAllCommand() {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  assert.ok(workspaceRoot, 'expected VS Code to be launched with a workspace folder');
+
+  const dockerfilePath = path.join(
+    workspaceRoot,
+    'internal',
+    'integration',
+    'testdata',
+    'benchmark-real-world-fix',
+    'Dockerfile',
+  );
+  const uri = vscode.Uri.file(dockerfilePath);
+
+  const doc = await vscode.workspace.openTextDocument(uri);
+  await vscode.window.showTextDocument(doc, { preview: false });
+
+  if (doc.languageId !== 'dockerfile') {
+    await vscode.languages.setTextDocumentLanguage(doc, 'dockerfile');
+  }
+
+  // Wait for diagnostics to stabilize before running the command.
+  await waitForStableDiagnostics(uri, { timeoutMs: 90_000 });
+
+  // Execute tally.applyAllFixes command.
+  await vscode.commands.executeCommand('tally.applyAllFixes');
+
+  // Small delay for edits to apply.
+  await new Promise((r) => setTimeout(r, 2_000));
+
+  const formatted = normalizeNewlines(doc.getText());
+
+  const expectedPath =
+    process.env.TALLY_EXPECTED_FORMAT_SNAPSHOT ??
+    path.join(
+      workspaceRoot,
+      'internal',
+      'lsptest',
+      '__snapshots__',
+      'TestLSP_FormattingRealWorld_1.snap.Dockerfile',
+    );
+  const expected = normalizeNewlines(await fs.readFile(expectedPath, 'utf8'));
+
+  assert.strictEqual(formatted, expected, 'fixAll output mismatch');
+
+  // Keep the workspace clean for future tests.
+  await vscode.commands.executeCommand('workbench.action.files.revert');
+}
+
 async function run() {
   await runSmoke();
+  await runFixAllCommand();
 }
 
 module.exports = { run };

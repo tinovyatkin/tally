@@ -4,6 +4,8 @@ import {
   LanguageClient,
   type LanguageClientOptions,
   type ServerOptions,
+  ExecuteCommandRequest,
+  type WorkspaceEdit as LspWorkspaceEdit,
 } from 'vscode-languageclient/node';
 
 import { type ResolvedBinary } from '../binary/findBinary';
@@ -57,5 +59,19 @@ export class TallyLanguageClient {
 
   public async sendConfiguration(settings: unknown): Promise<void> {
     await this.client.sendNotification('workspace/didChangeConfiguration', { settings });
+  }
+
+  public async executeApplyAllFixes(documentUri: string): Promise<vscode.WorkspaceEdit | undefined> {
+    const result: LspWorkspaceEdit | null = await this.client.sendRequest(
+      ExecuteCommandRequest.type,
+      {
+        command: 'tally.applyAllFixes',
+        arguments: [documentUri],
+      },
+    );
+    if (result == null) {
+      return undefined;
+    }
+    return this.client.protocol2CodeConverter.asWorkspaceEdit(result);
   }
 }

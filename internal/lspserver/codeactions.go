@@ -1,13 +1,69 @@
 package lspserver
 
 import (
+	"strings"
+
 	protocol "github.com/tinovyatkin/tally/internal/lsp/protocol"
 
 	"github.com/tinovyatkin/tally/internal/rules"
 )
 
-// codeActionsForDocument returns quick-fix code actions for the given range.
+// codeActionKindSourceFixAllTally is the code action kind for tally's fix-all action.
+const codeActionKindSourceFixAllTally protocol.CodeActionKind = "source.fixAll.tally"
+
+// codeActionsForDocument returns code actions based on what the client requested.
+// If Only is nil/empty (lightbulb menu), return quickfix actions.
+// If Only contains source.fixAll.tally / source.fixAll / source, return fix-all action.
+// If Only contains quickfix, return quickfix actions.
 func (s *Server) codeActionsForDocument(
+	doc *Document,
+	params *protocol.CodeActionParams,
+) []protocol.CodeAction {
+	only := params.Context.Only
+	if only == nil || len(*only) == 0 {
+		// Lightbulb menu: return individual quickfix actions.
+		return s.quickfixActionsForDocument(doc, params)
+	}
+
+	var actions []protocol.CodeAction
+
+	for _, kind := range *only {
+		switch {
+		case kind == codeActionKindSourceFixAllTally ||
+			kind == protocol.CodeActionKindSourceFixAll ||
+			kind == protocol.CodeActionKindSource:
+			if a := s.fixAllAction(doc, params.TextDocument.Uri); a != nil {
+				actions = append(actions, *a)
+			}
+		case kind == protocol.CodeActionKindQuickFix || strings.HasPrefix(string(kind), "quickfix"):
+			actions = append(actions, s.quickfixActionsForDocument(doc, params)...)
+		}
+	}
+
+	return actions
+}
+
+// fixAllAction returns a single source.fixAll.tally code action with all safe fixes,
+// or nil if there are no applicable fixes.
+func (s *Server) fixAllAction(doc *Document, uri protocol.DocumentUri) *protocol.CodeAction {
+	edits := s.computeSafeFixes(doc)
+	if len(edits) == 0 {
+		return nil
+	}
+	return &protocol.CodeAction{
+		Title: "Tally: Fix all auto-fixable problems",
+		Kind:  ptrTo(codeActionKindSourceFixAllTally),
+		Edit: &protocol.WorkspaceEdit{
+			Changes: ptrTo(map[protocol.DocumentUri][]*protocol.TextEdit{
+				uri: edits,
+			}),
+		},
+	}
+}
+
+// quickfixActionsForDocument returns individual quick-fix code actions for violations
+// that overlap the given range.
+func (s *Server) quickfixActionsForDocument(
 	doc *Document,
 	params *protocol.CodeActionParams,
 ) []protocol.CodeAction {

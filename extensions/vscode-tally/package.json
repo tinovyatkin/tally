@@ -5,6 +5,7 @@
   "description": "Dockerfile and Containerfile linter/formatter powered by tally",
   "version": "0.0.0",
   "license": "MIT",
+  "icon": "assets/logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/tinovyatkin/tally"
@@ -25,6 +26,14 @@
       {
         "command": "tally.restartServer",
         "title": "Tally: Restart server"
+      },
+      {
+        "command": "tally.applyAllFixes",
+        "title": "Tally: Apply all safe fixes"
+      },
+      {
+        "command": "tally.configureDefaultFormatterForDockerfile",
+        "title": "Tally: Set as default Dockerfile formatter"
       }
     ],
     "configuration": {
@@ -69,6 +78,49 @@
             "editorOnly"
           ],
           "description": "How to merge VS Code settings with `.tally.toml` / `tally.toml`."
+        },
+        "tally.fixAll": {
+          "type": "boolean",
+          "default": true,
+          "description": "Apply safe auto-fixes via code actions on save."
+        },
+        "tally.fixUnsafe": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also apply unsafe fixes during fixAll."
+        },
+        "tally.lint.run": {
+          "type": "string",
+          "default": "onType",
+          "enum": [
+            "onType",
+            "onSave"
+          ],
+          "description": "When to run the linter."
+        },
+        "tally.format.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable document formatting."
+        },
+        "tally.trace.server": {
+          "type": "string",
+          "default": "off",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "description": "Trace LSP communication."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[dockerfile]": {
+        "editor.defaultFormatter": "wharflab.tally",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.tally": "explicit"
         }
       }
     }

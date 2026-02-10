@@ -465,6 +465,122 @@ func TestLSP_FormattingNoChanges(t *testing.T) {
 	assert.True(t, raw == nil || string(raw) == "null", "expected null response for clean document, got: %s", string(raw))
 }
 
+func TestLSP_SourceFixAllCodeAction(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	uri := "file:///tmp/test-source-fixall/Dockerfile"
+	original := "FROM alpine:3.18\nMAINTAINER test@example.com\n"
+	ts.openDocument(t, uri, original)
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	// Request code actions with Only: source.fixAll.tally.
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var actions []codeAction
+	err := ts.conn.Call(ctx, "textDocument/codeAction", &codeActionParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Range:        lspRange{},
+		Context: codeActionContext{
+			Only: []string{"source.fixAll.tally"},
+		},
+	}, &actions)
+	require.NoError(t, err)
+
+	// Should return exactly one fix-all action.
+	require.Len(t, actions, 1, "expected exactly one source.fixAll.tally action")
+	assert.Equal(t, "source.fixAll.tally", actions[0].Kind)
+	require.NotNil(t, actions[0].Edit)
+	require.NotEmpty(t, actions[0].Edit.Changes)
+
+	// Apply edits and snapshot the result.
+	edits := actions[0].Edit.Changes[uri]
+	require.NotEmpty(t, edits, "expected edits in fix-all action")
+
+	fixed := applyEdits(t, uri, original, edits)
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
+}
+
+func TestLSP_SourceFixAllNoChanges(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	uri := "file:///tmp/test-source-fixall-noop/Dockerfile"
+	// A clean Dockerfile with no fixable issues.
+	ts.openDocument(t, uri, "FROM alpine:3.18\nRUN echo hello\n")
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	// Request code actions with Only: source.fixAll.tally.
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var raw jsontext.Value
+	err := ts.conn.Call(ctx, "textDocument/codeAction", &codeActionParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Range:        lspRange{},
+		Context: codeActionContext{
+			Only: []string{"source.fixAll.tally"},
+		},
+	}, &raw)
+	require.NoError(t, err)
+
+	// When there are no fixes, the server should return null or empty array.
+	assert.True(t, raw == nil || string(raw) == "null" || string(raw) == "[]",
+		"expected null or empty response for clean document, got: %s", string(raw))
+}
+
+func TestLSP_ExecuteCommandApplyAllFixes(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	uri := "file:///tmp/test-executecommand/Dockerfile"
+	original := "FROM alpine:3.18\nMAINTAINER test@example.com\n"
+	ts.openDocument(t, uri, original)
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	// Send workspace/executeCommand with tally.applyAllFixes.
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var result workspaceEdit
+	err := ts.conn.Call(ctx, "workspace/executeCommand", &executeCommandParams{
+		Command:   "tally.applyAllFixes",
+		Arguments: []any{uri},
+	}, &result)
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Changes, "expected workspace edit with changes")
+
+	edits := result.Changes[uri]
+	require.NotEmpty(t, edits, "expected edits for the document")
+
+	fixed := applyEdits(t, uri, original, edits)
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
+}
+
+func TestLSP_ExecuteCommandUnknown(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := ts.conn.Call(ctx, "workspace/executeCommand", &executeCommandParams{
+		Command: "tally.nonExistentCommand",
+	}, nil)
+	assert.Error(t, err, "unknown command should return an error")
+}
+
 func TestLSP_MethodNotFound(t *testing.T) {
 	t.Parallel()
 	ts := startTestServer(t)

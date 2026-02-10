@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 export type ImportStrategy = 'fromEnvironment' | 'useBundled';
 export type ConfigurationPreference = 'editorFirst' | 'filesystemFirst' | 'editorOnly';
+export type LintRun = 'onType' | 'onSave';
 
 export interface TallySettings {
   enable: boolean;
@@ -9,6 +10,10 @@ export interface TallySettings {
   importStrategy: ImportStrategy;
   configuration: unknown | null;
   configurationPreference: ConfigurationPreference;
+  fixAll: boolean;
+  fixUnsafe: boolean;
+  lintRun: LintRun;
+  formatEnable: boolean;
 }
 
 export interface BinaryResolutionSettings {
@@ -22,6 +27,10 @@ const DEFAULTS: TallySettings = {
   importStrategy: 'fromEnvironment',
   configuration: null,
   configurationPreference: 'editorFirst',
+  fixAll: true,
+  fixUnsafe: false,
+  lintRun: 'onType',
+  formatEnable: true,
 };
 
 export function readEffectiveSettings(scope?: vscode.ConfigurationScope): TallySettings {
@@ -35,6 +44,10 @@ export function readEffectiveSettings(scope?: vscode.ConfigurationScope): TallyS
       'configurationPreference',
       DEFAULTS.configurationPreference,
     ),
+    fixAll: cfg.get<boolean>('fixAll', DEFAULTS.fixAll),
+    fixUnsafe: cfg.get<boolean>('fixUnsafe', DEFAULTS.fixUnsafe),
+    lintRun: cfg.get<LintRun>('lint.run', DEFAULTS.lintRun),
+    formatEnable: cfg.get<boolean>('format.enable', DEFAULTS.formatEnable),
   };
 }
 

@@ -103,6 +103,9 @@ func (s *Server) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.
 	case string(protocol.MethodTextDocumentFormatting):
 		return unmarshalAndCall(req, s.handleFormatting)
 
+	case string(protocol.MethodWorkspaceExecuteCommand):
+		return unmarshalAndCall(req, s.handleExecuteCommand)
+
 	// Workspace
 	case "workspace/didChangeConfiguration":
 		return nil, unmarshalAndNotify(req, func(p *protocol.DidChangeConfigurationParams) {
@@ -191,6 +194,9 @@ func (s *Server) handleInitialize(params *protocol.InitializeParams) (any, error
 			},
 			DocumentFormattingProvider: &protocol.BooleanOrDocumentFormattingOptions{
 				Boolean: ptrTo(true),
+			},
+			ExecuteCommandProvider: &protocol.ExecuteCommandOptions{
+				Commands: []string{commandApplyAllFixes},
 			},
 			DiagnosticProvider: &protocol.DiagnosticOptionsOrRegistrationOptions{
 				Options: &protocol.DiagnosticOptions{
