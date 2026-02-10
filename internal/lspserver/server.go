@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 
 	jsonv2 "encoding/json/v2"
 	"github.com/sourcegraph/jsonrpc2"
@@ -28,6 +29,14 @@ const serverName = "tally"
 type Server struct {
 	documents *DocumentStore
 	lintCache *lintResultCache
+
+	settingsMu sync.RWMutex
+	settings   clientSettings
+
+	diagMu                     sync.RWMutex
+	pushDiagnostics            bool
+	supportsDiagnosticRefresh  bool
+	supportsDiagnosticPullMode bool
 }
 
 // New creates a new LSP server.
@@ -35,6 +44,10 @@ func New() *Server {
 	return &Server{
 		documents: NewDocumentStore(),
 		lintCache: newLintResultCache(),
+		settings:  defaultClientSettings(),
+		// Default to push diagnostics (publishDiagnostics). If the client supports
+		// the LSP 3.17 pull model, we switch to pull to avoid duplicate diagnostics.
+		pushDiagnostics: true,
 	}
 }
 
@@ -92,7 +105,9 @@ func (s *Server) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.
 
 	// Workspace
 	case "workspace/didChangeConfiguration":
-		return nil, nil //nolint:nilnil // LSP: notification has no result
+		return nil, unmarshalAndNotify(req, func(p *protocol.DidChangeConfigurationParams) {
+			s.handleDidChangeConfiguration(ctx, conn, p)
+		})
 
 	default:
 		return nil, &jsonrpc2.Error{
@@ -151,6 +166,8 @@ func lspNotify(ctx context.Context, conn *jsonrpc2.Conn, method string, params a
 func (s *Server) handleInitialize(params *protocol.InitializeParams) (any, error) {
 	log.Printf("lsp: initialize from %s", clientInfoString(params))
 
+	s.configureDiagnosticsMode(params)
+
 	ver := version.RawVersion()
 
 	return &protocol.InitializeResult{
@@ -196,7 +213,7 @@ func (s *Server) handleDidOpen(ctx context.Context, conn *jsonrpc2.Conn, params 
 	uri := string(params.TextDocument.Uri)
 	s.documents.Open(uri, string(params.TextDocument.LanguageId), params.TextDocument.Version, params.TextDocument.Text)
 
-	if doc := s.documents.Get(uri); doc != nil {
+	if doc := s.documents.Get(uri); doc != nil && s.pushDiagnosticsEnabled() {
 		s.publishDiagnostics(ctx, conn, doc)
 	}
 }
@@ -215,7 +232,7 @@ func (s *Server) handleDidChange(ctx context.Context, conn *jsonrpc2.Conn, param
 		}
 	}
 
-	if doc := s.documents.Get(uri); doc != nil {
+	if doc := s.documents.Get(uri); doc != nil && s.pushDiagnosticsEnabled() {
 		s.publishDiagnostics(ctx, conn, doc)
 	}
 }
@@ -227,7 +244,7 @@ func (s *Server) handleDidSave(ctx context.Context, conn *jsonrpc2.Conn, params 
 		s.documents.Update(uri, 0, *params.Text)
 	}
 
-	if doc := s.documents.Get(uri); doc != nil {
+	if doc := s.documents.Get(uri); doc != nil && s.pushDiagnosticsEnabled() {
 		s.publishDiagnostics(ctx, conn, doc)
 	}
 }
@@ -242,7 +259,9 @@ func (s *Server) handleDidClose(ctx context.Context, conn *jsonrpc2.Conn, params
 	}
 	s.documents.Close(uri)
 	s.lintCache.delete(uri)
-	clearDiagnostics(ctx, conn, uri, docVersion)
+	if s.pushDiagnosticsEnabled() {
+		clearDiagnostics(ctx, conn, uri, docVersion)
+	}
 }
 
 // handleCodeAction returns quick-fix code actions.

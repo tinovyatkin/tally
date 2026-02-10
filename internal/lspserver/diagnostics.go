@@ -61,6 +61,12 @@ func (c *lintResultCache) delete(uri string) {
 	delete(c.entries, uri)
 }
 
+func (c *lintResultCache) clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	clear(c.entries)
+}
+
 // publishDiagnostics lints a document and publishes diagnostics to the client.
 func (s *Server) publishDiagnostics(ctx context.Context, conn *jsonrpc2.Conn, doc *Document) {
 	docURI := doc.URI
@@ -176,11 +182,17 @@ func (s *Server) lintInput(docURI string, content []byte) linter.Input {
 }
 
 // resolveConfig returns the effective config for a file path.
-// Currently returns nil (LintFile discovers from disk).
-// When workspace/didChangeConfiguration is implemented, this will merge
-// editor settings with filesystem config per configurationPreference.
-func (s *Server) resolveConfig(_ string) *config.Config {
-	return nil
+// The editor can provide configuration overrides via workspace/didChangeConfiguration.
+// The server merges those overrides with discovered `.tally.toml` / `tally.toml`
+// based on configurationPreference.
+func (s *Server) resolveConfig(filePath string) *config.Config {
+	settings := s.settingsForFile(filePath)
+	cfg, err := config.LoadWithOverrides(filePath, settings.ConfigurationOverrides, settings.ConfigurationPreference)
+	if err != nil {
+		log.Printf("lsp: config load error for %s: %v", filePath, err)
+		return nil
+	}
+	return cfg
 }
 
 // lintContent runs the shared lint pipeline and applies LSP-specific processors.

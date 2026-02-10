@@ -1,0 +1,6 @@
+**/*.ts
+tsconfig.json
+bunfig.toml
+bun.lock
+node_modules/**
+test/**

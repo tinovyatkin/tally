@@ -189,6 +189,55 @@ func TestLSP_CodeAction(t *testing.T) {
 	).MatchStandaloneJSON(t, actions)
 }
 
+func TestLSP_NoPushDiagnosticsWhenClientSupportsPull(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+
+	// Initialize with LSP 3.17 pull-diagnostics client capability.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var result initializeResult
+	err := ts.conn.Call(ctx, "initialize", &initializeParams{
+		ProcessID:    nil,
+		RootURI:      nil,
+		Capabilities: jsontext.Value(`{"textDocument":{"diagnostic":{}}}`),
+		ClientInfo: &clientInfo{
+			Name:    "tally-lsptest",
+			Version: "1.0.0",
+		},
+	}, &result)
+	require.NoError(t, err)
+	require.NoError(t, ts.conn.Notify(ctx, "initialized", struct{}{}))
+
+	uri := "file:///tmp/test-no-push-diagnostics/Dockerfile"
+	ts.openDocument(t, uri, "FROM alpine:3.18\nCMD echo hello\n")
+
+	// When the client supports pull diagnostics, the server should not push
+	// publishDiagnostics to avoid duplicate diagnostics in VS Code.
+	select {
+	case d := <-ts.diagnosticsCh:
+		t.Fatalf("unexpected push diagnostics: %+v", d)
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	// Pull diagnostics should still work.
+	ctx2, cancel2 := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel2()
+
+	var report fullDocumentDiagnosticReport
+	err = ts.conn.Call(ctx2, "textDocument/diagnostic", &documentDiagnosticParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+	}, &report)
+	require.NoError(t, err)
+
+	assert.Equal(t, "full", report.Kind)
+	assert.NotEmpty(t, report.Items, "expected diagnostics for CMD in shell form")
+	assert.True(t, slices.ContainsFunc(report.Items, func(d diagnostic) bool {
+		return d.Code == "buildkit/JSONArgsRecommended"
+	}), "expected JSONArgsRecommended in pull diagnostics")
+}
+
 func TestLSP_PullDiagnosticsForOpenDocument(t *testing.T) {
 	t.Parallel()
 	ts := startTestServer(t)
