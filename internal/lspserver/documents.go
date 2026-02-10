@@ -70,3 +70,15 @@ func (s *DocumentStore) Get(uri string) *Document {
 	defer s.mu.RUnlock()
 	return s.docs[uri]
 }
+
+// All returns a snapshot slice of all currently open documents.
+func (s *DocumentStore) All() []*Document {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]*Document, 0, len(s.docs))
+	for _, doc := range s.docs {
+		c := *doc
+		out = append(out, &c)
+	}
+	return out
+}

@@ -469,3 +469,99 @@ func TestRulesConfigGetOptionsTyped(t *testing.T) {
 		t.Fatalf("Enabled = %v, want true", decoded.Enabled)
 	}
 }
+
+func TestLoadWithOverrides_EditorFirst(t *testing.T) {
+	t.Parallel()
+	tmpDir, dockerfilePath := setupTempProject(t)
+
+	// Filesystem config sets output.format = json.
+	configPath := filepath.Join(tmpDir, ".tally.toml")
+	configContent := `
+[output]
+format = "json"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Editor override should win in editorFirst.
+	overrides := map[string]any{
+		"output": map[string]any{
+			"format": "text",
+		},
+	}
+
+	cfg, err := LoadWithOverrides(dockerfilePath, overrides, ConfigurationPreferenceEditorFirst)
+	if err != nil {
+		t.Fatalf("LoadWithOverrides() error = %v", err)
+	}
+	if cfg.Output.Format != "text" {
+		t.Fatalf("Output.Format = %q, want %q", cfg.Output.Format, "text")
+	}
+}
+
+func TestLoadWithOverrides_FilesystemFirst_FillsGaps(t *testing.T) {
+	t.Parallel()
+	tmpDir, dockerfilePath := setupTempProject(t)
+
+	// Filesystem config sets output.format, but not output.show-source.
+	configPath := filepath.Join(tmpDir, ".tally.toml")
+	configContent := `
+[output]
+format = "json"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Editor override tries to change format (should lose) but also sets show-source (gap fill).
+	overrides := map[string]any{
+		"output": map[string]any{
+			"format":      "text",
+			"show-source": false,
+		},
+	}
+
+	cfg, err := LoadWithOverrides(dockerfilePath, overrides, ConfigurationPreferenceFilesystemFirst)
+	if err != nil {
+		t.Fatalf("LoadWithOverrides() error = %v", err)
+	}
+	if cfg.Output.Format != "json" {
+		t.Fatalf("Output.Format = %q, want %q", cfg.Output.Format, "json")
+	}
+	if cfg.Output.ShowSource != false {
+		t.Fatalf("Output.ShowSource = %v, want %v", cfg.Output.ShowSource, false)
+	}
+}
+
+func TestLoadWithOverrides_EditorOnly_SkipsFilesystem(t *testing.T) {
+	t.Parallel()
+	tmpDir, dockerfilePath := setupTempProject(t)
+
+	// Filesystem config sets output.format = json, but should be ignored.
+	configPath := filepath.Join(tmpDir, ".tally.toml")
+	configContent := `
+[output]
+format = "json"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	overrides := map[string]any{
+		"output": map[string]any{
+			"format": "text",
+		},
+	}
+
+	cfg, err := LoadWithOverrides(dockerfilePath, overrides, ConfigurationPreferenceEditorOnly)
+	if err != nil {
+		t.Fatalf("LoadWithOverrides() error = %v", err)
+	}
+	if cfg.Output.Format != "text" {
+		t.Fatalf("Output.Format = %q, want %q", cfg.Output.Format, "text")
+	}
+	if cfg.ConfigFile != "" {
+		t.Fatalf("ConfigFile = %q, want empty (editorOnly)", cfg.ConfigFile)
+	}
+}

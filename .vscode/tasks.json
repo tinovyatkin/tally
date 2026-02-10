@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "bun: compile (vscode-tally)",
+      "type": "shell",
+      "command": "bun",
+      "args": [
+        "run",
+        "compile"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/extensions/vscode-tally"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "dependsOn": [
+        "bun: typecheck (vscode-tally)"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "bun: typecheck (vscode-tally)",
+      "type": "shell",
+      "command": "bun",
+      "args": [
+        "run",
+        "typecheck"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/extensions/vscode-tally"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$tsc"
+      ]
+    }
+  ]
+}
+

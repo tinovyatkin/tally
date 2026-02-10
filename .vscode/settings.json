@@ -56,5 +56,7 @@
     "GOSUMDB": "sum.golang.org",
     "CGO_ENABLED": 0
   },
-  "sarif-viewer.connectToGithubCodeScanning": "off"
+  "sarif-viewer.connectToGithubCodeScanning": "off",
+  "typescript.native-preview.tsdk": "./extensions/vscode-tally/node_modules/@typescript/native-preview/bin",
+  "typescript.experimental.useTsgo": true
 }

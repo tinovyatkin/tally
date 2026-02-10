@@ -35,6 +35,7 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+.vscode-test/
 
 # Built binary
 /tally
@@ -55,6 +56,7 @@ exclude-files.txt
 # NPM
 node_modules/
 package-lock.json
+*.vsix
 packaging/npm/**/bin/tally*
 packaging/npm/**/README.md
 
