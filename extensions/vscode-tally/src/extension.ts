@@ -78,9 +78,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
       const editor = vscode.workspace.getConfiguration('editor', { languageId: 'dockerfile' });
 
-      await editor.update('defaultFormatter', 'wharflab.tally', target);
-      await editor.update('formatOnSave', true, target);
-      await editor.update('formatOnSaveMode', 'file', target);
+      await editor.update('defaultFormatter', 'wharflab.tally', target, true);
+      await editor.update('formatOnSave', true, target, true);
+      await editor.update('formatOnSaveMode', 'file', target, true);
 
       const existing = editor.get<unknown>('codeActionsOnSave');
       const next: Record<string, unknown> =
@@ -92,7 +92,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         next['source.fixAll.tally'] = 'explicit';
       }
 
-      await editor.update('codeActionsOnSave', next, target);
+      await editor.update('codeActionsOnSave', next, target, true);
 
       void vscode.window.showInformationMessage(
         'Tally configured as the default Dockerfile formatter for this workspace.',
