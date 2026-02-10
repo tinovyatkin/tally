@@ -2,6 +2,10 @@
 # https://docs.codecov.com/docs/codecovyml-reference
 # yaml-language-server: $schema=https://json.schemastore.org/codecov.json
 ---
+codecov:
+  notify:
+    # Wait for both `CI` and `VS Code Smoke` workflow uploads before posting a PR comment.
+    after_n_builds: 2
 coverage:
   status:
     project:
