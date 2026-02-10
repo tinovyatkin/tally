@@ -189,6 +189,73 @@ func TestLSP_CodeAction(t *testing.T) {
 	).MatchStandaloneJSON(t, actions)
 }
 
+func TestLSP_CodeActionFixAll(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	uri := "file:///tmp/test-codeaction-fixall/Dockerfile"
+	original := "FROM alpine:3.18\nMAINTAINER test@example.com\n"
+	ts.openDocument(t, uri, original)
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var actions []codeAction
+	err := ts.conn.Call(ctx, "textDocument/codeAction", &codeActionParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Range: lspRange{
+			Start: position{Line: 0, Character: 0},
+			End:   position{Line: 0, Character: 0},
+		},
+		Context: codeActionContext{
+			Diagnostics: nil,
+			Only:        []string{"source.fixAll.tally"},
+		},
+	}, &actions)
+	require.NoError(t, err)
+	require.Len(t, actions, 1, "expected one fix-all code action")
+
+	require.NotNil(t, actions[0].Edit)
+	edits := actions[0].Edit.Changes[uri]
+	require.NotEmpty(t, edits, "expected fix-all edits")
+
+	fixed := applyEdits(t, uri, original, edits)
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
+}
+
+func TestLSP_ExecuteCommandApplyAllFixes(t *testing.T) {
+	t.Parallel()
+	ts := startTestServer(t)
+	ts.initialize(t)
+
+	uri := "file:///tmp/test-executecommand-fixall/Dockerfile"
+	original := "FROM alpine:3.18\nMAINTAINER test@example.com\n"
+	ts.openDocument(t, uri, original)
+
+	// Drain push diagnostics from didOpen.
+	ts.waitDiagnostics(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), diagTimeout)
+	defer cancel()
+
+	var edit workspaceEdit
+	err := ts.conn.Call(ctx, "workspace/executeCommand", &executeCommandParams{
+		Command:   "tally.applyAllFixes",
+		Arguments: []any{uri},
+	}, &edit)
+	require.NoError(t, err)
+
+	edits := edit.Changes[uri]
+	require.NotEmpty(t, edits, "expected executeCommand to return edits")
+
+	fixed := applyEdits(t, uri, original, edits)
+	snaps.WithConfig(snaps.Ext(".Dockerfile")).MatchStandaloneSnapshot(t, fixed)
+}
+
 func TestLSP_NoPushDiagnosticsWhenClientSupportsPull(t *testing.T) {
 	t.Parallel()
 	ts := startTestServer(t)

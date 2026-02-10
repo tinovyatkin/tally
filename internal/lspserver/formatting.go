@@ -1,6 +1,7 @@
 package lspserver
 
 import (
+	"bytes"
 	"context"
 	"path/filepath"
 
@@ -10,10 +11,12 @@ import (
 	"github.com/tinovyatkin/tally/internal/fix"
 	"github.com/tinovyatkin/tally/internal/linter"
 	"github.com/tinovyatkin/tally/internal/processor"
-	"github.com/tinovyatkin/tally/internal/rules"
 )
 
 // handleFormatting handles textDocument/formatting by applying safe auto-fixes.
+//
+// The response is computed by applying the fixes and then returning a minimal edit
+// that transforms the original document into the fixed output (ESLint-style).
 func (s *Server) handleFormatting(params *protocol.DocumentFormattingParams) (any, error) {
 	doc := s.documents.Get(string(params.TextDocument.Uri))
 	if doc == nil {
@@ -38,24 +41,97 @@ func (s *Server) handleFormatting(params *protocol.DocumentFormattingParams) (an
 	violations := chain.Process(result.Violations, procCtx)
 
 	// 2. Apply style-safe fixes via existing fix infrastructure.
-	// The fixer handles conflict resolution and ordering.
-	fixer := &fix.Fixer{SafetyThreshold: fix.FixSafe}
+	// The fixer handles conflict resolution and ordering and respects per-rule fix modes.
+	fixModes := fix.BuildFixModes(result.Config)
+	fileKey := filepath.Clean(input.FilePath)
+	fixer := &fix.Fixer{
+		SafetyThreshold: fix.FixSafe,
+		FixModes: map[string]map[string]fix.FixMode{
+			fileKey: fixModes,
+		},
+	}
 	fixResult, err := fixer.Apply(context.Background(), violations, map[string][]byte{input.FilePath: content})
 	if err != nil {
 		return nil, nil //nolint:nilnil,nilerr // gracefully return no edits on fix error
 	}
 
-	// 3. Collect original edits from applied fixes and convert to LSP TextEdits.
-	// The fixer records the original (pre-adjustment) edits in AppliedFix,
-	// which reference positions in the original document — exactly what LSP needs.
-	change := fixResult.Changes[filepath.Clean(input.FilePath)]
-	if change == nil || !change.HasChanges() {
+	change := fixResult.Changes[fileKey]
+	if change == nil || !change.HasChanges() || bytes.Equal(change.ModifiedContent, content) {
 		return nil, nil //nolint:nilnil // no changes
 	}
 
-	var allEdits []rules.TextEdit
-	for _, af := range change.FixesApplied {
-		allEdits = append(allEdits, af.Edits...)
+	edits := minimalTextEdit(content, change.ModifiedContent)
+	if len(edits) == 0 {
+		return nil, nil //nolint:nilnil // no effective changes
 	}
-	return convertTextEdits(allEdits), nil
+	return edits, nil
+}
+
+func minimalTextEdit(original, modified []byte) []*protocol.TextEdit {
+	start, end, replacement, ok := minimalReplacement(original, modified)
+	if !ok {
+		return nil
+	}
+
+	return []*protocol.TextEdit{
+		{
+			Range: protocol.Range{
+				Start: positionAtOffset(original, start),
+				End:   positionAtOffset(original, end),
+			},
+			NewText: string(replacement),
+		},
+	}
+}
+
+func minimalReplacement(original, modified []byte) (int, int, []byte, bool) {
+	if bytes.Equal(original, modified) {
+		return 0, 0, nil, false
+	}
+
+	prefix := 0
+	for prefix < len(original) && prefix < len(modified) {
+		if original[prefix] != modified[prefix] {
+			break
+		}
+		prefix++
+	}
+
+	suffix := 0
+	for suffix < len(original)-prefix && suffix < len(modified)-prefix {
+		origIdx := len(original) - 1 - suffix
+		modIdx := len(modified) - 1 - suffix
+		if original[origIdx] != modified[modIdx] {
+			break
+		}
+		suffix++
+	}
+
+	start := prefix
+	end := len(original) - suffix
+	replStart := prefix
+	replEnd := len(modified) - suffix
+	replacement := modified[replStart:replEnd]
+	return start, end, replacement, true
+}
+
+func positionAtOffset(content []byte, offset int) protocol.Position {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > len(content) {
+		offset = len(content)
+	}
+
+	line := uint32(0)
+	lineStart := 0
+	for i := range offset {
+		if content[i] == '\n' {
+			line++
+			lineStart = i + 1
+		}
+	}
+
+	character := clampUint32(offset - lineStart)
+	return protocol.Position{Line: line, Character: character}
 }

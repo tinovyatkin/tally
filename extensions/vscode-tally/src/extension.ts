@@ -69,6 +69,37 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('tally.configureDefaultFormatterForDockerfile', async () => {
+      const target =
+        (vscode.workspace.workspaceFolders?.length ?? 0) > 0
+          ? vscode.ConfigurationTarget.Workspace
+          : vscode.ConfigurationTarget.Global;
+
+      const editor = vscode.workspace.getConfiguration('editor', { languageId: 'dockerfile' });
+
+      await editor.update('defaultFormatter', 'wharflab.tally', target);
+      await editor.update('formatOnSave', true, target);
+      await editor.update('formatOnSaveMode', 'file', target);
+
+      const existing = editor.get<unknown>('codeActionsOnSave');
+      const next: Record<string, unknown> =
+        existing && typeof existing === 'object' && !Array.isArray(existing)
+          ? { ...(existing as Record<string, unknown>) }
+          : {};
+
+      if (next['source.fixAll.tally'] === undefined) {
+        next['source.fixAll.tally'] = 'explicit';
+      }
+
+      await editor.update('codeActionsOnSave', next, target);
+
+      void vscode.window.showInformationMessage(
+        'Tally configured as the default Dockerfile formatter for this workspace.',
+      );
+    }),
+  );
+
   configService.onDidChange(async (change) => {
     if (change.requiresRestart) {
       await startOrRestart('settings change');
