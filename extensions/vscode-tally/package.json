@@ -10,7 +10,7 @@
     "url": "https://github.com/tinovyatkin/tally"
   },
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.999.0"
   },
   "categories": [
     "Linters",
