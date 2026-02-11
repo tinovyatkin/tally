@@ -230,10 +230,14 @@ When async checks run (typically on save), the LSP server should:
 
 1. create a work-done progress token (if the client supports it)
 2. send progress updates (planned / running / completed counts)
-3. respect request cancellation:
-   - if a new save happens or the document version changes, cancel the in-flight async run
+3. respect request cancellation and prevent publishing stale results:
+   - capture the document `version` (or a monotonic `nonce`) when async checks start and propagate it into the async run context (so async checks,
+     work-done progress, and diagnostics publishing are all version/nonce-aware)
+   - if a new save happens or the document version/nonce changes, cancel the in-flight async run
    - if fail-fast triggers (fast diagnostics include `SeverityError`), cancel the in-flight async run and publish fast diagnostics immediately
-   - network/file operations should receive the same `context.Context`
+   - `PublishDiagnostics` (or the equivalent diagnostics sender) must verify the async run's version/nonce still matches the latest known document
+     version/nonce before sending; otherwise skip publishing (also applies to progress updates)
+   - network/file operations should receive the same `context.Context` (cancellation + version/nonce)
 
 Diagnostics update behavior depends on diagnostic mode:
 
