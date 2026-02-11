@@ -197,6 +197,14 @@ func TestCheck(t *testing.T) {
 			args:     append([]string{"--format", "json"}, selectRules("buildkit/ReservedStageName")...),
 			wantExit: 1,
 		},
+		// Cross-rule: StageNameCasing lowercases "Scratch"→"scratch", ReservedStageName flags it
+		{
+			name: "reserved-stage-name-casing",
+			dir:  "reserved-stage-name-casing",
+			args: append([]string{"--format", "json"},
+				selectRules("buildkit/ReservedStageName", "buildkit/StageNameCasing")...),
+			wantExit: 1,
+		},
 
 		// Semantic model construction-time violations
 		// Note: These violations come from semantic analysis, not the rule registry.
