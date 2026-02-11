@@ -13,11 +13,13 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 ## Summary
 
 <!-- BEGIN RULES_SUMMARY -->
+
 | Namespace | Implemented | Covered by BuildKit | Total |
 |-----------|-------------|---------------------|-------|
 | tally | 8 | - | 8 |
 | buildkit | 9 + 5 captured | - | 22 |
 | hadolint | 21 | 11 | 66 |
+
 <!-- END RULES_SUMMARY -->
 
 ---
@@ -87,6 +89,7 @@ These checks are emitted by BuildKit during Dockerfile parsing and are captured 
 | [`buildkit/MaintainerDeprecated`](https://docs.docker.com/reference/build-checks/maintainer-deprecated/) 🔧 | The MAINTAINER instruction is deprecated, use a label instead to define an image author | Warning | Enabled | ✅🔧 |
 | [`buildkit/NoEmptyContinuation`](https://docs.docker.com/reference/build-checks/no-empty-continuation/) 🔧 | Empty continuation lines will become errors in a future release | Warning | Enabled | ✅🔧 |
 | [`buildkit/StageNameCasing`](https://docs.docker.com/reference/build-checks/stage-name-casing/) 🔧 | Stage names should be lowercase | Warning | Enabled | ✅🔧 |
+| [`buildkit/MultipleInstructionsDisallowed`](https://docs.docker.com/reference/build-checks/multiple-instructions-disallowed/) | Multiple instructions of the same type should not be used in the same stage | Warning | Enabled | ✅🔧 |
 
 ### Not currently supported
 
@@ -98,7 +101,6 @@ These BuildKit checks only run during LLB conversion (a full build). tally does 
 | [`buildkit/FromPlatformFlagConstDisallowed`](https://docs.docker.com/reference/build-checks/from-platform-flag-const-disallowed/) | FROM --platform flag should not use a constant value | Requires LLB conversion (full build) |
 | `buildkit/InvalidBaseImagePlatform` | Base image platform does not match expected target platform | Requires LLB conversion (full build) |
 | [`buildkit/InvalidDefaultArgInFrom`](https://docs.docker.com/reference/build-checks/invalid-default-arg-in-from/) | Default value for global ARG results in an empty or invalid base image name | Requires LLB conversion (full build) |
-| [`buildkit/MultipleInstructionsDisallowed`](https://docs.docker.com/reference/build-checks/multiple-instructions-disallowed/) | Multiple instructions of the same type should not be used in the same stage | Requires LLB conversion (full build) |
 | [`buildkit/ReservedStageName`](https://docs.docker.com/reference/build-checks/reserved-stage-name/) | Reserved words should not be used as stage names | Requires LLB conversion (full build) |
 | [`buildkit/UndefinedArgInFrom`](https://docs.docker.com/reference/build-checks/undefined-arg-in-from/) | FROM command must use declared ARGs | Requires LLB conversion (full build) |
 | [`buildkit/UndefinedVar`](https://docs.docker.com/reference/build-checks/undefined-var/) | Variables should be defined before their use | Requires LLB conversion (full build) |
@@ -123,6 +125,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 ### DL Rules (Dockerfile Lint)
 
 <!-- BEGIN HADOLINT_DL_RULES -->
+
 | Rule | Description | Severity | Status |
 |------|-------------|----------|--------|
 | [DL1001](https://github.com/hadolint/hadolint/wiki/DL1001) | Please refrain from using inline ignore pragmas `# hadolint ignore=DLxxxx`. | Ignore | ⏳ |
@@ -191,6 +194,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL4004](https://github.com/hadolint/hadolint/wiki/DL4004) | Multiple `ENTRYPOINT` instructions found. | Error | 🔄 `buildkit/MultipleInstructionsDisallowed` |
 | [DL4005](https://github.com/hadolint/hadolint/wiki/DL4005) | Use `SHELL` to change the default shell. | Warning | ✅🔧 `hadolint/DL4005` |
 | [DL4006](https://github.com/hadolint/hadolint/wiki/DL4006) | Set the `SHELL` option -o pipefail before `RUN` with a pipe in it | Warning | ⏳ |
+
 <!-- END HADOLINT_DL_RULES -->
 
 ### SC Rules (ShellCheck)
