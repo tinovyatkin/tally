@@ -154,7 +154,7 @@ func (b *Builder) initFromArgEval(stages []instructions.Stage, metaArgs []instru
 }
 
 func targetStageName(stages []instructions.Stage) string {
-	targetStage := "default"
+	targetStage := defaultTargetStageName
 	if len(stages) > 0 && stages[len(stages)-1].Name != "" {
 		targetStage = stages[len(stages)-1].Name
 	}

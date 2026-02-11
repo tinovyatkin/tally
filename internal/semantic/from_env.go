@@ -10,6 +10,8 @@ import (
 	"github.com/moby/buildkit/util/suggest"
 )
 
+const defaultTargetStageName = "default"
+
 // fromEnv is a minimal EnvGetter implementation for BuildKit's shell lexer.
 // It is used for evaluating ARG expansions in FROM.
 type fromEnv struct {
@@ -46,7 +48,7 @@ func defaultFromArgs(targetStage string, overrides map[string]string) map[string
 	bp := platforms.DefaultSpec()
 	tp := platforms.DefaultSpec()
 	if targetStage == "" {
-		targetStage = "default"
+		targetStage = defaultTargetStageName
 	}
 
 	kvs := [...][2]string{
