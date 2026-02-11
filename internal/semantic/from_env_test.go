@@ -47,20 +47,32 @@ func TestScopeArgKeys_NilScope(t *testing.T) {
 func TestUndefinedFromArgs_EarlyReturnsAndFiltering(t *testing.T) {
 	t.Parallel()
 
-	env := newFromEnv(nil)
-	assert.Nil(t, undefinedFromArgs("scratch", nil, env, nil, nil))
+	t.Run("noShlex", func(t *testing.T) {
+		t.Parallel()
+		env := newFromEnv(nil)
+		assert.Nil(t, undefinedFromArgs("scratch", nil, env, nil, nil))
+	})
 
-	shlex := shell.NewLex('\\')
-	assert.Nil(t, undefinedFromArgs("scratch", shlex, nil, nil, nil))
+	t.Run("noEnv", func(t *testing.T) {
+		t.Parallel()
+		shlex := shell.NewLex('\\')
+		assert.Nil(t, undefinedFromArgs("scratch", shlex, nil, nil, nil))
+	})
 
-	// All variables matched: no Unmatched keys from shlex.
-	env = newFromEnv(map[string]string{"tag": "latest"})
-	assert.Nil(t, undefinedFromArgs("busybox:${tag}", shlex, env, nil, nil))
+	t.Run("allVarsMatched", func(t *testing.T) {
+		t.Parallel()
+		shlex := shell.NewLex('\\')
+		env := newFromEnv(map[string]string{"tag": "latest"})
+		assert.Nil(t, undefinedFromArgs("busybox:${tag}", shlex, env, nil, nil))
+	})
 
-	// Variable is unmatched, but known in the global scope: should not be reported.
-	env = newFromEnv(nil)
-	knownSet := map[string]struct{}{"tag": {}}
-	assert.Nil(t, undefinedFromArgs("busybox:${tag}", shlex, env, knownSet, nil))
+	t.Run("knownGlobalVar", func(t *testing.T) {
+		t.Parallel()
+		shlex := shell.NewLex('\\')
+		env := newFromEnv(nil)
+		knownSet := map[string]struct{}{"tag": {}}
+		assert.Nil(t, undefinedFromArgs("busybox:${tag}", shlex, env, knownSet, nil))
+	})
 }
 
 func TestUndefinedFromArgs_UndefinedSortedAndSuggested(t *testing.T) {
