@@ -196,6 +196,14 @@ func TestCheck(t *testing.T) {
 			args:     append([]string{"--format", "json"}, selectRules("buildkit/ExposeInvalidFormat")...),
 			wantExit: 1,
 		},
+		// Cross-rule: ExposeInvalidFormat + ExposeProtoCasing overlap on the same EXPOSE line
+		{
+			name: "expose-cross-rules",
+			dir:  "expose-cross-rules",
+			args: append([]string{"--format", "json"},
+				selectRules("buildkit/ExposeInvalidFormat", "buildkit/ExposeProtoCasing")...),
+			wantExit: 1,
+		},
 
 		// Reserved stage name test (isolated to ReservedStageName rule)
 		{
