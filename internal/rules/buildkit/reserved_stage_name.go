@@ -8,6 +8,10 @@ import (
 
 // reservedStageNames matches BuildKit's set exactly (case-sensitive).
 // BuildKit source: dockerfile2llb/convert.go
+//
+// Cross-rule interaction: StageNameCasing may suggest lowercasing stage names
+// like "Scratch" to "scratch", which would then be flagged by this rule.
+// This is the correct behavior — users should rename to a non-reserved name.
 var reservedStageNames = map[string]struct{}{
 	"context": {},
 	"scratch": {},
