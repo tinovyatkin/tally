@@ -12,6 +12,7 @@ func CLIProcessors() (*processor.Chain, *processor.InlineDirectiveFilter) {
 		processor.NewEnableFilter(),        // Filter rules with severity="off"
 		processor.NewPathExclusionFilter(), // Apply per-rule path exclusions
 		inlineFilter,                       // Apply inline ignore directives
+		processor.NewSupersession(),        // Drop lower-severity when error exists
 		processor.NewDeduplication(),       // Remove duplicate violations
 		processor.NewSorting(),             // Stable output ordering
 		processor.NewSnippetAttachment(),   // Attach source code snippets
@@ -27,6 +28,7 @@ func LSPProcessors() *processor.Chain {
 		processor.NewSeverityOverride(),
 		processor.NewEnableFilter(),
 		processor.NewInlineDirectiveFilter(),
+		processor.NewSupersession(),
 		processor.NewDeduplication(),
 		processor.NewSorting(),
 	)
