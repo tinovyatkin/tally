@@ -16,6 +16,9 @@ func TestFindCommandInChain_Standalone(t *testing.T) {
 	if !pos.IsStandalone {
 		t.Error("expected IsStandalone to be true")
 	}
+	if pos.HasOtherStatements {
+		t.Error("expected HasOtherStatements to be false")
+	}
 	if pos.PrecedingCommands != "" {
 		t.Errorf("expected empty PrecedingCommands, got %q", pos.PrecedingCommands)
 	}
@@ -97,6 +100,9 @@ func TestFindCommandInChain_Semicolon(t *testing.T) {
 		if pos.IsStandalone {
 			t.Error("expected IsStandalone to be false (multiple top-level statements)")
 		}
+		if !pos.HasOtherStatements {
+			t.Error("expected HasOtherStatements to be true")
+		}
 	})
 
 	t.Run("after semicolon", func(t *testing.T) {
@@ -107,6 +113,9 @@ func TestFindCommandInChain_Semicolon(t *testing.T) {
 		}
 		if pos.IsStandalone {
 			t.Error("expected IsStandalone to be false")
+		}
+		if !pos.HasOtherStatements {
+			t.Error("expected HasOtherStatements to be true")
 		}
 	})
 
@@ -119,6 +128,9 @@ func TestFindCommandInChain_Semicolon(t *testing.T) {
 		)
 		if pos == nil {
 			t.Fatal("expected to find command")
+		}
+		if !pos.HasOtherStatements {
+			t.Error("expected HasOtherStatements to be true")
 		}
 	})
 }

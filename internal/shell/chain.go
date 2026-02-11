@@ -12,6 +12,14 @@ type ChainPosition struct {
 	// IsStandalone is true if this is the only command (not chained).
 	IsStandalone bool
 
+	// HasOtherStatements is true when the script contains multiple top-level
+	// statements separated by semicolons or newlines. In this case,
+	// PrecedingCommands and RemainingCommands only cover the chain within
+	// the matched statement and do NOT include commands from other statements.
+	// Callers building replacement text for the entire script must not use
+	// this position alone, as it would silently drop sibling statements.
+	HasOtherStatements bool
+
 	// PrecedingCommands contains the commands before this one in the chain.
 	// Empty when the command is at the start or standalone.
 	PrecedingCommands string
@@ -43,9 +51,11 @@ func FindCommandInChain(script string, variant Variant, match CommandMatcher) *C
 	for _, stmt := range prog.Stmts {
 		if pos := findInStmt(stmt, script, match); pos != nil {
 			// When there are multiple top-level statements separated by ;
-			// a single-statement standalone is no longer standalone.
+			// a single-statement standalone is no longer standalone, and
+			// the chain context does not cover sibling statements.
 			if len(prog.Stmts) > 1 {
 				pos.IsStandalone = false
+				pos.HasOtherStatements = true
 			}
 			return pos
 		}

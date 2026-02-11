@@ -173,6 +173,20 @@ RUN ["ln", "-sf", "/bin/bash", "/bin/sh"]
 `,
 			wantFix: "",
 		},
+		{
+			name: "semicolon separated has no fix",
+			dockerfile: `FROM ubuntu:22.04
+RUN ln -sf /bin/bash /bin/sh; echo done
+`,
+			wantFix: "",
+		},
+		{
+			name: "semicolon with chain has no fix",
+			dockerfile: `FROM ubuntu:22.04
+RUN apt-get update && ln -sf /bin/bash /bin/sh; echo done
+`,
+			wantFix: "",
+		},
 	}
 
 	for _, tt := range tests {

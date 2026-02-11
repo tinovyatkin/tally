@@ -103,6 +103,13 @@ func (r *DL4005Rule) generateFix(
 		return nil
 	}
 
+	// When semicolons separate multiple top-level statements, the chain
+	// context only covers the statement containing the match. Emitting a
+	// fix here would silently drop commands from sibling statements.
+	if pos.HasOtherStatements {
+		return nil
+	}
+
 	shellInstr := fmt.Sprintf(`SHELL [%q, "-c"]`, targetShell)
 
 	var parts []string
