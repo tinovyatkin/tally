@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	dfshell "github.com/moby/buildkit/frontend/dockerfile/shell"
 
 	"github.com/tinovyatkin/tally/internal/directive"
 	"github.com/tinovyatkin/tally/internal/dockerfile"
@@ -64,10 +65,7 @@ func (b *Builder) Build() *Model {
 	stages := b.parseResult.Stages
 	metaArgs := b.parseResult.MetaArgs
 
-	// Process global ARGs (before first FROM)
-	for i := range metaArgs {
-		b.globalScope.AddArgCommand(&metaArgs[i])
-	}
+	fromEval := b.initFromArgEval(stages, metaArgs)
 
 	// Build stage info and graph
 	stageCount := len(stages)
@@ -88,6 +86,9 @@ func (b *Builder) Build() *Model {
 		// Process base image
 		info.BaseImage = b.processBaseImage(stage, i, graph)
 
+		// FROM ARG analysis (UndefinedArgInFrom, InvalidDefaultArgInFrom).
+		b.applyFromArgAnalysis(info, stage, fromEval)
+
 		// Apply shell directives that appear before this stage's FROM instruction
 		b.applyShellDirectives(stage, info)
 
@@ -106,6 +107,172 @@ func (b *Builder) Build() *Model {
 		buildArgs:    b.buildArgs,
 		file:         b.file,
 		issues:       b.issues,
+	}
+}
+
+type fromArgEval struct {
+	shlex        *dfshell.Lex
+	defaultsEnv  *fromEnv
+	effectiveEnv *fromEnv
+	defaultsOK   bool
+	effectiveOK  bool
+	knownKeys    []string
+	knownSet     map[string]struct{}
+}
+
+func (b *Builder) initFromArgEval(stages []instructions.Stage, metaArgs []instructions.ArgCommand) fromArgEval {
+	// BuildKit-style word expander for ARG evaluation in FROM/meta scope.
+	escapeToken := rune('\\')
+	if b.parseResult != nil && b.parseResult.AST != nil {
+		escapeToken = b.parseResult.AST.EscapeToken
+	}
+	shlex := dfshell.NewLex(escapeToken)
+
+	// Automatic platform ARGs are available in FROM without explicit declaration.
+	// Match BuildKit behavior by seeding the global scope and FROM evaluation env.
+	autoArgs := defaultFromArgs(targetStageName(stages), b.buildArgs)
+	b.addAutoArgsToGlobalScope(autoArgs)
+
+	// Build environments for FROM evaluation.
+	// - defaultsEnv: automatic args + meta ARG defaults only (no --build-arg overrides)
+	// - effectiveEnv: automatic args + meta ARG defaults + --build-arg overrides
+	defaultsEnv := newFromEnv(autoArgs)
+	effectiveEnv := newFromEnv(autoArgs)
+
+	defaultsOK, effectiveOK := b.processMetaArgsForFrom(metaArgs, shlex, defaultsEnv, effectiveEnv)
+	knownKeys, knownSet := scopeArgKeys(b.globalScope)
+
+	return fromArgEval{
+		shlex:        shlex,
+		defaultsEnv:  defaultsEnv,
+		effectiveEnv: effectiveEnv,
+		defaultsOK:   defaultsOK,
+		effectiveOK:  effectiveOK,
+		knownKeys:    knownKeys,
+		knownSet:     knownSet,
+	}
+}
+
+func targetStageName(stages []instructions.Stage) string {
+	targetStage := "default"
+	if len(stages) > 0 && stages[len(stages)-1].Name != "" {
+		targetStage = stages[len(stages)-1].Name
+	}
+	return targetStage
+}
+
+func (b *Builder) addAutoArgsToGlobalScope(autoArgs map[string]string) {
+	// Add automatic args to the global scope in deterministic order.
+	autoKeys := make([]string, 0, len(autoArgs))
+	for k := range autoArgs {
+		autoKeys = append(autoKeys, k)
+	}
+	sort.Strings(autoKeys)
+	for _, k := range autoKeys {
+		v := autoArgs[k]
+		b.globalScope.AddArg(k, &v, nil)
+	}
+}
+
+func (b *Builder) processMetaArgsForFrom(
+	metaArgs []instructions.ArgCommand,
+	shlex *dfshell.Lex,
+	defaultsEnv, effectiveEnv *fromEnv,
+) (bool, bool) {
+	defaultsOK := true
+	effectiveOK := true
+
+	// Process global ARGs (before first FROM) with proper default expansion.
+	for i := range metaArgs {
+		cmd := &metaArgs[i]
+		for _, kv := range cmd.Args {
+			effectiveVal, ok := effectiveArgValue(kv.Key, kv.Value, b.buildArgs, shlex, effectiveEnv)
+			if !ok {
+				effectiveOK = false
+			}
+
+			defaultVal, ok := defaultArgValue(kv.Value, shlex, defaultsEnv)
+			if !ok {
+				defaultsOK = false
+			}
+
+			// Record in global semantic scope using the effective value.
+			// If this ARG has no value, VariableScope preserves any previously-set
+			// value, matching Docker/BuildKit semantics.
+			b.globalScope.AddArg(kv.Key, effectiveVal, cmd.Location())
+
+			// Update FROM evaluation envs only when a value is set.
+			if effectiveVal != nil {
+				effectiveEnv.Set(kv.Key, *effectiveVal)
+			}
+			if defaultVal != nil {
+				defaultsEnv.Set(kv.Key, *defaultVal)
+			}
+		}
+	}
+
+	return defaultsOK, effectiveOK
+}
+
+func effectiveArgValue(key string, value *string, buildArgs map[string]string, shlex *dfshell.Lex, env *fromEnv) (*string, bool) {
+	// Compute effective value (build-arg override > default expansion).
+	if buildArgs != nil {
+		if v, ok := buildArgs[key]; ok {
+			vv := v
+			return &vv, true
+		}
+	}
+
+	if value == nil {
+		return nil, true
+	}
+
+	res, err := shlex.ProcessWordWithMatches(*value, env)
+	if err != nil {
+		return nil, false
+	}
+	vv := res.Result
+	return &vv, true
+}
+
+func defaultArgValue(value *string, shlex *dfshell.Lex, env *fromEnv) (*string, bool) {
+	// Compute defaults-only value (default expansion only).
+	if value == nil {
+		return nil, true
+	}
+	res, err := shlex.ProcessWordWithMatches(*value, env)
+	if err != nil {
+		return nil, false
+	}
+	vv := res.Result
+	return &vv, true
+}
+
+func (b *Builder) applyFromArgAnalysis(info *StageInfo, stage *instructions.Stage, eval fromArgEval) {
+	if eval.effectiveOK {
+		info.FromArgs.UndefinedBaseName = undefinedFromArgs(
+			stage.BaseName,
+			eval.shlex,
+			eval.effectiveEnv,
+			eval.knownSet,
+			eval.knownKeys,
+		)
+		if stage.Platform != "" {
+			info.FromArgs.UndefinedPlatform = undefinedFromArgs(
+				stage.Platform,
+				eval.shlex,
+				eval.effectiveEnv,
+				eval.knownSet,
+				eval.knownKeys,
+			)
+		}
+	}
+
+	if eval.defaultsOK {
+		invalid, err := invalidDefaultBaseName(stage.BaseName, eval.shlex, eval.defaultsEnv)
+		if err == nil {
+			info.FromArgs.InvalidDefaultBaseName = invalid
+		}
 	}
 }
 

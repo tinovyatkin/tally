@@ -63,14 +63,23 @@ func NewStageScope(parent *VariableScope) *VariableScope {
 
 // AddArg adds an ARG declaration to the scope.
 func (s *VariableScope) AddArg(name string, value *string, location []parser.Range) {
+	// Docker/BuildKit semantics: redeclaring ARG without a default does not
+	// clear a previously set default/build-arg value. It only (re)declares
+	// the name and updates its location.
+	if existing, exists := s.args[name]; exists {
+		existing.Location = location
+		if value != nil {
+			existing.Value = value
+		}
+		return
+	}
+
 	entry := &ArgEntry{
 		Name:     name,
 		Value:    value,
 		Location: location,
 	}
-	if _, exists := s.args[name]; !exists {
-		s.argOrder = append(s.argOrder, name)
-	}
+	s.argOrder = append(s.argOrder, name)
 	s.args[name] = entry
 }
 

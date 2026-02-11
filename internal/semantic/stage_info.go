@@ -69,6 +69,10 @@ type StageInfo struct {
 	// BaseImage contains information about the FROM image reference.
 	BaseImage *BaseImageRef
 
+	// FromArgs contains semantic analysis results for the stage's FROM instruction
+	// (ARG usage in base name and platform, and default validity checks).
+	FromArgs FromArgsInfo
+
 	// Variables contains the variable scope for this stage.
 	Variables *VariableScope
 
