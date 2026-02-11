@@ -22,45 +22,6 @@
           "sourceCode": "FROM alpine:3.21 AS Scratch"
         },
         {
-          "detail": "Stage names should be lowercase",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/",
-          "location": {
-            "end": {
-              "column": 0,
-              "line": 1
-            },
-            "file": "testdata/reserved-stage-name-casing/Dockerfile",
-            "start": {
-              "column": 0,
-              "line": 1
-            }
-          },
-          "message": "Stage name 'Scratch' should be lowercase",
-          "rule": "buildkit/StageNameCasing",
-          "severity": "warning",
-          "sourceCode": "FROM alpine:3.21 AS Scratch",
-          "suggestedFix": {
-            "description": "Rename stage 'Scratch' to 'scratch'",
-            "edits": [
-              {
-                "location": {
-                  "end": {
-                    "column": 27,
-                    "line": 1
-                  },
-                  "file": "testdata/reserved-stage-name-casing/Dockerfile",
-                  "start": {
-                    "column": 20,
-                    "line": 1
-                  }
-                },
-                "newText": "scratch"
-              }
-            ],
-            "isPreferred": true
-          }
-        },
-        {
           "docUrl": "https://docs.docker.com/go/dockerfile/rule/reserved-stage-name/",
           "location": {
             "end": {
@@ -77,45 +38,6 @@
           "rule": "buildkit/ReservedStageName",
           "severity": "error",
           "sourceCode": "FROM alpine:3.21 AS Context"
-        },
-        {
-          "detail": "Stage names should be lowercase",
-          "docUrl": "https://docs.docker.com/go/dockerfile/rule/stage-name-casing/",
-          "location": {
-            "end": {
-              "column": 0,
-              "line": 4
-            },
-            "file": "testdata/reserved-stage-name-casing/Dockerfile",
-            "start": {
-              "column": 0,
-              "line": 4
-            }
-          },
-          "message": "Stage name 'Context' should be lowercase",
-          "rule": "buildkit/StageNameCasing",
-          "severity": "warning",
-          "sourceCode": "FROM alpine:3.21 AS Context",
-          "suggestedFix": {
-            "description": "Rename stage 'Context' to 'context'",
-            "edits": [
-              {
-                "location": {
-                  "end": {
-                    "column": 27,
-                    "line": 4
-                  },
-                  "file": "testdata/reserved-stage-name-casing/Dockerfile",
-                  "start": {
-                    "column": 20,
-                    "line": 4
-                  }
-                },
-                "newText": "context"
-              }
-            ],
-            "isPreferred": true
-          }
         },
         {
           "detail": "Stage names should be lowercase",
@@ -166,7 +88,7 @@
     "files": 1,
     "info": 0,
     "style": 0,
-    "total": 5,
-    "warnings": 3
+    "total": 3,
+    "warnings": 1
   }
 }
