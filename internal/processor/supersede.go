@@ -35,6 +35,9 @@ func (p *Supersession) Process(violations []rules.Violation, _ *Context) []rules
 	errorLocations := make(map[locKey]struct{})
 	for _, v := range violations {
 		if v.Severity == rules.SeverityError {
+			if v.Location.File == "" || v.Location.Start.Line <= 0 {
+				continue
+			}
 			errorLocations[locKey{
 				file: filepath.ToSlash(v.Location.File),
 				line: v.Location.Start.Line,
@@ -48,6 +51,9 @@ func (p *Supersession) Process(violations []rules.Violation, _ *Context) []rules
 
 	return filterViolations(violations, func(v rules.Violation) bool {
 		if v.Severity == rules.SeverityError {
+			return true
+		}
+		if v.Location.File == "" || v.Location.Start.Line <= 0 {
 			return true
 		}
 		key := locKey{
