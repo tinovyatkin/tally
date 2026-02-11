@@ -79,12 +79,14 @@ func findInBinaryCmd(
 	precedingText, followingText string,
 	match CommandMatcher,
 ) *ChainPosition {
+	op := binOpText(bin.Op)
+
 	// Build the "following" text for the left side: right side + outer following.
 	var leftFollowing string
 	if bin.Y != nil {
 		rightText := stmtText(bin.Y, script)
 		if followingText != "" {
-			leftFollowing = rightText + " && " + followingText
+			leftFollowing = rightText + " " + op + " " + followingText
 		} else {
 			leftFollowing = rightText
 		}
@@ -114,7 +116,7 @@ func findInBinaryCmd(
 	if bin.X != nil {
 		leftText := stmtText(bin.X, script)
 		if precedingText != "" {
-			newPreceding = precedingText + " && " + leftText
+			newPreceding = precedingText + " " + op + " " + leftText
 		} else {
 			newPreceding = leftText
 		}
@@ -158,6 +160,22 @@ func matchesCall(call *syntax.CallExpr, match CommandMatcher) bool {
 		}
 	}
 	return match(baseName, args)
+}
+
+// binOpText returns the source text representation of a binary command operator.
+func binOpText(op syntax.BinCmdOperator) string {
+	switch op {
+	case syntax.AndStmt:
+		return "&&"
+	case syntax.OrStmt:
+		return "||"
+	case syntax.Pipe:
+		return "|"
+	case syntax.PipeAll:
+		return "|&"
+	default:
+		return "&&"
+	}
 }
 
 // stmtText extracts the source text for a statement.

@@ -130,10 +130,55 @@ func TestFindCommandInChain_Pipe(t *testing.T) {
 	}
 
 	// Pipes create BinaryCmd nodes just like &&. The command is found on
-	// the right side of the pipe.
+	// the right side of the pipe. The operator should be preserved.
 	pos := FindCommandInChain("cmd1 | ln -sf /bin/bash /bin/sh", VariantBash, lnMatcher)
 	if pos == nil {
 		t.Fatal("expected to find command in pipe")
+	}
+	if pos.PrecedingCommands != "cmd1" {
+		t.Errorf("PrecedingCommands = %q, want %q", pos.PrecedingCommands, "cmd1")
+	}
+}
+
+func TestFindCommandInChain_OrOperator(t *testing.T) {
+	t.Parallel()
+	lnMatcher := func(name string, args []string) bool {
+		return name == "ln" && slices.Contains(args, "/bin/sh")
+	}
+
+	// || operator should be preserved in context strings.
+	pos := FindCommandInChain("cmd1 || ln -sf /bin/bash /bin/sh || echo done", VariantBash, lnMatcher)
+	if pos == nil {
+		t.Fatal("expected to find command")
+	}
+	if pos.PrecedingCommands != "cmd1" {
+		t.Errorf("PrecedingCommands = %q, want %q", pos.PrecedingCommands, "cmd1")
+	}
+	if pos.RemainingCommands != "echo done" {
+		t.Errorf("RemainingCommands = %q, want %q", pos.RemainingCommands, "echo done")
+	}
+}
+
+func TestFindCommandInChain_MixedOperators(t *testing.T) {
+	t.Parallel()
+	lnMatcher := func(name string, args []string) bool {
+		return name == "ln" && slices.Contains(args, "/bin/sh")
+	}
+
+	// Mixed operators: the context should preserve the original operators.
+	pos := FindCommandInChain(
+		"cmd1 && ln -sf /bin/bash /bin/sh || echo fallback",
+		VariantBash,
+		lnMatcher,
+	)
+	if pos == nil {
+		t.Fatal("expected to find command")
+	}
+	if pos.PrecedingCommands != "cmd1" {
+		t.Errorf("PrecedingCommands = %q, want %q", pos.PrecedingCommands, "cmd1")
+	}
+	if pos.RemainingCommands != "echo fallback" {
+		t.Errorf("RemainingCommands = %q, want %q", pos.RemainingCommands, "echo fallback")
 	}
 }
 
