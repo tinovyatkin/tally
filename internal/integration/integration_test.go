@@ -542,6 +542,14 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 
+		// FROM --platform constant disallowed test (isolated to FromPlatformFlagConstDisallowed rule)
+		{
+			name:     "from-platform-flag-const-disallowed",
+			dir:      "from-platform-flag-const-disallowed",
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/FromPlatformFlagConstDisallowed")...),
+			wantExit: 1,
+		},
+
 		// Consistent indentation tests (isolated to consistent-indentation rule)
 		{
 			name:     "consistent-indentation",
