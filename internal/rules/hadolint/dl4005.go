@@ -121,6 +121,15 @@ func (r *DL4005Rule) generateFix(
 	}
 
 	lastRange := runLoc[len(runLoc)-1]
+	endLine := lastRange.End.Line
+	endCol := lastRange.End.Character
+
+	// BuildKit sometimes returns a zero-width range (start == end).
+	// Compute the actual end column from the instruction text.
+	if endLine == runLoc[0].Start.Line && endCol == runLoc[0].Start.Character {
+		fullInstr := "RUN " + cmdStr
+		endCol = runLoc[0].Start.Character + len(fullInstr)
+	}
 
 	return &rules.SuggestedFix{
 		Description: "Replace ln /bin/sh with SHELL instruction",
@@ -130,8 +139,8 @@ func (r *DL4005Rule) generateFix(
 				file,
 				runLoc[0].Start.Line,
 				runLoc[0].Start.Character,
-				lastRange.End.Line,
-				lastRange.End.Character,
+				endLine,
+				endCol,
 			),
 			NewText: newText,
 		}},

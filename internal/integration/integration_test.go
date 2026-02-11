@@ -684,15 +684,19 @@ func TestFix(t *testing.T) {
 		{
 			// DL4005 fix is FixSuggestion: SHELL affects Docker RUN execution
 			// while ln affects the container filesystem — different semantics.
-			name:        "dl4005-ln-to-shell",
-			input:       "FROM ubuntu:22.04\nRUN ln -sf /bin/bash /bin/sh\n",
-			args:        []string{"--fix", "--fix-unsafe"},
+			name:  "dl4005-ln-to-shell",
+			input: "FROM ubuntu:22.04\nRUN ln -sf /bin/bash /bin/sh\n",
+			args: append(
+				[]string{"--fix", "--fix-unsafe"},
+				selectRules("hadolint/DL4005")...),
 			wantApplied: 1,
 		},
 		{
-			name:        "dl4005-ln-in-chain",
-			input:       "FROM ubuntu:22.04\nRUN apt-get update && ln -sf /bin/bash /bin/sh && echo done\n",
-			args:        []string{"--fix", "--fix-unsafe"},
+			name:  "dl4005-ln-in-chain",
+			input: "FROM ubuntu:22.04\nRUN apt-get update && ln -sf /bin/bash /bin/sh && echo done\n",
+			args: append(
+				[]string{"--fix", "--fix-unsafe"},
+				selectRules("hadolint/DL4005")...),
 			wantApplied: 1,
 		},
 		// NoEmptyContinuation: Remove empty lines in continuations
