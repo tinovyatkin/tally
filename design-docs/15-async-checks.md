@@ -111,7 +111,7 @@ Add a runtime that:
 - applies per-request and global timeouts
 - collects:
   - `[]rules.Violation` results
-  - `[]async.Skipped` (disabled, timeout, auth, resolver error, fail-fast)
+  - `[]async.Skipped` (disabled, fail-fast, auth, not-found, network, timeout, resolver error)
 
 This runtime should be usable later by **async fixes** too (shared budgets and caches), but MVP can be check-only.
 
@@ -199,7 +199,7 @@ MVP: do not fail the run if async checks are skipped.
 Add (in verbose mode, or JSON metadata later):
 
 - number of async requests planned/executed
-- number skipped by reason: disabled / timeout / auth / resolver error / fail-fast
+- number skipped by reason: disabled / fail-fast / auth / not-found / network / timeout / resolver error
 
 This provides observability without making CI brittle.
 
@@ -275,7 +275,30 @@ Introduce a small internal abstraction (conceptual):
 
 ```go
 type ImageResolver interface {
+    // ResolveConfig resolves image config (env + resolved digest/platform) for the requested image ref and platform.
+    //
+    // Error contract (callers must branch via errors.As/errors.Is to decide retry vs permanent failure vs reporting):
+    //   - AuthError: authentication required/failed (401/403, missing creds, expired token). Retryable only after credential refresh.
+    //   - NetworkError: transient network failure. Retryable with backoff until the request/global deadline.
+    //   - TimeoutError (or errors.Is(err, context.DeadlineExceeded)): resolver timed out. Treat like NetworkError (usually fewer retries).
+    //   - NotFoundError: ref/tag/manifest not found. Permanent; do not retry.
+    //   - PlatformMismatchError: image exists but no manifest matches requested platform. Permanent; caller should report
+    //     `buildkit/InvalidBaseImagePlatform` (not as a skipped check).
+    //
+    // Implementations should wrap the underlying error via Unwrap() so logs/debugging retain the root cause.
     ResolveConfig(ctx context.Context, ref string, platform string) (ImageConfig, error)
+}
+
+// Error categories (conceptual). Implementations may use typed errors or a single error type with a Code/Kind field.
+type AuthError struct{ Err error }
+type NetworkError struct{ Err error }  // includes non-timeout transient errors
+type TimeoutError struct{ Err error }  // or expose via net.Error.Timeout()
+type NotFoundError struct{ Ref string; Err error }
+type PlatformMismatchError struct {
+    Ref       string
+    Requested string   // normalized platform
+    Available []string // normalized platforms, if known
+    Err       error
 }
 
 type ImageConfig struct {
@@ -291,6 +314,16 @@ The `platform` input should be normalized (`linux/amd64[/variant]`). In MVP we c
 
 - use stage’s `FROM --platform` if present and resolvable
 - else use host default target platform
+
+Callers of `ResolveConfig` (i.e., the network resolver that services async `CheckRequest`s) must classify these error categories to drive behavior:
+
+- **Credential refresh**: on `AuthError`, reload registry auth/config (or `types.SystemContext`) and retry once; if still failing, mark skipped as
+  `auth`.
+- **Backoff retries**: on `NetworkError`/`TimeoutError`, apply bounded retries with jitter until the request/global deadline; if exhausted, mark
+  skipped as `network` or `timeout` (depending on classification).
+- **Permanent failures**: on `NotFoundError`, do not retry; mark skipped as `not-found`.
+- **Platform mismatch reporting**: on `PlatformMismatchError`, do not retry; emit the `buildkit/InvalidBaseImagePlatform` violation using the error’s
+  requested/available platform details.
 
 ### 7.3 Caching & dedupe
 
