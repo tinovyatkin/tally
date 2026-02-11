@@ -549,6 +549,18 @@ func TestCheck(t *testing.T) {
 			args:     append([]string{"--format", "json"}, selectRules("buildkit/FromPlatformFlagConstDisallowed")...),
 			wantExit: 1,
 		},
+		{
+			name:     "invalid-default-arg-in-from",
+			dir:      "invalid-default-arg-in-from",
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/InvalidDefaultArgInFrom")...),
+			wantExit: 1,
+		},
+		{
+			name:     "undefined-arg-in-from",
+			dir:      "undefined-arg-in-from",
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/UndefinedArgInFrom")...),
+			wantExit: 1,
+		},
 
 		// Consistent indentation tests (isolated to consistent-indentation rule)
 		{
