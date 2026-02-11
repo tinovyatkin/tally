@@ -130,15 +130,19 @@ func (b *Builder) initFromArgEval(stages []instructions.Stage, metaArgs []instru
 	shlex := dfshell.NewLex(escapeToken)
 
 	// Automatic platform ARGs are available in FROM without explicit declaration.
-	// Match BuildKit behavior by seeding the global scope and FROM evaluation env.
-	autoArgs := defaultFromArgs(targetStageName(stages), b.buildArgs)
-	b.addAutoArgsToGlobalScope(autoArgs)
+	// Match BuildKit behavior by seeding:
+	// - defaultsEnv with the automatic args without --build-arg overrides
+	// - effectiveEnv and the semantic global scope with override-aware values
+	targetStage := targetStageName(stages)
+	autoArgsNoOverrides := defaultFromArgs(targetStage, nil)
+	autoArgsWithOverrides := defaultFromArgs(targetStage, b.buildArgs)
+	b.addAutoArgsToGlobalScope(autoArgsWithOverrides)
 
 	// Build environments for FROM evaluation.
 	// - defaultsEnv: automatic args + meta ARG defaults only (no --build-arg overrides)
 	// - effectiveEnv: automatic args + meta ARG defaults + --build-arg overrides
-	defaultsEnv := newFromEnv(autoArgs)
-	effectiveEnv := newFromEnv(autoArgs)
+	defaultsEnv := newFromEnv(autoArgsNoOverrides)
+	effectiveEnv := newFromEnv(autoArgsWithOverrides)
 
 	defaultsOK, effectiveOK := b.processMetaArgsForFrom(metaArgs, shlex, defaultsEnv, effectiveEnv)
 	knownKeys, knownSet := scopeArgKeys(b.globalScope)
