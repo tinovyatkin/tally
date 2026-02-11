@@ -293,6 +293,12 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 		{
+			name:     "dl4005",
+			dir:      "dl4005",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL4005")...),
+			wantExit: 1,
+		},
+		{
 			name:     "dl3014",
 			dir:      "dl3014",
 			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3014")...),
@@ -671,6 +677,21 @@ func TestFix(t *testing.T) {
 			// Requires both --fix and --fix-unsafe since FixSuggestion > FixSafe.
 			name:        "dl3003-cd-to-workdir",
 			input:       "FROM ubuntu:22.04\nRUN cd /app\n",
+			args:        []string{"--fix", "--fix-unsafe"},
+			wantApplied: 1,
+		},
+		// DL4005: ln /bin/sh -> SHELL instruction
+		{
+			// DL4005 fix is FixSuggestion: SHELL affects Docker RUN execution
+			// while ln affects the container filesystem — different semantics.
+			name:        "dl4005-ln-to-shell",
+			input:       "FROM ubuntu:22.04\nRUN ln -sf /bin/bash /bin/sh\n",
+			args:        []string{"--fix", "--fix-unsafe"},
+			wantApplied: 1,
+		},
+		{
+			name:        "dl4005-ln-in-chain",
+			input:       "FROM ubuntu:22.04\nRUN apt-get update && ln -sf /bin/bash /bin/sh && echo done\n",
 			args:        []string{"--fix", "--fix-unsafe"},
 			wantApplied: 1,
 		},
