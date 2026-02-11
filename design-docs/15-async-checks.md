@@ -115,7 +115,7 @@ Use three pools to reflect the user-provided slow operation taxonomy:
 
 - `network`: small concurrency (e.g., 4) + tighter timeout
 - `filesystem`: moderate concurrency (e.g., `GOMAXPROCS`) + longer timeout
-- `console`: very small concurrency (e.g., 1) + explicit opt-in (often interactive/expensive)
+- `console`: single-threaded (concurrency = 1) + explicit opt-in (often interactive/expensive)
 
 Provide:
 
