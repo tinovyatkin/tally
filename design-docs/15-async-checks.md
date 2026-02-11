@@ -39,6 +39,7 @@ These operations are valuable locally, but are often undesirable in CI (latency,
 1. Streaming/partial output while checks are still running (single final report per run).
 2. Persistent on-disk cache (in-memory per run first; disk cache can be a later iteration).
 3. Perfect BuildKit parity across all edge cases (start with limited scope + measurable behavior).
+4. Async checks producing auto-fixes or changing `--fix` behavior (MVP async checks produce violations only).
 
 ## 4. Terminology
 
@@ -64,6 +65,10 @@ MVP pipeline (single file, simplified):
 Fail-fast (default): if fast rules already produce any `SeverityError` violations for a file (after config overrides), skip/cancel async checks for
 that file and report results immediately. This can be disabled to always run slow checks.
 
+Multi-file runs (CLI): when linting multiple Dockerfiles in a single `tally check` invocation, the async runtime should be scoped to the invocation:
+use a **shared in-run cache** across files, apply the slow-checks timeout budget **per invocation**, and apply fail-fast **per file** (errors in file
+A do not suppress async checks for file B).
+
 Key constraint: **planning must not perform I/O**. All I/O happens in step 5 under budget control.
 
 ### 5.2 Async checks API (proposed)
@@ -78,15 +83,15 @@ type AsyncRule interface {
 }
 ```
 
-Note: the async pipeline will **reuse BuildKit-native types** instead of creating parallel ones (ranges, positions, AST nodes, lint outputs).
-Concretely, `PlanAsync` / `CheckRequest` / resolvers / `OnSuccess` should produce and consume types from `github.com/moby/buildkit` where applicable,
-such as:
+Note: the async pipeline will **reuse BuildKit-native types** instead of creating parallel ones (ranges, positions, AST nodes). Concretely,
+`PlanAsync` / `CheckRequest` / resolvers / `OnSuccess` should produce and consume types from `github.com/moby/buildkit` where applicable, such as:
 
 - `parser.Range` / `parser.Position` (`github.com/moby/buildkit/frontend/dockerfile/parser`)
 - `instructions.Stage` / `instructions.Command` (`github.com/moby/buildkit/frontend/dockerfile/instructions`)
 - `lint.Warning` / `lint.LintResults` (`github.com/moby/buildkit/frontend/subrequests/lint`)
 
-`[]rules.Violation` remains the reporting boundary; conversion to it should happen only once (not via duplicated “Range/Stage/Command/etc.” types).
+`[]rules.Violation` remains the reporting boundary. BuildKit lint types (`lint.Warning`/`lint.LintResults`) can be used internally where helpful, but
+we should not force-fit them as the async runtime’s output type (they are tied to BuildKit subrequest plumbing like `pb.SourceInfo` indexing).
 
 `PlanAsync` returns one or more `CheckRequest` objects. Each request declares:
 
@@ -97,7 +102,8 @@ such as:
   convert resolved data into `[]rules.Violation`.
 - **Timeout / cost**: per-request budget hints
 - **ResolverID + data**: routes to a resolver implementation
-- **OnSuccess**: converts resolved BuildKit-native structs (e.g., `lint.Warning`/`lint.LintResults` + `[]parser.Range`) into `[]rules.Violation`
+- **OnSuccess**: converts resolved data into `[]rules.Violation`. To avoid closure-capture surprises and keep requests easy to compare/dedupe/cache,
+  `OnSuccess` should be implemented as a rule-owned method or a small typed handler (not an anonymous closure stored in the request).
 
 MVP keeps this minimal: a request maps to “run resolver → return violations”.
 
@@ -107,7 +113,7 @@ Add a runtime that:
 
 - accepts `[]CheckRequest`
 - deduplicates by `(ResolverID, Key)`
-- executes in concurrency-limited worker pools per category
+- executes in a concurrency-limited worker pool (MVP can use a single pool; `Category` is metadata for future routing)
 - applies per-request and global timeouts
 - collects:
   - `[]rules.Violation` results
@@ -117,7 +123,10 @@ This runtime should be usable later by **async fixes** too (shared budgets and c
 
 ### 5.4 Concurrency model and budgets
 
-Use three pools to reflect the user-provided slow operation taxonomy:
+Requests declare a category (`network|filesystem|console`) for future routing, but MVP can start with a single worker pool and a fixed concurrency
+default (network-backed checks only).
+
+Future: split into three pools to reflect the slow operation taxonomy:
 
 - `network`: small concurrency (e.g., 4) + tighter timeout
 - `filesystem`: moderate concurrency (e.g., `GOMAXPROCS`) + longer timeout
@@ -125,12 +134,12 @@ Use three pools to reflect the user-provided slow operation taxonomy:
 
 Provide:
 
-- Global timeout for all async work per file/run (e.g., 10s/30s/60s): **wall-clock** budget (includes queue wait + execution) by default. Controlled
-  by `slow-checks.timeout-mode = "include-queue" | "execution-only"`. Example: with `slow-checks.timeout=30s` and `slow-checks.network.concurrency=4`,
-  ~12 network requests that each take ~10s can complete (3 waves); additional queued requests are skipped/canceled when the 30s deadline is reached.
-- Per-request timeout override (e.g., registry resolve 5s): uses the same `slow-checks.timeout-mode` semantics. With `include-queue`, the per-request
-  timeout starts when the request is enqueued (so requests that cannot start in time are skipped without running). With `execution-only`, the
-  per-request timeout starts when the worker begins executing the resolver.
+- Global timeout for all async work per invocation/run (e.g., 10s/30s/60s): **wall-clock** budget (includes queue wait + execution). MVP should
+  enforce this with a single `context.WithTimeout` for the async session. Example: with `slow-checks.timeout=30s` and concurrency 4, ~12 requests that
+  each take ~10s can complete (3 waves); additional queued requests are skipped/canceled when the 30s deadline is reached.
+- Per-request timeout override (e.g., registry resolve 5s): implemented as a child context derived from the global session context (bounded by the
+  global deadline). This keeps the timeout model simple while allowing “fast-fail” for individual slow requests.
+- Future: if users need execution-only timeouts, add a `slow-checks.timeout-mode` knob (`include-queue|execution-only`).
 
 ## 6. Configuration & UX
 
@@ -141,42 +150,26 @@ Add a top-level section to `tally.toml`:
 ```toml
 [slow-checks]
 mode = "auto"  # auto|on|off
-fail-fast = true # skip/cancel async checks when fast checks already have SeverityError
-timeout-mode = "include-queue" # include-queue|execution-only (queue wait semantics for timeouts)
+fail-fast = true # per-file: skip/cancel async checks when fast checks already have SeverityError
 timeout = "20s"
-
-[slow-checks.network]
-enabled = true
-concurrency = 4
-timeout = "10s"
-
-[slow-checks.filesystem]
-enabled = true
-concurrency = 8
-timeout = "30s"
-
-[slow-checks.console]
-enabled = false
-concurrency = 1
-timeout = "90s"
 ```
 
 Notes:
 
 - `mode=auto` uses CI detection to decide the default.
-- Category knobs allow us to enable only the necessary subset (e.g., allow filesystem context checks but keep network off).
+- `timeout` is a wall-clock budget (includes queue wait + execution) for the async session (per CLI invocation / per LSP run).
+- MVP can hardcode a small default concurrency (e.g., 4) since only network checks are initially implemented; per-category knobs can be added when
+  filesystem/console checks exist.
+- Future config can add per-category enablement + concurrency + per-request overrides, plus (if needed) `slow-checks.timeout-mode`.
 
 ### 6.2 CLI
 
 Add CLI flags to override config:
 
 - `--slow-checks=auto|on|off`
-- `--slow-checks-fail-fast=on|off`
 - `--slow-checks-timeout=20s`
-- `--slow-checks-network=on|off`
-- (later) `--slow-checks-concurrency-network=4` etc.
 
-MVP can start with only `--slow-checks`, `--slow-checks-fail-fast`, and `--slow-checks-timeout`.
+MVP can start with only `--slow-checks` and `--slow-checks-timeout` (and keep `fail-fast` as a config-only knob initially).
 
 ### 6.3 CI auto-disable
 
@@ -203,6 +196,11 @@ Add (in verbose mode, or JSON metadata later):
 
 This provides observability without making CI brittle.
 
+Default (non-verbose) CLI output should include a single summary line when async checks were planned but not fully executed, e.g.:
+
+- `note: 3 slow checks skipped (CI detected; use --slow-checks=on to enable)`
+- `note: 2 slow checks timed out (docker.io; increase --slow-checks-timeout)`
+
 ### 6.5 LSP / Editor integration (on/off + progress)
 
 The LSP server should keep diagnostics **responsive** while still allowing async checks when appropriate.
@@ -215,8 +213,8 @@ The LSP server already supports **workspace configuration overrides** (via `work
 We should expose the slow-checks knobs to the editor settings UI and pass them as configuration overrides:
 
 - `slow-checks.mode=auto|on|off`
-- per-category toggles (initially: network on/off)
-- timeouts (optionally a shorter “editor default” timeout)
+- `slow-checks.fail-fast=true|false`
+- `slow-checks.timeout=...` (optionally a shorter “editor default” timeout)
 
 This allows:
 
@@ -256,7 +254,7 @@ This gives the user quick feedback plus richer results when the slow work finish
 
 ## 7. Registry Integration (Network Category)
 
-### 7.1 Why `github.com/containers/image/v5`
+### 7.1 Why `go.podman.io/image/v5` (`containers/image`)
 
 We want:
 
@@ -264,10 +262,19 @@ We want:
 - support for **buildah/podman** registry config overrides and auth handling
 - consistent behavior across environments where users already have `registries.conf`, `containers-auth.json`, etc.
 
-`containers/image/v5` provides:
+`containers/image` provides:
 
 - `types.SystemContext` to control config paths and auth
 - transports for `docker://`, `oci:`, etc.
+
+Implementation notes:
+
+- Use the maintained module path `go.podman.io/image/v5` (the legacy `github.com/containers/image/v5` path is deprecated).
+- Keep `tally` pure-Go (no CGO) by building with:
+  - `containers_image_openpgp` (avoid `gpgme`)
+  - `containers_image_storage_stub` (avoid containers-storage transport + heavy deps)
+  - `containers_image_docker_daemon_stub` (avoid docker-daemon transport)
+  and verify `CGO_ENABLED=0` builds in CI.
 
 ### 7.2 Proposed resolver API
 
@@ -302,7 +309,7 @@ type PlatformMismatchError struct {
 }
 
 type ImageConfig struct {
-    Env      map[string]string // from config.Env KEY=VALUE
+    Env      map[string]string // from config.Env KEY=VALUE (MVP normalization; OCI stores env as []string)
     OS       string
     Arch     string
     Variant  string
@@ -322,8 +329,8 @@ The `platform` input should be normalized (`linux/amd64[/variant]`). In MVP we c
   platform flag as absent (fall back to the default target platform) rather than skipping platform validation.
 
 - if stage `FROM --platform` is absent or unresolvable, tally will default to `runtime.GOOS/runtime.GOARCH` of the running `tally` process unless a
-  user-configurable `TARGETPLATFORM` override is set; this aligns with BuildKit’s `TARGETPLATFORM` semantics by treating the configured
-  `TARGETPLATFORM` as the canonical override and falling back to the tool’s host platform
+  user-configurable `TARGETPLATFORM` override is set (optionally sourced from `DOCKER_DEFAULT_PLATFORM`); this aligns with BuildKit’s
+  `TARGETPLATFORM` semantics by treating the configured `TARGETPLATFORM` as the canonical override and falling back to the tool’s host platform
 
 Callers of `ResolveConfig` (i.e., the network resolver that services async `CheckRequest`s) must classify these error categories to drive behavior:
 
@@ -340,6 +347,7 @@ Callers of `ResolveConfig` (i.e., the network resolver that services async `Chec
 In-run cache:
 
 - key by `(ref, platform)` and by resolved digest when available
+  - for digest-pinned refs (`name@sha256:...`), treat the digest as the canonical cache key (still platform-scoped when selecting from an index)
 - store:
   - resolved config env map
   - resolved platform
@@ -351,6 +359,19 @@ the runtime should treat it as transient and perform **one retry that bypasses t
 the success entry; otherwise report the error (skip reason) and refresh the cached error with a new short TTL.
 
 This prevents N stages referencing the same base image from multiplying network calls.
+
+### 7.4 Auth + registry config discovery (MVP)
+
+The registry resolver should rely on `containers/image` discovery via `types.SystemContext` so it behaves like buildah/podman:
+
+- **registries.conf**: respect default system + user locations (and `registries.conf.d/` includes) for mirrors, short-name aliases, and
+  `unqualified-search-registries` (typically `/etc/containers/registries.conf`, `/etc/containers/registries.conf.d/`, and
+  `$HOME/.config/containers/registries.conf`).
+- **Auth**: respect standard auth sources (containers `auth.json` / Docker `config.json` + credential helpers) without prompting. Missing/invalid
+  creds should surface as `AuthError` and be reported as a skipped async check with an actionable message (e.g., “run `docker login`/`podman login` or
+  set `DOCKER_CONFIG`/XDG config paths”).
+- **Overrides (future)**: allow config/CLI overrides for `SystemRegistriesConfPath` / `SystemRegistriesConfDirPath` / auth file paths for
+  non-standard setups.
 
 ## 8. First Async Checks (MVP Scope)
 
@@ -364,6 +385,14 @@ Async enhancement when network checks are enabled:
 2. Seed the stage’s initial env with those values (instead of the approximation).
 3. Run the same semantic undefined-var analysis (order-sensitive) to produce final violations.
 
+Planning notes (`PlanAsync` filtering):
+
+- `FROM scratch`: no registry resolution (skip planning).
+- `FROM <stage>` (stage alias/name): no registry resolution; the semantic model already handles stage-to-stage env inheritance.
+- Multi-stage chains (`FROM A AS builder` then `FROM builder AS final`): resolve only the **root external** image(s) and let the semantic model
+  propagate env through the chain.
+- Digest-pinned refs (`name@sha256:...`) are still resolved (accurate env matters even without tags); cache/dedupe should key by digest.
+
 Behavior when slow checks are disabled / resolution fails:
 
 - fall back to fast approximation mode
@@ -373,17 +402,25 @@ Behavior when slow checks are disabled / resolution fails:
 
 Async-only rule:
 
+MVP scope: validate against a **single** expected platform per stage (no multi-platform matrix like `linux/amd64,linux/arm64` yet).
+
 1. Determine expected platform for each stage:
    - from `FROM --platform=...` after ARG expansion (using Dockerfile ARG defaults + explicit build-arg values supplied to the linter + automatic
      `TARGETPLATFORM`). If expansion leaves unresolved ARGs, emit a distinct warning/issue about the unresolved ARG(s) and fall back to the default
      target platform for this check (do not silently skip validation).
    - if absent/unresolvable: default to `runtime.GOOS/runtime.GOARCH` of the running `tally` process unless a user-configurable `TARGETPLATFORM`
-     override is set (treat the configured `TARGETPLATFORM` as canonical, host platform as fallback)
+     override is set (optionally sourced from `DOCKER_DEFAULT_PLATFORM`; treat the configured `TARGETPLATFORM` as canonical, host platform as
+     fallback)
 2. Resolve base image platform from registry:
    - for a manifest list, select the matching platform entry
    - for a single manifest, read config.OS/Arch/Variant
 3. Compare resolved base image platform to expected platform.
 4. Emit BuildKit-compatible message/doc URL.
+
+Planning notes (`PlanAsync` filtering):
+
+- `FROM scratch` and `FROM <stage>` (stage alias/name) do not require registry resolution (skip planning).
+- For digest-pinned refs, still resolve config/manifest to validate platform (cache key should use digest).
 
 Behavior when slow checks are disabled / resolution fails:
 
@@ -405,9 +442,15 @@ Tests should:
 - avoid real credentials
 - assert stable behavior across platforms
 
+Test helpers should make it easy to:
+
+1. push a test image/index with specific `Env` + platform(s) to `mockregistry`
+2. run `tally` against a fixture Dockerfile with slow-checks enabled
+3. assert expected violations and/or skip reasons with minimal boilerplate
+
 ### 9.2 Production vs tests implementation mismatch
 
-Production uses `containers/image/v5`.
+Production uses `go.podman.io/image/v5` (`containers/image`).
 
 Tests will still use a real HTTP registry (mockregistry), so we test the full HTTP integration path, even if the image construction uses
 go-containerregistry helpers.
@@ -421,17 +464,20 @@ If we find incompatibilities, define an internal `ImageResolver` interface and:
 ## 10. Rollout Plan (Feasible MVP)
 
 1. **Config + CLI plumbing**:
-   - add `slow-checks.mode` and `--slow-checks`
+   - add `[slow-checks]` (`mode`, `fail-fast`, `timeout`)
+   - add `--slow-checks` and `--slow-checks-timeout`
    - CI detection via `ciinfo`
 2. **Async runtime skeleton**:
-   - request planning + per-category worker pools
-   - in-run dedupe + timeouts
-3. **Registry resolver (containers/image)**:
+   - request planning + in-run dedupe
+   - single concurrency-limited worker pool (network only in MVP; category reserved for future routing)
+   - global wall-clock timeout for the async session + per-request child deadlines
+3. **Registry resolver (`go.podman.io/image/v5`)**:
    - resolve image config env + platform for `docker://` refs
-   - respect buildah/podman config overrides via `SystemContext`
+   - respect buildah/podman config overrides via `types.SystemContext`
+   - enforce pure-Go build (stub/openpgp build tags; `CGO_ENABLED=0`)
 4. **Rules**:
-   - upgrade `buildkit/UndefinedVar` to optionally use resolved base image env
-   - implement `buildkit/InvalidBaseImagePlatform` behind network slow-checks
+   - implement async-only `buildkit/InvalidBaseImagePlatform`
+   - upgrade `buildkit/UndefinedVar` to optionally use resolved base image env (semantic propagation stays in the semantic model)
 5. **Tests**:
    - mockregistry-based deterministic tests
    - integration test fixture(s) for both rules with slow-checks on/off
@@ -445,6 +491,11 @@ If we find incompatibilities, define an internal `ImageResolver` interface and:
   - remote HTTP checksum verification
   - OCI referrers/attestations (ties into `tally/prefer-vex-attestation`)
   - persistent cache to disk (optional)
+  - explicit rate limiting / 429 backoff (if users hit Docker Hub limits)
+  - multi-platform target matrices (validate multiple `TARGETPLATFORM`s)
 - Console async checks:
   - unify “async checks” runtime with “async fix” resolvers (AI ACP)
   - explicit interactive opt-in (`--slow-checks-console=on`)
+- Expand configuration surface when needed:
+  - per-category enablement + concurrency + timeouts
+  - `slow-checks.timeout-mode` (`include-queue|execution-only`) if execution-only semantics are requested
