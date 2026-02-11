@@ -1,0 +1,10 @@
+{
+ "Category": "correctness",
+ "Code": "buildkit/UndefinedArgInFrom",
+ "DefaultSeverity": "warning",
+ "Description": "FROM command must use declared ARGs",
+ "DocURL": "https://docs.docker.com/go/dockerfile/rule/undefined-arg-in-from/",
+ "FixPriority": 0,
+ "IsExperimental": false,
+ "Name": "UndefinedArgInFrom"
+}

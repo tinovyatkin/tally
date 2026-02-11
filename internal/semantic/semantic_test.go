@@ -263,11 +263,11 @@ RUN echo "ok"
 func TestVariableResolutionBasic(t *testing.T) {
 	t.Parallel()
 	content := `ARG VERSION=1.0
-FROM alpine:3.18
-ARG VERSION
-ARG OTHER=default
-RUN echo $VERSION $OTHER
-`
+	FROM alpine:3.18
+	ARG VERSION
+	ARG OTHER=other_default
+	RUN echo $VERSION $OTHER
+	`
 	pr := parseDockerfile(t, content)
 	model := NewModel(pr, nil, "Dockerfile")
 
@@ -286,8 +286,8 @@ RUN echo $VERSION $OTHER
 	if !found {
 		t.Error("OTHER should be found")
 	}
-	if val != "default" {
-		t.Errorf("expected OTHER='default', got %q", val)
+	if val != "other_default" {
+		t.Errorf("expected OTHER='other_default', got %q", val)
 	}
 }
 
