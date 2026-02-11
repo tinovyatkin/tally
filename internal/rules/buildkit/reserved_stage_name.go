@@ -1,0 +1,54 @@
+package buildkit
+
+import (
+	"fmt"
+
+	"github.com/tinovyatkin/tally/internal/rules"
+)
+
+// reservedStageNames matches BuildKit's set exactly (case-sensitive).
+// BuildKit source: dockerfile2llb/convert.go
+var reservedStageNames = map[string]struct{}{
+	"context": {},
+	"scratch": {},
+}
+
+// ReservedStageNameRule implements BuildKit's ReservedStageName check.
+//
+// BuildKit normally runs this during LLB conversion. tally reimplements it as a
+// static rule based on the parsed stage list.
+type ReservedStageNameRule struct{}
+
+func NewReservedStageNameRule() *ReservedStageNameRule {
+	return &ReservedStageNameRule{}
+}
+
+func (r *ReservedStageNameRule) Metadata() rules.RuleMetadata {
+	const name = "ReservedStageName"
+	return *GetMetadata(name)
+}
+
+func (r *ReservedStageNameRule) Check(input rules.LintInput) []rules.Violation {
+	var out []rules.Violation
+
+	for _, stage := range input.Stages {
+		if stage.Name == "" {
+			continue
+		}
+		if _, ok := reservedStageNames[stage.Name]; ok {
+			loc := rules.NewLocationFromRanges(input.File, stage.Location)
+			out = append(out, rules.NewViolation(
+				loc,
+				r.Metadata().Code,
+				fmt.Sprintf("Stage name should not use the same name as reserved stage %q", stage.Name),
+				r.Metadata().DefaultSeverity,
+			).WithDocURL(r.Metadata().DocURL))
+		}
+	}
+
+	return out
+}
+
+func init() {
+	rules.Register(NewReservedStageNameRule())
+}

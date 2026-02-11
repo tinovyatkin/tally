@@ -190,6 +190,14 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 
+		// Reserved stage name test (isolated to ReservedStageName rule)
+		{
+			name:     "reserved-stage-name",
+			dir:      "reserved-stage-name",
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/ReservedStageName")...),
+			wantExit: 1,
+		},
+
 		// Semantic model construction-time violations
 		// Note: These violations come from semantic analysis, not the rule registry.
 		// We don't filter rules here because semantic violations would be filtered out.
