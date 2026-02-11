@@ -91,7 +91,10 @@ such as:
 `PlanAsync` returns one or more `CheckRequest` objects. Each request declares:
 
 - **Category**: `network | filesystem | console`
-- **Key**: stable cache key (dedupe within the run)
+- **Key**: fully-specific, collision-free cache key (safe dedupe within the run). Key must encode **all inputs that affect resolution** so
+  deduping by `(ResolverID, Key)` is correct; at minimum include `ref`, normalized platform (OS/arch/variant), and any resolver-specific options
+  (auth/config paths, transport, flags). Key must be unique per distinct resolution context to prevent cross-request reuse when `OnSuccess`/resolvers
+  convert resolved data into `[]rules.Violation`.
 - **Timeout / cost**: per-request budget hints
 - **ResolverID + data**: routes to a resolver implementation
 - **OnSuccess**: converts resolved BuildKit-native structs (e.g., `lint.Warning`/`lint.LintResults` + `[]parser.Range`) into `[]rules.Violation`
