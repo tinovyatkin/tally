@@ -1,0 +1,10 @@
+{
+ "Category": "best-practice",
+ "Code": "buildkit/FromPlatformFlagConstDisallowed",
+ "DefaultSeverity": "warning",
+ "Description": "FROM --platform flag should not use a constant value",
+ "DocURL": "https://docs.docker.com/go/dockerfile/rule/from-platform-flag-const-disallowed/",
+ "FixPriority": 0,
+ "IsExperimental": false,
+ "Name": "FromPlatformFlagConstDisallowed"
+}
