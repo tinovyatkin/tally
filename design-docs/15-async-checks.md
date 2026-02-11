@@ -312,7 +312,15 @@ type ImageConfig struct {
 
 The `platform` input should be normalized (`linux/amd64[/variant]`). In MVP we can:
 
-- use stage’s `FROM --platform` (after ARG expansion) if present and resolvable
+- use stage’s `FROM --platform` (after ARG expansion) if present and resolvable. ARG expansion must use:
+  - defaults declared in the Dockerfile (`ARG foo=...`)
+  - any explicit build-arg values supplied to the linter
+  - automatic BuildKit platform args such as `TARGETPLATFORM`
+  It must not attempt to fetch external data or resolve runtime-only values beyond those inputs.
+
+  If an ARG in `FROM --platform=...` remains unresolvable, tally should emit a distinct warning/issue about the unresolved ARG(s) and then treat the
+  platform flag as absent (fall back to the default target platform) rather than skipping platform validation.
+
 - if stage `FROM --platform` is absent or unresolvable, tally will default to `runtime.GOOS/runtime.GOARCH` of the running `tally` process unless a
   user-configurable `TARGETPLATFORM` override is set; this aligns with BuildKit’s `TARGETPLATFORM` semantics by treating the configured
   `TARGETPLATFORM` as the canonical override and falling back to the tool’s host platform
@@ -366,7 +374,9 @@ Behavior when slow checks are disabled / resolution fails:
 Async-only rule:
 
 1. Determine expected platform for each stage:
-   - from `FROM --platform=...` after ARG expansion, or
+   - from `FROM --platform=...` after ARG expansion (using Dockerfile ARG defaults + explicit build-arg values supplied to the linter + automatic
+     `TARGETPLATFORM`). If expansion leaves unresolved ARGs, emit a distinct warning/issue about the unresolved ARG(s) and fall back to the default
+     target platform for this check (do not silently skip validation).
    - if absent/unresolvable: default to `runtime.GOOS/runtime.GOARCH` of the running `tally` process unless a user-configurable `TARGETPLATFORM`
      override is set (treat the configured `TARGETPLATFORM` as canonical, host platform as fallback)
 2. Resolve base image platform from registry:
