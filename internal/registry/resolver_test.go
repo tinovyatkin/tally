@@ -148,7 +148,7 @@ func TestAsyncImageResolver_AuthError_SucceedsOnRetry(t *testing.T) {
 	}
 }
 
-func TestAsyncImageResolver_PlatformMismatch_NoRetry_ReturnsError(t *testing.T) {
+func TestAsyncImageResolver_PlatformMismatch_NoRetry_ReturnsConfig(t *testing.T) {
 	t.Parallel()
 	callCount := 0
 	inner := &mockImageResolver{
@@ -163,20 +163,16 @@ func TestAsyncImageResolver_PlatformMismatch_NoRetry_ReturnsError(t *testing.T) 
 	}
 	r := NewAsyncImageResolver(inner)
 
-	// PlatformMismatchError should be returned as-is (not a skip).
+	// PlatformMismatchError returns the partial config as success (no error)
+	// so the runtime fans it out to handlers for violation detection.
 	result, err := r.Resolve(context.Background(), &ResolveRequest{Ref: "image:latest", Platform: "linux/amd64"})
-	if err == nil {
-		t.Fatal("expected error for platform mismatch")
-	}
-
-	var platErr *PlatformMismatchError
-	if !errors.As(err, &platErr) {
-		t.Errorf("expected PlatformMismatchError, got %T: %v", err, err)
+	if err != nil {
+		t.Fatalf("expected nil error for platform mismatch (handler detects it), got: %v", err)
 	}
 	if callCount != 1 {
 		t.Errorf("expected 1 call (no retry), got %d", callCount)
 	}
-	// Result should still contain partial config.
+	// Result should contain the partial config with actual platform.
 	cfg, ok := result.(*ImageConfig)
 	if !ok {
 		t.Fatalf("expected *ImageConfig, got %T", result)

@@ -10,11 +10,13 @@ import (
 	"testing"
 
 	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/tinovyatkin/tally/internal/registry/testutil"
 )
 
 var (
-	binaryPath  string
-	coverageDir string
+	binaryPath   string
+	coverageDir  string
+	registryConf string // path to registries.conf redirecting docker.io to mock
 )
 
 func TestMain(m *testing.M) {
@@ -58,8 +60,39 @@ func TestMain(m *testing.M) {
 		panic("failed to build binary: " + string(out))
 	}
 
+	// Start mock registry and populate with test images for slow-checks tests.
+	mockRegistry := testutil.New()
+
+	// python:3.12 as single-platform linux/arm64 only — used for platform mismatch tests.
+	// When a Dockerfile requests --platform=linux/amd64, the resolver will detect
+	// the mismatch and the handler will emit a violation.
+	if _, err := mockRegistry.AddImage(testutil.ImageOpts{
+		Repo: "library/python",
+		Tag:  "3.12",
+		OS:   "linux",
+		Arch: "arm64",
+		Env: map[string]string{
+			"PATH":           "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+			"PYTHON_VERSION": "3.12.0",
+			"LANG":           "C.UTF-8",
+		},
+	}); err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to add python:3.12 image: " + err.Error())
+	}
+
+	// Write registries.conf redirecting docker.io to the mock server.
+	registryConf, err = mockRegistry.WriteRegistriesConf(tmpDir, "docker.io")
+	if err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to create registries.conf: " + err.Error())
+	}
+
 	code := m.Run()
 
+	mockRegistry.Close()
 	_ = os.RemoveAll(tmpDir)
 	os.Exit(code)
 }
@@ -588,6 +621,46 @@ func TestCheck(t *testing.T) {
 			dir:      "undefined-var",
 			args:     append([]string{"--format", "json", "--slow-checks=off"}, selectRules("buildkit/UndefinedVar")...),
 			wantExit: 1,
+		},
+
+		// Slow checks (async) tests — use mock registry via CONTAINERS_REGISTRIES_CONF
+		{
+			name: "slow-checks-platform-mismatch",
+			dir:  "slow-checks-platform-mismatch",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			env:      []string{"CONTAINERS_REGISTRIES_CONF=" + registryConf},
+			wantExit: 1,
+		},
+		{
+			name: "slow-checks-undefined-var-enhanced",
+			dir:  "slow-checks-undefined-var-enhanced",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/UndefinedVar")...),
+			env: []string{"CONTAINERS_REGISTRIES_CONF=" + registryConf},
+		},
+		{
+			name: "slow-checks-off",
+			dir:  "slow-checks-off",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=off"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			env: []string{"CONTAINERS_REGISTRIES_CONF=" + registryConf},
+		},
+		{
+			name: "slow-checks-disabled-ci",
+			dir:  "slow-checks-disabled-ci",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=auto"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			env: []string{
+				"CONTAINERS_REGISTRIES_CONF=" + registryConf,
+				"CI=true",
+			},
+			snapExt: ".txt",
+			snapRaw: true, // Output mixes JSON (stdout) and notes (stderr).
 		},
 
 		// Consistent indentation tests (isolated to consistent-indentation rule)
@@ -1169,8 +1242,8 @@ severity = "style"
 				t.Fatalf("failed to write config: %v", err)
 			}
 
-			// Run tally check --fix
-			args := append([]string{"check", "--config", configPath}, tc.args...)
+			// Run tally check --fix (disable slow checks — fix tests don't need async)
+			args := append([]string{"check", "--config", configPath, "--slow-checks=off"}, tc.args...)
 			args = append(args, dockerfilePath)
 			cmd := exec.Command(binaryPath, args...)
 			cmd.Env = append(os.Environ(),
@@ -1228,8 +1301,8 @@ func TestFixRealWorld(t *testing.T) {
 		t.Fatalf("failed to write config: %v", err)
 	}
 
-	// Run tally check --fix --fix-unsafe (all rules enabled)
-	args := []string{"check", "--config", configPath, "--fix", "--fix-unsafe", dockerfilePath}
+	// Run tally check --fix --fix-unsafe (all rules enabled, slow checks off)
+	args := []string{"check", "--config", configPath, "--slow-checks=off", "--fix", "--fix-unsafe", dockerfilePath}
 	cmd := exec.Command(binaryPath, args...)
 	cmd.Env = append(os.Environ(),
 		"GOCOVERDIR="+coverageDir,
@@ -1295,7 +1368,7 @@ severity = "style"
 
 	// Run with all three rules: consistent-indentation (50), prefer-copy-heredoc (99), prefer-run-heredoc (100)
 	args := []string{
-		"check", "--config", configPath,
+		"check", "--config", configPath, "--slow-checks=off",
 		"--fix", "--fix-unsafe",
 		"--ignore", "*",
 		"--select", "tally/consistent-indentation",
@@ -1361,7 +1434,7 @@ func TestFixConsistentIndentation(t *testing.T) {
 	}
 
 	args := []string{
-		"check", "--config", configPath,
+		"check", "--config", configPath, "--slow-checks=off",
 		"--fix",
 		"--select", "tally/consistent-indentation",
 		dockerfilePath,
@@ -1416,7 +1489,7 @@ func TestFixPreferAddUnpackBeatsHeredoc(t *testing.T) {
 	}
 
 	args := []string{
-		"check", "--config", configPath,
+		"check", "--config", configPath, "--slow-checks=off",
 		"--fix-unsafe", "--fix",
 		"--select", "tally/prefer-add-unpack",
 		"--select", "tally/prefer-run-heredoc",

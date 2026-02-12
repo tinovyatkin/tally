@@ -38,11 +38,12 @@ func (r *AsyncImageResolver) Resolve(ctx context.Context, data any) (any, error)
 
 	cfg, err := r.resolveWithRetry(ctx, req.Ref, req.Platform)
 	if err != nil {
-		// PlatformMismatchError returns both the partial config and the error,
-		// so the rule handler can produce a violation.
+		// PlatformMismatchError is NOT a skip — the handler compares platforms
+		// and emits a violation. Return the partial config as a successful result
+		// so the runtime fans it out to handlers (which do the comparison).
 		var platErr *PlatformMismatchError
 		if errors.As(err, &platErr) {
-			return &cfg, err
+			return &cfg, nil
 		}
 		return nil, err
 	}
