@@ -658,48 +658,13 @@ func buildPerFileFixModes(fileConfigs map[string]*config.Config) map[string]map[
 
 // runAsyncChecks executes async check plans if slow checks are enabled.
 // Returns nil if slow checks are disabled or no plans exist.
+// Respects per-file slow-checks configuration from res.fileConfigs.
 func runAsyncChecks(ctx stdcontext.Context, res *lintResults) *async.RunResult {
-	if res.firstCfg == nil || len(res.asyncPlans) == 0 {
+	if len(res.asyncPlans) == 0 {
 		return nil
 	}
 
-	slowCfg := res.firstCfg.SlowChecks
-	enabled := config.SlowChecksEnabled(slowCfg.Mode)
-
-	if !enabled {
-		// Print summary note only in "auto" mode (CI-detected skip).
-		// When explicitly "off", the user chose to disable — no note needed.
-		if slowCfg.Mode == "auto" {
-			n := len(res.asyncPlans)
-			ciName := config.CIName()
-			if ciName != "" {
-				fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (%s detected; use --slow-checks=on to enable)\n", n, ciName)
-			} else {
-				fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (use --slow-checks=on to enable)\n", n)
-			}
-		}
-		return nil
-	}
-
-	// Parse timeout.
-	timeout, err := time.ParseDuration(slowCfg.Timeout)
-	if err != nil {
-		timeout = 20 * time.Second
-	}
-
-	// Per-file fail-fast: if fast rules produced SeverityError, drop async requests for that file.
-	var plans []async.CheckRequest
-	if slowCfg.FailFast {
-		errorFiles := filesWithErrors(res.violations)
-		for _, req := range res.asyncPlans {
-			if !errorFiles[req.File] {
-				plans = append(plans, req)
-			}
-		}
-	} else {
-		plans = res.asyncPlans
-	}
-
+	plans, maxTimeout := filterAsyncPlans(res)
 	if len(plans) == 0 {
 		return nil
 	}
@@ -714,38 +679,94 @@ func runAsyncChecks(ctx stdcontext.Context, res *lintResults) *async.RunResult {
 
 	rt := &async.Runtime{
 		Concurrency: 4,
-		Timeout:     timeout,
+		Timeout:     maxTimeout,
 		Resolvers: map[string]async.Resolver{
 			asyncImgResolver.ID(): asyncImgResolver,
 		},
 	}
 
 	result := rt.Run(ctx, plans)
+	reportSkipped(result)
+	return result
+}
 
-	// Report skipped checks grouped by reason.
-	if len(result.Skipped) > 0 {
-		counts := make(map[async.SkipReason]int)
-		for _, s := range result.Skipped {
-			counts[s.Reason]++
+// filterAsyncPlans applies per-file slow-checks policy to async plans.
+// Returns the filtered plans and the maximum timeout across all enabled files.
+func filterAsyncPlans(res *lintResults) ([]async.CheckRequest, time.Duration) {
+	errorFiles := filesWithErrors(res.violations)
+	maxTimeout := 20 * time.Second
+	var plans []async.CheckRequest
+	var skippedAuto int
+
+	for _, req := range res.asyncPlans {
+		cfg := res.fileConfigs[req.File]
+		if cfg == nil {
+			cfg = res.firstCfg
 		}
-		if n := counts[async.SkipTimeout]; n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %d slow check(s) timed out (increase --slow-checks-timeout)\n", n)
+		if cfg == nil {
+			continue
 		}
-		if n := counts[async.SkipNetwork]; n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (registry unreachable or rate-limited)\n", n)
+
+		slowCfg := cfg.SlowChecks
+		if !config.SlowChecksEnabled(slowCfg.Mode) {
+			if slowCfg.Mode == "auto" {
+				skippedAuto++
+			}
+			continue
 		}
-		if n := counts[async.SkipAuth]; n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (authentication failed)\n", n)
+
+		// Per-file fail-fast: skip if fast rules produced SeverityError.
+		if slowCfg.FailFast && errorFiles[req.File] {
+			continue
 		}
-		if n := counts[async.SkipNotFound]; n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (image not found)\n", n)
+
+		// Apply per-file timeout to the request.
+		if d, err := time.ParseDuration(slowCfg.Timeout); err == nil && d > 0 {
+			req.Timeout = d
+			if d > maxTimeout {
+				maxTimeout = d
+			}
 		}
-		if n := counts[async.SkipResolverErr]; n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped due to errors\n", n)
+
+		plans = append(plans, req)
+	}
+
+	if skippedAuto > 0 {
+		ciName := config.CIName()
+		if ciName != "" {
+			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (%s detected; use --slow-checks=on to enable)\n", skippedAuto, ciName)
+		} else {
+			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (use --slow-checks=on to enable)\n", skippedAuto)
 		}
 	}
 
-	return result
+	return plans, maxTimeout
+}
+
+// reportSkipped prints summary notes for skipped async checks.
+func reportSkipped(result *async.RunResult) {
+	if len(result.Skipped) == 0 {
+		return
+	}
+	counts := make(map[async.SkipReason]int)
+	for _, s := range result.Skipped {
+		counts[s.Reason]++
+	}
+	if n := counts[async.SkipTimeout]; n > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d slow check(s) timed out (increase --slow-checks-timeout)\n", n)
+	}
+	if n := counts[async.SkipNetwork]; n > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (registry unreachable or rate-limited)\n", n)
+	}
+	if n := counts[async.SkipAuth]; n > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (authentication failed)\n", n)
+	}
+	if n := counts[async.SkipNotFound]; n > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (image not found)\n", n)
+	}
+	if n := counts[async.SkipResolverErr]; n > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped due to errors\n", n)
+	}
 }
 
 // filesWithErrors returns a set of files that have SeverityError violations.
