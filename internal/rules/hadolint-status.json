@@ -149,6 +149,11 @@
       "status": "implemented",
       "tally_rule": "hadolint/DL4005",
       "fixable": true
+    },
+    "DL4006": {
+      "status": "implemented",
+      "tally_rule": "hadolint/DL4006",
+      "fixable": true
     }
   }
 }

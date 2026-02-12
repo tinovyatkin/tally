@@ -36,8 +36,9 @@ const (
 //   - powershell, pwsh, cmd -> VariantNonPOSIX (disables shell linting)
 //   - unknown -> VariantBash (safe default)
 func VariantFromShell(shell string) Variant {
-	// Normalize: extract basename and lowercase
+	// Normalize: extract basename, lowercase, strip .exe suffix (for Windows shells)
 	shell = strings.ToLower(path.Base(shell))
+	shell = strings.TrimSuffix(shell, ".exe")
 
 	switch shell {
 	case "bash":
@@ -49,7 +50,7 @@ func VariantFromShell(shell string) Variant {
 	case "zsh":
 		// zsh is mostly bash-compatible for our purposes
 		return VariantBash
-	case "powershell", "pwsh", "cmd", "cmd.exe":
+	case "powershell", "pwsh", "cmd":
 		// Non-POSIX shells - disable shell-specific linting
 		return VariantNonPOSIX
 	default:

@@ -434,6 +434,12 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 		{
+			name:     "dl4006",
+			dir:      "dl4006",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL4006")...),
+			wantExit: 1,
+		},
+		{
 			name:     "dl3014",
 			dir:      "dl3014",
 			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3014")...),
@@ -988,6 +994,15 @@ func TestFix(t *testing.T) {
 			args: append(
 				[]string{"--fix", "--fix-unsafe"},
 				selectRules("hadolint/DL4005")...),
+			wantApplied: 1,
+		},
+		// DL4006: Add SHELL with -o pipefail before RUN with pipe
+		{
+			name:  "dl4006-add-pipefail",
+			input: "FROM ubuntu:22.04\nRUN wget -O - https://some.site | wc -l > /number\n",
+			args: append(
+				[]string{"--fix", "--fix-unsafe"},
+				selectRules("hadolint/DL4006")...),
 			wantApplied: 1,
 		},
 		// NoEmptyContinuation: Remove empty lines in continuations
