@@ -17,7 +17,7 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 |-----------|-------------|---------------------|-------|
 | tally | 8 | - | 8 |
 | buildkit | 17 + 5 captured | - | 22 |
-| hadolint | 22 | 11 | 66 |
+| hadolint | 23 | 11 | 66 |
 <!-- END RULES_SUMMARY -->
 
 ---
@@ -160,7 +160,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL3043](https://github.com/hadolint/hadolint/wiki/DL3043) | `ONBUILD`, `FROM` or `MAINTAINER` triggered from within `ONBUILD` instruction. | Error | ✅ `hadolint/DL3043` |
 | [DL3044](https://github.com/hadolint/hadolint/wiki/DL3044) | Do not refer to an environment variable within the same `ENV` statement where it is defined. | Error | 🔄 `buildkit/UndefinedVar` |
 | [DL3045](https://github.com/hadolint/hadolint/wiki/DL3045) | `COPY` to a relative destination without `WORKDIR` set. | Warning | 🔄 `buildkit/WorkdirRelativePath` |
-| [DL3046](https://github.com/hadolint/hadolint/wiki/DL3046) |  `useradd` without flag `-l` and high UID will result in excessively large Image. | Warning | ⏳ |
+| [DL3046](https://github.com/hadolint/hadolint/wiki/DL3046) |  `useradd` without flag `-l` and high UID will result in excessively large Image. | Warning | ✅🔧 `hadolint/DL3046` |
 | [DL3047](https://github.com/hadolint/hadolint/wiki/DL3047) | `wget` without flag `--progress` will result in excessively bloated build logs when downloading larger files. | Info | ✅🔧 `hadolint/DL3047` |
 | [DL3048](https://github.com/hadolint/hadolint/wiki/DL3048) | Invalid Label Key | Style | ⏳ |
 | [DL3049](https://github.com/hadolint/hadolint/wiki/DL3049) | Label `<label>` is missing. | Info | ⏳ |
