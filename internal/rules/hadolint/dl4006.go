@@ -43,9 +43,12 @@ var pipefailValidShells = map[string]bool{
 }
 
 // dl4006StageState tracks the pipefail state within a single stage.
+// The shell variant is tracked per-instruction so that a later SHELL ["pwsh"]
+// doesn't retroactively affect detection of earlier POSIX-shell RUN pipes.
 type dl4006StageState struct {
-	pipefailSet bool
-	isNonPOSIX  bool
+	pipefailSet  bool
+	isNonPOSIX   bool
+	shellVariant shell.Variant
 }
 
 // Check runs the DL4006 rule.
@@ -74,7 +77,7 @@ func (r *DL4006Rule) Check(input rules.LintInput) []rules.Violation {
 			case *instructions.ShellCommand:
 				state.updateFromShell(c.Shell)
 			case *instructions.RunCommand:
-				if v := r.checkRun(c, &state, sem, stageIdx, input, meta); v != nil {
+				if v := r.checkRun(c, &state, stageIdx, input, meta); v != nil {
 					violations = append(violations, *v)
 				}
 			}
@@ -85,12 +88,18 @@ func (r *DL4006Rule) Check(input rules.LintInput) []rules.Violation {
 }
 
 // initStageState creates the initial pipefail state for a stage.
+// The shell variant starts at the Docker default (/bin/sh → VariantPOSIX)
+// and is updated per-instruction as SHELL commands are encountered.
+// Only directive-based variants are applied at init time.
 func (r *DL4006Rule) initStageState(sem *semantic.Model, stageIdx int) dl4006StageState {
-	state := dl4006StageState{}
+	state := dl4006StageState{
+		shellVariant: shell.VariantPOSIX, // Docker default: /bin/sh -c
+	}
 	if sem != nil {
 		if info := sem.StageInfo(stageIdx); info != nil {
 			if info.ShellSetting.Source == semantic.ShellSourceDirective {
 				state.isNonPOSIX = info.ShellSetting.Variant.IsNonPOSIX()
+				state.shellVariant = info.ShellSetting.Variant
 			}
 		}
 	}
@@ -99,6 +108,7 @@ func (r *DL4006Rule) initStageState(sem *semantic.Model, stageIdx int) dl4006Sta
 
 // updateFromShell updates the pipefail tracking state from a SHELL instruction.
 func (s *dl4006StageState) updateFromShell(shellCmd []string) {
+	s.shellVariant = shell.VariantFromShellCmd(shellCmd)
 	if isNonPOSIXShellCmd(shellCmd) {
 		s.isNonPOSIX = true
 		s.pipefailSet = false
@@ -112,7 +122,6 @@ func (s *dl4006StageState) updateFromShell(shellCmd []string) {
 func (r *DL4006Rule) checkRun(
 	run *instructions.RunCommand,
 	state *dl4006StageState,
-	sem *semantic.Model,
 	stageIdx int,
 	input rules.LintInput,
 	meta rules.RuleMetadata,
@@ -122,9 +131,8 @@ func (r *DL4006Rule) checkRun(
 	}
 
 	cmdStr := dockerfile.RunCommandString(run)
-	shellVariant := shellVariantForStage(sem, stageIdx)
 
-	if !shell.HasPipes(cmdStr, shellVariant) {
+	if !shell.HasPipes(cmdStr, state.shellVariant) {
 		return nil
 	}
 
@@ -140,21 +148,11 @@ func (r *DL4006Rule) checkRun(
 			`Use SHELL ["/bin/bash", "-o", "pipefail", "-c"] before the RUN instruction.`,
 	)
 
-	if fix := r.generateFix(input, run, stageIdx, shellVariant); fix != nil {
+	if fix := r.generateFix(input, run, stageIdx, state.shellVariant); fix != nil {
 		v = v.WithSuggestedFix(fix)
 	}
 
 	return &v
-}
-
-// shellVariantForStage returns the shell variant for the given stage.
-func shellVariantForStage(sem *semantic.Model, stageIdx int) shell.Variant {
-	if sem != nil {
-		if info := sem.StageInfo(stageIdx); info != nil {
-			return info.ShellSetting.Variant
-		}
-	}
-	return shell.VariantPOSIX
 }
 
 // isNonPOSIXShellCmd checks if a SHELL instruction sets a non-POSIX shell.

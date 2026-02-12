@@ -229,6 +229,16 @@ RUN wget -O - \
 `,
 			wantCount: 1,
 		},
+		{
+			name: "piped RUN before later SHELL pwsh still triggers",
+			dockerfile: `FROM scratch
+RUN wget -O - https://some.site | wc -l > /number
+SHELL ["pwsh", "-c"]
+RUN Get-Variable PSVersionTable | Select-Object -ExpandProperty Value
+`,
+			wantCount: 1,
+			wantCode:  rules.HadolintRulePrefix + "DL4006",
+		},
 	}
 
 	for _, tt := range tests {
