@@ -1,14 +1,14 @@
+---
 version: 2
 project_name: tally
-
 before:
   hooks:
     - go mod tidy
-
 builds:
   - id: tally
     env:
       - CGO_ENABLED=0
+      - GOEXPERIMENT=jsonv2
     goos:
       - linux
       - darwin
@@ -20,11 +20,14 @@ builds:
     ignore:
       - goos: freebsd
         goarch: arm64
+    tags:
+      - containers_image_openpgp
+      - containers_image_storage_stub
+      - containers_image_docker_daemon_stub
     flags:
       - -trimpath
     ldflags:
       - -s -w -X github.com/tinovyatkin/tally/internal/version.version={{.Version}} -X github.com/tinovyatkin/tally/internal/version.commit={{.Commit}}
-
 archives:
   - id: tally
     format_overrides:
@@ -34,20 +37,12 @@ archives:
       - LICENSE
       - NOTICE
     name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- if eq .Os "darwin" }}MacOS
-      {{- else }}{{ title .Os }}{{ end }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else }}{{ .Arch }}{{ end }}
-
+      {{ .ProjectName }}_ {{- .Version }}_ {{- if eq .Os "darwin" }}MacOS {{- else }}{{ title .Os }}{{ end }}_ {{- if eq .Arch "amd64" }}x86_64 {{- else }}{{ .Arch }}{{ end }}
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
   algorithm: sha256
-
 snapshot:
   version_template: "{{ .Tag }}"
-
 changelog:
   sort: asc
   filters:
