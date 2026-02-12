@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/tinovyatkin/tally/internal/async"
 	"github.com/tinovyatkin/tally/internal/registry"
@@ -101,16 +103,29 @@ func (h *platformCheckHandler) OnSuccess(resolved any) []any {
 }
 
 func (h *platformCheckHandler) checkPlatform(cfg *registry.ImageConfig) []any {
-	expectedOS, expectedArch, expectedVariant := semantic.ParsePlatform(h.expected)
 	actualPlatform := cfg.OS + "/" + cfg.Arch
 	if cfg.Variant != "" {
 		actualPlatform += "/" + cfg.Variant
 	}
 
-	if !strings.EqualFold(cfg.OS, expectedOS) || !strings.EqualFold(cfg.Arch, expectedArch) {
-		return h.emitViolation(actualPlatform)
+	// Use containerd's normalization to handle default variants correctly.
+	// For example, arm64 normalizes to arm64/v8, so "linux/arm64" matches
+	// "linux/arm64/v8". But amd64 has no default variant, so "linux/amd64"
+	// does NOT match "linux/amd64/v3" (different microarchitecture level).
+	expected, err := platforms.Parse(h.expected)
+	if err != nil {
+		return nil
 	}
-	if expectedVariant != "" && !strings.EqualFold(cfg.Variant, expectedVariant) {
+	expected = platforms.Normalize(expected)
+	actual := platforms.Normalize(ocispec.Platform{
+		OS:           cfg.OS,
+		Architecture: cfg.Arch,
+		Variant:      cfg.Variant,
+	})
+
+	if expected.OS != actual.OS ||
+		expected.Architecture != actual.Architecture ||
+		expected.Variant != actual.Variant {
 		return h.emitViolation(actualPlatform)
 	}
 

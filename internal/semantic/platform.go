@@ -2,7 +2,6 @@ package semantic
 
 import (
 	"os"
-	"strings"
 
 	"github.com/containerd/platforms"
 	dfshell "github.com/moby/buildkit/frontend/dockerfile/shell"
@@ -89,20 +88,4 @@ func defaultPlatform() string {
 		p += "/" + spec.Variant
 	}
 	return p
-}
-
-// ParsePlatform splits a platform string into OS, Arch, Variant.
-func ParsePlatform(platform string) (string, string, string) {
-	parts := strings.SplitN(platform, "/", 3)
-	var pOS, arch, variant string
-	if len(parts) >= 1 {
-		pOS = parts[0]
-	}
-	if len(parts) >= 2 {
-		arch = parts[1]
-	}
-	if len(parts) >= 3 {
-		variant = parts[2]
-	}
-	return pOS, arch, variant
 }

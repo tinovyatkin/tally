@@ -168,6 +168,50 @@ func TestPlatformCheckHandler_OnSuccess_VariantMismatch(t *testing.T) {
 	}
 }
 
+func TestPlatformCheckHandler_OnSuccess_VariantMismatch_Amd64(t *testing.T) {
+	t.Parallel()
+	meta := NewInvalidBaseImagePlatformRule().Metadata()
+	h := &platformCheckHandler{
+		meta:     meta,
+		file:     "Dockerfile",
+		ref:      "myimage:latest",
+		expected: "linux/amd64",
+	}
+
+	// linux/amd64 (no variant) vs linux/amd64/v3 — different microarchitecture level.
+	violations := h.OnSuccess(&registry.ImageConfig{
+		OS:      "linux",
+		Arch:    "amd64",
+		Variant: "v3",
+	})
+
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation for amd64 variant mismatch, got %d", len(violations))
+	}
+}
+
+func TestPlatformCheckHandler_OnSuccess_Arm64DefaultVariant(t *testing.T) {
+	t.Parallel()
+	meta := NewInvalidBaseImagePlatformRule().Metadata()
+	h := &platformCheckHandler{
+		meta:     meta,
+		file:     "Dockerfile",
+		ref:      "alpine:3.19",
+		expected: "linux/arm64",
+	}
+
+	// linux/arm64 normalizes to linux/arm64/v8 — should match linux/arm64/v8.
+	violations := h.OnSuccess(&registry.ImageConfig{
+		OS:      "linux",
+		Arch:    "arm64",
+		Variant: "v8",
+	})
+
+	if len(violations) != 0 {
+		t.Errorf("expected 0 violations (arm64 default variant v8 matches), got %d", len(violations))
+	}
+}
+
 func TestPlatformCheckHandler_OnSuccess_NilConfig(t *testing.T) {
 	t.Parallel()
 	meta := NewInvalidBaseImagePlatformRule().Metadata()
