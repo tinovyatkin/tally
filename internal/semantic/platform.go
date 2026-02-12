@@ -31,10 +31,6 @@ func ExpectedPlatform(info *StageInfo, model *Model) (string, []string) {
 		if len(unresolvedArgs) > 0 {
 			return defaultPlatform(), unresolvedArgs
 		}
-		// If resolved is non-empty even with some unresolved, use it.
-		if resolved != "" {
-			return resolved, unresolvedArgs
-		}
 	}
 
 	return defaultPlatform(), nil
