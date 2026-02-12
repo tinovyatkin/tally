@@ -16,6 +16,7 @@ import (
 	"go.podman.io/image/v5/pkg/cli/environment"
 	"go.podman.io/image/v5/types"
 
+	godigest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -175,12 +176,16 @@ func (r *ContainersResolver) resolveFromManifest(
 		return ImageConfig{}, classifyContainersError(ref, err)
 	}
 
+	// Use the manifest digest (not the config blob digest) for consistency
+	// with the multi-arch path where chosen.String() is the manifest digest.
+	manifestDigest := godigest.FromBytes(rawManifest)
+
 	imgCfg := ImageConfig{
 		Env:     parseEnvList(ociConfig.Config.Env),
 		OS:      ociConfig.OS,
 		Arch:    ociConfig.Architecture,
 		Variant: ociConfig.Variant,
-		Digest:  configDigest.String(),
+		Digest:  manifestDigest.String(),
 	}
 
 	// Platform mismatch check for single-manifest images.
