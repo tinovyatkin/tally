@@ -119,6 +119,10 @@ COPY $bar .
 			}
 
 			for i, want := range tc.wantMessages {
+				if i >= len(violations) {
+					t.Errorf("violation[%d]: expected message %q, but no violation at this index", i, want)
+					continue
+				}
 				if violations[i].Message != want {
 					t.Errorf("violation[%d]: expected message %q, got %q", i, want, violations[i].Message)
 				}
