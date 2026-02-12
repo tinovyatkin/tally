@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/tinovyatkin/tally/internal/async"
 	"github.com/tinovyatkin/tally/internal/config"
 	"github.com/tinovyatkin/tally/internal/directive"
 	"github.com/tinovyatkin/tally/internal/dockerfile"
@@ -61,6 +62,10 @@ type Input struct {
 type Result struct {
 	// Violations are raw violations before processor filtering.
 	Violations []rules.Violation
+
+	// AsyncPlan contains planned async check requests from AsyncRule implementations.
+	// The caller is responsible for executing these (if slow checks are enabled).
+	AsyncPlan []async.CheckRequest
 
 	// ParseResult is the parsed Dockerfile (AST, stages, source, BuildKit warnings).
 	ParseResult *dockerfile.ParseResult
@@ -148,8 +153,31 @@ func LintFile(input Input) (*Result, error) {
 	// Enrich BuildKit violations with auto-fix suggestions.
 	fixes.EnrichBuildKitFixes(violations, sem, content)
 
+	// Plan async checks from AsyncRule implementations.
+	// Only plan for rules that are enabled (respects --select/--ignore/config).
+	var asyncPlan []async.CheckRequest
+	for _, rule := range rules.All() {
+		ar, ok := rule.(rules.AsyncRule)
+		if !ok {
+			continue
+		}
+		code := rule.Metadata().Code
+		// Skip rules disabled by Include/Exclude patterns.
+		if enabled := cfg.Rules.IsEnabled(code); enabled != nil && !*enabled {
+			continue
+		}
+		// Skip rules with severity "off".
+		if sev := cfg.Rules.GetSeverity(code); sev == "off" {
+			continue
+		}
+		ruleInput := baseInput
+		ruleInput.Config = cfg.Rules.GetOptions(code)
+		asyncPlan = append(asyncPlan, ar.PlanAsync(ruleInput)...)
+	}
+
 	return &Result{
 		Violations:  violations,
+		AsyncPlan:   asyncPlan,
 		ParseResult: parseResult,
 		Config:      cfg,
 	}, nil

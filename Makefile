@@ -3,8 +3,11 @@
 GOEXPERIMENT ?= jsonv2
 export GOEXPERIMENT
 
+# Build tags for containers/image pure-Go build (no CGO, no gpgme, no storage transport)
+BUILDTAGS := containers_image_openpgp,containers_image_storage_stub,containers_image_docker_daemon_stub
+
 build:
-	GOSUMDB=sum.golang.org CGO_ENABLED=0 go build -ldflags "-s -w" -o tally
+	GOSUMDB=sum.golang.org CGO_ENABLED=0 go build -tags '$(BUILDTAGS)' -ldflags "-s -w" -o tally
 
 GOTESTSUM_VERSION := v1.13.0
 GOLANGCI_LINT_VERSION := v2.9.0
@@ -12,10 +15,10 @@ GORELEASER_VERSION := v2.13.3
 DEADCODE_VERSION := v0.41.0
 
 test: bin/gotestsum-$(GOTESTSUM_VERSION)
-	bin/gotestsum-$(GOTESTSUM_VERSION) --format testname -- -race -count=1 -timeout=30s ./...
+	bin/gotestsum-$(GOTESTSUM_VERSION) --format testname -- -tags '$(BUILDTAGS)' -race -count=1 -timeout=30s ./...
 
 test-verbose: bin/gotestsum-$(GOTESTSUM_VERSION)
-	bin/gotestsum-$(GOTESTSUM_VERSION) --format standard-verbose -- -race -count=1 -timeout=30s ./...
+	bin/gotestsum-$(GOTESTSUM_VERSION) --format standard-verbose -- -tags '$(BUILDTAGS)' -race -count=1 -timeout=30s ./...
 
 lint: bin/golangci-lint-$(GOLANGCI_LINT_VERSION) bin/custom-gcl
 	bin/custom-gcl run
@@ -85,7 +88,7 @@ print-gotestsum-bin:
 	@echo bin/gotestsum-$(GOTESTSUM_VERSION)
 
 jsonschema:
-	go run gen/jsonschema.go > schema.json
+	go run -tags '$(BUILDTAGS)' gen/jsonschema.go > schema.json
 
 lsp-protocol:
 	bun run tools/lspgen/fetchModel.mts

@@ -9,6 +9,7 @@ package semantic
 
 import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	dfshell "github.com/moby/buildkit/frontend/dockerfile/shell"
 
 	"github.com/tinovyatkin/tally/internal/dockerfile"
 )
@@ -139,4 +140,89 @@ func (m *Model) ExternalImageStages() func(yield func(*StageInfo) bool) {
 			}
 		}
 	}
+}
+
+// StageUndefinedVars groups undefined variable results by stage index.
+type StageUndefinedVars struct {
+	StageIdx int
+	Undefs   []UndefinedVarRef
+}
+
+// RecheckUndefinedVars re-runs the undefined-var analysis for the specified stage
+// and all stages that transitively inherit from it (via FROM <stage>).
+// It uses the provided base image environment instead of the static approximation.
+// This is used by the async pipeline when base image env has been resolved from
+// the registry.
+func (m *Model) RecheckUndefinedVars(stageIdx int, resolvedEnv map[string]string) []StageUndefinedVars {
+	if stageIdx < 0 || stageIdx >= len(m.stageInfo) || stageIdx >= len(m.stages) {
+		return nil
+	}
+
+	var results []StageUndefinedVars
+	m.recheckStageChain(stageIdx, resolvedEnv, &results)
+	return results
+}
+
+// recheckStageChain rechecks a single stage and recursively processes stages
+// that inherit from it, propagating the effective env through the chain.
+func (m *Model) recheckStageChain(stageIdx int, baseEnv map[string]string, results *[]StageUndefinedVars) {
+	undefs, effectiveEnv := m.recheckSingleStage(stageIdx, baseEnv)
+	*results = append(*results, StageUndefinedVars{StageIdx: stageIdx, Undefs: undefs})
+
+	// Find stages that inherit from this one and recheck them too.
+	for i, info := range m.stageInfo {
+		if info != nil && info.BaseImage != nil && info.BaseImage.IsStageRef && info.BaseImage.StageIndex == stageIdx {
+			m.recheckStageChain(i, effectiveEnv, results)
+		}
+	}
+}
+
+// recheckSingleStage re-runs the undefined-var analysis for a single stage
+// and returns both the undefined vars and the effective env at stage end.
+func (m *Model) recheckSingleStage(stageIdx int, baseEnv map[string]string) ([]UndefinedVarRef, map[string]string) {
+	stage := &m.stages[stageIdx]
+
+	// Seed environment with provided base env.
+	env := newFromEnv(baseEnv)
+
+	escapeToken := rune('\\')
+	shlex := dfshell.NewLex(escapeToken)
+
+	declaredArgs := make(map[string]struct{})
+
+	var undefs []UndefinedVarRef
+	for _, cmd := range stage.Commands {
+		switch c := cmd.(type) {
+		case *instructions.ArgCommand:
+			undefs = append(undefs,
+				applyArgCommandToEnv(c, shlex, env, declaredArgs, m.buildArgs, m.globalScope())...)
+		default:
+			undefs = append(undefs, undefinedVarsInCommand(cmd, shlex, env, declaredArgs)...)
+		}
+
+		// Apply env mutations (ENV instructions change the scope for subsequent commands).
+		if ec, ok := cmd.(*instructions.EnvCommand); ok {
+			applyEnvCommandToEnv(ec, shlex, env)
+		}
+	}
+
+	return undefs, env.vars
+}
+
+// globalScope returns the builder's global scope, reconstructed from metaArgs.
+func (m *Model) globalScope() *VariableScope {
+	scope := NewGlobalScope()
+	for _, ma := range m.metaArgs {
+		for _, kv := range ma.Args {
+			val := kv.Value
+			if m.buildArgs != nil {
+				if ov, ok := m.buildArgs[kv.Key]; ok {
+					v := ov
+					val = &v
+				}
+			}
+			scope.AddArg(kv.Key, val, ma.Location())
+		}
+	}
+	return scope
 }

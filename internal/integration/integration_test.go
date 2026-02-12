@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"os/exec"
@@ -8,13 +9,16 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/tinovyatkin/tally/internal/registry/testutil"
 )
 
 var (
-	binaryPath  string
-	coverageDir string
+	binaryPath   string
+	coverageDir  string
+	mockRegistry *testutil.MockRegistry
 )
 
 func TestMain(m *testing.M) {
@@ -47,7 +51,9 @@ func TestMain(m *testing.M) {
 		}
 		buildArgs = append(buildArgs, "-cover")
 	}
-	buildArgs = append(buildArgs, "-o", binaryPath, "github.com/tinovyatkin/tally")
+	buildArgs = append(buildArgs,
+		"-tags", "containers_image_openpgp,containers_image_storage_stub,containers_image_docker_daemon_stub",
+		"-o", binaryPath, "github.com/tinovyatkin/tally")
 
 	cmd := exec.Command("go", buildArgs...)
 	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
@@ -56,10 +62,90 @@ func TestMain(m *testing.M) {
 		panic("failed to build binary: " + string(out))
 	}
 
+	setupMockRegistry(tmpDir)
+
 	code := m.Run()
 
+	mockRegistry.Close()
 	_ = os.RemoveAll(tmpDir)
 	os.Exit(code)
+}
+
+// setupMockRegistry starts the mock OCI registry, populates it with test
+// images, writes registries.conf, and sets environment variables.
+func setupMockRegistry(tmpDir string) {
+	mockRegistry = testutil.New()
+
+	// python:3.12 as single-platform linux/arm64 only — used for platform mismatch tests.
+	if _, err := mockRegistry.AddImage(testutil.ImageOpts{
+		Repo: "library/python",
+		Tag:  "3.12",
+		OS:   "linux",
+		Arch: "arm64",
+		Env: map[string]string{
+			"PATH":           "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+			"PYTHON_VERSION": "3.12.0",
+			"LANG":           "C.UTF-8",
+		},
+	}); err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to add python:3.12 image: " + err.Error())
+	}
+
+	// multiarch:latest — a multi-arch manifest index with linux/amd64 and linux/arm64.
+	// Used to test the collectAvailablePlatforms path when a requested platform
+	// (e.g., linux/s390x) is not in the index.
+	if _, err := mockRegistry.AddIndex("library/multiarch", "latest", []testutil.ImageOpts{
+		{Repo: "library/multiarch", Tag: "latest", OS: "linux", Arch: "amd64",
+			Env: map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"}},
+		{Repo: "library/multiarch", Tag: "latest", OS: "linux", Arch: "arm64",
+			Env: map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"}},
+	}); err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to add multiarch:latest index: " + err.Error())
+	}
+
+	// Delayed images — each has a 30-second artificial delay.
+	// Separate repos prevent parallel tests from interfering with each other's
+	// request assertions (e.g. fail-fast asserting "no requests for this repo").
+	for _, repo := range []string{"library/slowfailfast", "library/slowtimeout"} {
+		if _, err := mockRegistry.AddImage(testutil.ImageOpts{
+			Repo: repo,
+			Tag:  "latest",
+			OS:   "linux",
+			Arch: "arm64",
+			Env:  map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"},
+		}); err != nil {
+			mockRegistry.Close()
+			_ = os.RemoveAll(tmpDir)
+			panic("failed to add " + repo + ":latest: " + err.Error())
+		}
+		mockRegistry.SetDelay(repo, 30*time.Second)
+	}
+
+	// Write registries.conf redirecting docker.io to the mock server.
+	confPath, err := mockRegistry.WriteRegistriesConf(tmpDir, "docker.io")
+	if err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to create registries.conf: " + err.Error())
+	}
+	if err := os.Setenv("CONTAINERS_REGISTRIES_CONF", confPath); err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to set CONTAINERS_REGISTRIES_CONF: " + err.Error())
+	}
+	// Set default platform to match the mock registry's image platform (linux/arm64).
+	if err := os.Setenv("DOCKER_DEFAULT_PLATFORM", "linux/arm64"); err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to set DOCKER_DEFAULT_PLATFORM: " + err.Error())
+	}
+
+	// Clear setup requests (image pushes) so only test-time requests are tracked.
+	mockRegistry.ResetRequests()
 }
 
 // selectRules returns args to disable all rules except the specified ones.
@@ -89,9 +175,10 @@ func TestCheck(t *testing.T) {
 		snapRaw    bool   // If true, use MatchStandaloneSnapshot (plain text) instead of MatchStandaloneJSON
 		isDir      bool   // If true, pass the directory instead of Dockerfile
 		useContext bool   // If true, add --context flag for context-aware tests
+		afterCheck func(t *testing.T, stderr string)
 	}{
 		// Total rules enabled test - validates rule count (no --ignore/--select)
-		{name: "total-rules-enabled", dir: "total-rules-enabled", args: []string{"--format", "json"}},
+		{name: "total-rules-enabled", dir: "total-rules-enabled", args: []string{"--format", "json", "--slow-checks=off"}},
 
 		// Basic tests (isolated to max-lines rule)
 		{name: "simple", dir: "simple", args: append([]string{"--format", "json"}, selectRules("tally/max-lines")...)},
@@ -140,11 +227,16 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 
-		// BuildKit linter warnings tests (isolated to buildkit rules)
+		// BuildKit linter warnings tests (isolated to the rules this fixture triggers)
 		{
-			name:     "buildkit-warnings",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "json"}, selectRules("buildkit/*")...),
+			name: "buildkit-warnings",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "json"}, selectRules(
+				"buildkit/InvalidDefinitionDescription",
+				"buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated",
+				"buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 		},
 		{
@@ -222,43 +314,40 @@ func TestCheck(t *testing.T) {
 		},
 
 		// Semantic model construction-time violations
-		// Note: These violations come from semantic analysis, not the rule registry.
-		// We don't filter rules here because semantic violations would be filtered out.
-		// These 6 tests use full rule count and will need updating when new rules are added.
 		{
 			name:     "duplicate-stage-name",
 			dir:      "duplicate-stage-name",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/DuplicateStageName", "tally/no-unreachable-stages")...),
 			wantExit: 1,
 		},
 		{
 			name:     "multiple-healthcheck",
 			dir:      "multiple-healthcheck",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/MultipleInstructionsDisallowed")...),
 			wantExit: 1,
 		},
 		{
 			name:     "copy-from-own-alias",
 			dir:      "copy-from-own-alias",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3022", "hadolint/DL3023")...),
 			wantExit: 1,
 		},
 		{
 			name:     "onbuild-forbidden",
 			dir:      "onbuild-forbidden",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3043")...),
 			wantExit: 1,
 		},
 		{
 			name:     "invalid-instruction-order",
 			dir:      "invalid-instruction-order",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3061")...),
 			wantExit: 1,
 		},
 		{
 			name:     "no-from-instruction",
 			dir:      "no-from-instruction",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3061")...),
 			wantExit: 1,
 		},
 
@@ -393,46 +482,64 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 
-		// Output format tests (isolated to buildkit rules)
+		// Output format tests (same fixture as buildkit-warnings)
 		{
-			name:     "format-sarif",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "sarif"}, selectRules("buildkit/*")...),
+			name: "format-sarif",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "sarif"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 			snapExt:  ".sarif",
 		},
 		{
-			name:     "format-github-actions",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "github-actions"}, selectRules("buildkit/*")...),
+			name: "format-github-actions",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "github-actions"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 			snapExt:  ".txt",
 			snapRaw:  true,
 		},
 		{
-			name:     "format-markdown",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "markdown"}, selectRules("buildkit/*")...),
+			name: "format-markdown",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "markdown"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 			snapExt:  ".md",
 			snapRaw:  true,
 		},
 
-		// Fail-level tests (isolated to buildkit rules)
+		// Fail-level tests (same fixture as buildkit-warnings)
 		{
 			name: "fail-level-none",
 			dir:  "buildkit-warnings",
-			args: append([]string{"--format", "json", "--fail-level", "none"}, selectRules("buildkit/*")...),
+			args: append([]string{"--format", "json", "--fail-level", "none"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 		},
 		{
 			name: "fail-level-error",
 			dir:  "buildkit-warnings",
-			args: append([]string{"--format", "json", "--fail-level", "error"}, selectRules("buildkit/*")...),
+			args: append([]string{"--format", "json", "--fail-level", "error"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 		},
 		{
-			name:     "fail-level-warning",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "json", "--fail-level", "warning"}, selectRules("buildkit/*")...),
+			name: "fail-level-warning",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "json", "--fail-level", "warning"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 		},
 
@@ -564,8 +671,99 @@ func TestCheck(t *testing.T) {
 		{
 			name:     "undefined-var",
 			dir:      "undefined-var",
-			args:     append([]string{"--format", "json"}, selectRules("buildkit/UndefinedVar")...),
+			args:     append([]string{"--format", "json", "--slow-checks=off"}, selectRules("buildkit/UndefinedVar")...),
 			wantExit: 1,
+		},
+
+		// Slow checks (async) tests — mock registry is set via CONTAINERS_REGISTRIES_CONF
+		// at the process level in TestMain.
+		{
+			name: "slow-checks-platform-mismatch",
+			dir:  "slow-checks-platform-mismatch",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			wantExit: 1,
+		},
+		{
+			name: "slow-checks-platform-index-mismatch",
+			dir:  "slow-checks-platform-index-mismatch",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			wantExit: 1,
+		},
+		{
+			name: "slow-checks-platform-meta-arg",
+			dir:  "slow-checks-platform-meta-arg",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			wantExit: 1,
+		},
+		{
+			name: "slow-checks-platform-target-arg",
+			dir:  "slow-checks-platform-target-arg",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+		},
+		{
+			name: "slow-checks-undefined-var-enhanced",
+			dir:  "slow-checks-undefined-var-enhanced",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/UndefinedVar")...),
+		},
+		{
+			name: "slow-checks-undefined-var-still-caught",
+			dir:  "slow-checks-undefined-var-still-caught",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/UndefinedVar")...),
+			wantExit: 1,
+		},
+		{
+			name: "slow-checks-undefined-var-multi-stage",
+			dir:  "slow-checks-undefined-var-multi-stage",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/UndefinedVar")...),
+			wantExit: 1,
+		},
+		{
+			name: "slow-checks-off",
+			dir:  "slow-checks-off",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=off"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+		},
+		{
+			name: "slow-checks-fail-fast",
+			dir:  "slow-checks-fail-fast",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on", "--slow-checks-timeout=2s"},
+				selectRules("buildkit/DuplicateStageName", "buildkit/InvalidBaseImagePlatform")...),
+			wantExit: 1,
+			afterCheck: func(t *testing.T, _ string) {
+				t.Helper()
+				if mockRegistry.HasRequest("library/slowfailfast") {
+					t.Error("fail-fast should have prevented async check from fetching the slow image")
+				}
+			},
+		},
+		{
+			name: "slow-checks-timeout",
+			dir:  "slow-checks-timeout",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on", "--slow-checks-timeout=1s"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			afterCheck: func(t *testing.T, stderr string) {
+				t.Helper()
+				if !strings.Contains(stderr, "timed out") {
+					t.Errorf("expected timeout note in stderr, got: %q", stderr)
+				}
+			},
 		},
 
 		// Consistent indentation tests (isolated to consistent-indentation rule)
@@ -582,7 +780,7 @@ func TestCheck(t *testing.T) {
 			t.Parallel()
 			testdataDir := filepath.Join("testdata", tc.dir)
 
-			args := make([]string, 0, 1+len(tc.args)+2)
+			args := make([]string, 0, 1+len(tc.args)+4)
 			args = append(args, "check")
 			args = append(args, tc.args...)
 
@@ -604,7 +802,11 @@ func TestCheck(t *testing.T) {
 			)
 			// Add test-specific environment variables
 			cmd.Env = append(cmd.Env, tc.env...)
-			output, err := cmd.CombinedOutput()
+			var stdoutBuf, stderrBuf bytes.Buffer
+			cmd.Stdout = &stdoutBuf
+			cmd.Stderr = &stderrBuf
+			err := cmd.Run()
+			output := stdoutBuf.Bytes()
 
 			// Check exit code
 			exitCode := 0
@@ -617,7 +819,7 @@ func TestCheck(t *testing.T) {
 				}
 			}
 			if exitCode != tc.wantExit {
-				t.Errorf("expected exit code %d, got %d\noutput: %s", tc.wantExit, exitCode, output)
+				t.Errorf("expected exit code %d, got %d\nstdout: %s\nstderr: %s", tc.wantExit, exitCode, output, stderrBuf.String())
 			}
 
 			// Normalize output for cross-platform snapshot comparison
@@ -650,6 +852,10 @@ func TestCheck(t *testing.T) {
 					opts = append(opts, snaps.Ext(tc.snapExt))
 				}
 				snaps.WithConfig(opts...).MatchStandaloneJSON(t, outputStr)
+			}
+
+			if tc.afterCheck != nil {
+				tc.afterCheck(t, stderrBuf.String())
 			}
 		})
 	}
@@ -1147,8 +1353,8 @@ severity = "style"
 				t.Fatalf("failed to write config: %v", err)
 			}
 
-			// Run tally check --fix
-			args := append([]string{"check", "--config", configPath}, tc.args...)
+			// Run tally check --fix (disable slow checks — fix tests don't need async)
+			args := append([]string{"check", "--config", configPath, "--slow-checks=off"}, tc.args...)
 			args = append(args, dockerfilePath)
 			cmd := exec.Command(binaryPath, args...)
 			cmd.Env = append(os.Environ(),
@@ -1206,8 +1412,8 @@ func TestFixRealWorld(t *testing.T) {
 		t.Fatalf("failed to write config: %v", err)
 	}
 
-	// Run tally check --fix --fix-unsafe (all rules enabled)
-	args := []string{"check", "--config", configPath, "--fix", "--fix-unsafe", dockerfilePath}
+	// Run tally check --fix --fix-unsafe (all rules enabled, slow checks off)
+	args := []string{"check", "--config", configPath, "--slow-checks=off", "--fix", "--fix-unsafe", dockerfilePath}
 	cmd := exec.Command(binaryPath, args...)
 	cmd.Env = append(os.Environ(),
 		"GOCOVERDIR="+coverageDir,
@@ -1273,7 +1479,7 @@ severity = "style"
 
 	// Run with all three rules: consistent-indentation (50), prefer-copy-heredoc (99), prefer-run-heredoc (100)
 	args := []string{
-		"check", "--config", configPath,
+		"check", "--config", configPath, "--slow-checks=off",
 		"--fix", "--fix-unsafe",
 		"--ignore", "*",
 		"--select", "tally/consistent-indentation",
@@ -1339,7 +1545,7 @@ func TestFixConsistentIndentation(t *testing.T) {
 	}
 
 	args := []string{
-		"check", "--config", configPath,
+		"check", "--config", configPath, "--slow-checks=off",
 		"--fix",
 		"--select", "tally/consistent-indentation",
 		dockerfilePath,
@@ -1394,7 +1600,7 @@ func TestFixPreferAddUnpackBeatsHeredoc(t *testing.T) {
 	}
 
 	args := []string{
-		"check", "--config", configPath,
+		"check", "--config", configPath, "--slow-checks=off",
 		"--fix-unsafe", "--fix",
 		"--select", "tally/prefer-add-unpack",
 		"--select", "tally/prefer-run-heredoc",
