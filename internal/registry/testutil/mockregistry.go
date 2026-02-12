@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -27,20 +28,47 @@ type MockRegistry struct {
 	Server   *httptest.Server
 	mu       sync.Mutex
 	requests []string
+	delays   map[string]time.Duration // repo prefix → artificial delay
 }
 
 // New creates and starts a mock registry server.
 func New() *MockRegistry {
-	mr := &MockRegistry{}
+	mr := &MockRegistry{delays: make(map[string]time.Duration)}
 	handler := registry.New()
 	mr.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := r.Method + " " + r.URL.Path
 		mr.mu.Lock()
 		mr.requests = append(mr.requests, req)
+		// Check for artificial delay on this repo.
+		var delay time.Duration
+		for prefix, d := range mr.delays {
+			if strings.Contains(r.URL.Path, prefix) {
+				delay = d
+				break
+			}
+		}
 		mr.mu.Unlock()
+
+		if delay > 0 {
+			select {
+			case <-time.After(delay):
+			case <-r.Context().Done():
+				return
+			}
+		}
+
 		handler.ServeHTTP(w, r)
 	}))
 	return mr
+}
+
+// SetDelay registers an artificial delay for any request whose path contains
+// the given repo prefix (e.g. "library/slowimage"). The delay is applied
+// before the real handler responds; it is context-aware and cancellable.
+func (mr *MockRegistry) SetDelay(repo string, delay time.Duration) {
+	mr.mu.Lock()
+	defer mr.mu.Unlock()
+	mr.delays[repo] = delay
 }
 
 // Close shuts down the server.

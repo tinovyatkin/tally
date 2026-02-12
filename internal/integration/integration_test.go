@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"os/exec"
@@ -8,14 +9,16 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/tinovyatkin/tally/internal/registry/testutil"
 )
 
 var (
-	binaryPath  string
-	coverageDir string
+	binaryPath   string
+	coverageDir  string
+	mockRegistry *testutil.MockRegistry
 )
 
 func TestMain(m *testing.M) {
@@ -59,12 +62,21 @@ func TestMain(m *testing.M) {
 		panic("failed to build binary: " + string(out))
 	}
 
-	// Start mock registry and populate with test images for slow-checks tests.
-	mockRegistry := testutil.New()
+	setupMockRegistry(tmpDir)
+
+	code := m.Run()
+
+	mockRegistry.Close()
+	_ = os.RemoveAll(tmpDir)
+	os.Exit(code)
+}
+
+// setupMockRegistry starts the mock OCI registry, populates it with test
+// images, writes registries.conf, and sets environment variables.
+func setupMockRegistry(tmpDir string) {
+	mockRegistry = testutil.New()
 
 	// python:3.12 as single-platform linux/arm64 only — used for platform mismatch tests.
-	// When a Dockerfile requests --platform=linux/amd64, the resolver will detect
-	// the mismatch and the handler will emit a violation.
 	if _, err := mockRegistry.AddImage(testutil.ImageOpts{
 		Repo: "library/python",
 		Tag:  "3.12",
@@ -81,8 +93,39 @@ func TestMain(m *testing.M) {
 		panic("failed to add python:3.12 image: " + err.Error())
 	}
 
-	// Write registries.conf redirecting docker.io to the mock server and set it
-	// for the process so every spawned tally binary uses the mock registry.
+	// multiarch:latest — a multi-arch manifest index with linux/amd64 and linux/arm64.
+	// Used to test the collectAvailablePlatforms path when a requested platform
+	// (e.g., linux/s390x) is not in the index.
+	if _, err := mockRegistry.AddIndex("library/multiarch", "latest", []testutil.ImageOpts{
+		{Repo: "library/multiarch", Tag: "latest", OS: "linux", Arch: "amd64",
+			Env: map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"}},
+		{Repo: "library/multiarch", Tag: "latest", OS: "linux", Arch: "arm64",
+			Env: map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"}},
+	}); err != nil {
+		mockRegistry.Close()
+		_ = os.RemoveAll(tmpDir)
+		panic("failed to add multiarch:latest index: " + err.Error())
+	}
+
+	// Delayed images — each has a 30-second artificial delay.
+	// Separate repos prevent parallel tests from interfering with each other's
+	// request assertions (e.g. fail-fast asserting "no requests for this repo").
+	for _, repo := range []string{"library/slowfailfast", "library/slowtimeout"} {
+		if _, err := mockRegistry.AddImage(testutil.ImageOpts{
+			Repo: repo,
+			Tag:  "latest",
+			OS:   "linux",
+			Arch: "arm64",
+			Env:  map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"},
+		}); err != nil {
+			mockRegistry.Close()
+			_ = os.RemoveAll(tmpDir)
+			panic("failed to add " + repo + ":latest: " + err.Error())
+		}
+		mockRegistry.SetDelay(repo, 30*time.Second)
+	}
+
+	// Write registries.conf redirecting docker.io to the mock server.
 	confPath, err := mockRegistry.WriteRegistriesConf(tmpDir, "docker.io")
 	if err != nil {
 		mockRegistry.Close()
@@ -95,19 +138,14 @@ func TestMain(m *testing.M) {
 		panic("failed to set CONTAINERS_REGISTRIES_CONF: " + err.Error())
 	}
 	// Set default platform to match the mock registry's image platform (linux/arm64).
-	// Without this, defaultPlatform() returns the host OS (e.g., darwin/arm64 on macOS),
-	// causing PlatformMismatchError for Dockerfiles without explicit --platform.
 	if err := os.Setenv("DOCKER_DEFAULT_PLATFORM", "linux/arm64"); err != nil {
 		mockRegistry.Close()
 		_ = os.RemoveAll(tmpDir)
 		panic("failed to set DOCKER_DEFAULT_PLATFORM: " + err.Error())
 	}
 
-	code := m.Run()
-
-	mockRegistry.Close()
-	_ = os.RemoveAll(tmpDir)
-	os.Exit(code)
+	// Clear setup requests (image pushes) so only test-time requests are tracked.
+	mockRegistry.ResetRequests()
 }
 
 // selectRules returns args to disable all rules except the specified ones.
@@ -137,6 +175,7 @@ func TestCheck(t *testing.T) {
 		snapRaw    bool   // If true, use MatchStandaloneSnapshot (plain text) instead of MatchStandaloneJSON
 		isDir      bool   // If true, pass the directory instead of Dockerfile
 		useContext bool   // If true, add --context flag for context-aware tests
+		afterCheck func(t *testing.T, stderr string)
 	}{
 		// Total rules enabled test - validates rule count (no --ignore/--select)
 		{name: "total-rules-enabled", dir: "total-rules-enabled", args: []string{"--format", "json", "--slow-checks=off"}},
@@ -647,6 +686,14 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 		{
+			name: "slow-checks-platform-index-mismatch",
+			dir:  "slow-checks-platform-index-mismatch",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			wantExit: 1,
+		},
+		{
 			name: "slow-checks-undefined-var-enhanced",
 			dir:  "slow-checks-undefined-var-enhanced",
 			args: append(
@@ -675,6 +722,33 @@ func TestCheck(t *testing.T) {
 			args: append(
 				[]string{"--format", "json", "--slow-checks=off"},
 				selectRules("buildkit/InvalidBaseImagePlatform")...),
+		},
+		{
+			name: "slow-checks-fail-fast",
+			dir:  "slow-checks-fail-fast",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on", "--slow-checks-timeout=2s"},
+				selectRules("buildkit/DuplicateStageName", "buildkit/InvalidBaseImagePlatform")...),
+			wantExit: 1,
+			afterCheck: func(t *testing.T, _ string) {
+				t.Helper()
+				if mockRegistry.HasRequest("library/slowfailfast") {
+					t.Error("fail-fast should have prevented async check from fetching the slow image")
+				}
+			},
+		},
+		{
+			name: "slow-checks-timeout",
+			dir:  "slow-checks-timeout",
+			args: append(
+				[]string{"--format", "json", "--slow-checks=on", "--slow-checks-timeout=1s"},
+				selectRules("buildkit/InvalidBaseImagePlatform")...),
+			afterCheck: func(t *testing.T, stderr string) {
+				t.Helper()
+				if !strings.Contains(stderr, "timed out") {
+					t.Errorf("expected timeout note in stderr, got: %q", stderr)
+				}
+			},
 		},
 
 		// Consistent indentation tests (isolated to consistent-indentation rule)
@@ -713,7 +787,11 @@ func TestCheck(t *testing.T) {
 			)
 			// Add test-specific environment variables
 			cmd.Env = append(cmd.Env, tc.env...)
-			output, err := cmd.CombinedOutput()
+			var stdoutBuf, stderrBuf bytes.Buffer
+			cmd.Stdout = &stdoutBuf
+			cmd.Stderr = &stderrBuf
+			err := cmd.Run()
+			output := stdoutBuf.Bytes()
 
 			// Check exit code
 			exitCode := 0
@@ -726,7 +804,7 @@ func TestCheck(t *testing.T) {
 				}
 			}
 			if exitCode != tc.wantExit {
-				t.Errorf("expected exit code %d, got %d\noutput: %s", tc.wantExit, exitCode, output)
+				t.Errorf("expected exit code %d, got %d\nstdout: %s\nstderr: %s", tc.wantExit, exitCode, output, stderrBuf.String())
 			}
 
 			// Normalize output for cross-platform snapshot comparison
@@ -759,6 +837,10 @@ func TestCheck(t *testing.T) {
 					opts = append(opts, snaps.Ext(tc.snapExt))
 				}
 				snaps.WithConfig(opts...).MatchStandaloneJSON(t, outputStr)
+			}
+
+			if tc.afterCheck != nil {
+				tc.afterCheck(t, stderrBuf.String())
 			}
 		})
 	}
