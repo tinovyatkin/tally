@@ -178,8 +178,9 @@ func hasPipefailOption(shellCmd []string) bool {
 		return false
 	}
 
-	// Check the shell name is one that supports pipefail
-	shellName := strings.ToLower(path.Base(shellCmd[0]))
+	// Check the shell name is one that supports pipefail.
+	// Replace backslashes so Windows paths are handled correctly (path.Base uses /).
+	shellName := strings.ToLower(path.Base(strings.ReplaceAll(shellCmd[0], `\`, "/")))
 	shellName = strings.TrimSuffix(shellName, ".exe")
 	if !pipefailValidShells[shellName] {
 		return false
@@ -257,7 +258,7 @@ func (r *DL4006Rule) determineFixShell(input rules.LintInput, stageIdx int) stri
 	fixShell := "/bin/bash"
 	if sem, ok := input.Semantic.(*semantic.Model); ok {
 		if info := sem.StageInfo(stageIdx); info != nil && len(info.ShellSetting.Shell) > 0 {
-			shellBase := strings.ToLower(path.Base(info.ShellSetting.Shell[0]))
+			shellBase := strings.ToLower(path.Base(strings.ReplaceAll(info.ShellSetting.Shell[0], `\`, "/")))
 			shellBase = strings.TrimSuffix(shellBase, ".exe")
 			if pipefailValidShells[shellBase] {
 				fixShell = info.ShellSetting.Shell[0]

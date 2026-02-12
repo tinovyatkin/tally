@@ -36,8 +36,11 @@ const (
 //   - powershell, pwsh, cmd -> VariantNonPOSIX (disables shell linting)
 //   - unknown -> VariantBash (safe default)
 func VariantFromShell(shell string) Variant {
-	// Normalize: extract basename, lowercase, strip .exe suffix (for Windows shells)
-	shell = strings.ToLower(path.Base(shell))
+	// Normalize: extract basename, lowercase, strip .exe suffix (for Windows shells).
+	// Replace backslashes before path.Base so Windows paths like
+	// "C:\\Windows\\System32\\...\\powershell.exe" are handled correctly
+	// (path.Base only recognises forward slashes).
+	shell = strings.ToLower(path.Base(strings.ReplaceAll(shell, `\`, "/")))
 	shell = strings.TrimSuffix(shell, ".exe")
 
 	switch shell {

@@ -132,6 +132,14 @@ RUN Get-Variable PSVersionTable | Select-Object -ExpandProperty Value
 			wantCount: 0,
 		},
 
+		{
+			name: "ignore non posix shells: Windows backslash path",
+			dockerfile: "FROM mcr.microsoft.com/windows/servercore:ltsc2022\n" +
+				"SHELL [\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\", \"-Command\"]\n" +
+				"RUN Get-Variable PSVersionTable | Select-Object -ExpandProperty Value\n",
+			wantCount: 0,
+		},
+
 		// --- Additional edge cases ---
 		{
 			name: "no warning on exec form RUN with pipes",
@@ -432,6 +440,11 @@ func TestHasPipefailOption(t *testing.T) {
 			name:     "bare bash with -o pipefail",
 			shellCmd: []string{"bash", "-o", "pipefail", "-c"},
 			want:     true,
+		},
+		{
+			name:     "Windows backslash path powershell is not valid",
+			shellCmd: []string{`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, "-o", "pipefail"},
+			want:     false,
 		},
 	}
 
