@@ -9,6 +9,7 @@ package semantic
 
 import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
+	dfshell "github.com/moby/buildkit/frontend/dockerfile/shell"
 
 	"github.com/tinovyatkin/tally/internal/dockerfile"
 )
@@ -139,4 +140,60 @@ func (m *Model) ExternalImageStages() func(yield func(*StageInfo) bool) {
 			}
 		}
 	}
+}
+
+// RecheckUndefinedVars re-runs the undefined-var analysis for the specified stage
+// using the provided base image environment instead of the static approximation.
+// This is used by the async pipeline when base image env has been resolved from
+// the registry.
+func (m *Model) RecheckUndefinedVars(stageIdx int, resolvedEnv map[string]string) []UndefinedVarRef {
+	if stageIdx < 0 || stageIdx >= len(m.stageInfo) || stageIdx >= len(m.stages) {
+		return nil
+	}
+
+	stage := &m.stages[stageIdx]
+
+	// Seed environment with resolved base image env.
+	env := newFromEnv(resolvedEnv)
+
+	escapeToken := rune('\\')
+	shlex := dfshell.NewLex(escapeToken)
+
+	declaredArgs := make(map[string]struct{})
+
+	var undefs []UndefinedVarRef
+	for _, cmd := range stage.Commands {
+		switch c := cmd.(type) {
+		case *instructions.ArgCommand:
+			undefs = append(undefs,
+				applyArgCommandToEnv(c, shlex, env, declaredArgs, m.buildArgs, m.globalScope())...)
+		default:
+			undefs = append(undefs, undefinedVarsInCommand(cmd, shlex, env, declaredArgs)...)
+		}
+
+		// Apply env mutations (ENV instructions change the scope for subsequent commands).
+		if ec, ok := cmd.(*instructions.EnvCommand); ok {
+			applyEnvCommandToEnv(ec, shlex, env)
+		}
+	}
+
+	return undefs
+}
+
+// globalScope returns the builder's global scope, reconstructed from metaArgs.
+func (m *Model) globalScope() *VariableScope {
+	scope := NewGlobalScope()
+	for _, ma := range m.metaArgs {
+		for _, kv := range ma.Args {
+			val := kv.Value
+			if m.buildArgs != nil {
+				if ov, ok := m.buildArgs[kv.Key]; ok {
+					v := ov
+					val = &v
+				}
+			}
+			scope.AddArg(kv.Key, val, ma.Location())
+		}
+	}
+	return scope
 }

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/tinovyatkin/tally/internal/async"
 	"github.com/tinovyatkin/tally/internal/config"
 	"github.com/tinovyatkin/tally/internal/context"
 	"github.com/tinovyatkin/tally/internal/discovery"
@@ -15,6 +17,7 @@ import (
 	"github.com/tinovyatkin/tally/internal/fix"
 	"github.com/tinovyatkin/tally/internal/linter"
 	"github.com/tinovyatkin/tally/internal/processor"
+	"github.com/tinovyatkin/tally/internal/registry"
 	"github.com/tinovyatkin/tally/internal/reporter"
 	"github.com/tinovyatkin/tally/internal/rules"
 	"github.com/tinovyatkin/tally/internal/version"
@@ -121,6 +124,16 @@ func checkCommand() *cli.Command {
 				Usage:   "Build context directory for context-aware rules",
 				Sources: cli.EnvVars("TALLY_CONTEXT"),
 			},
+			&cli.StringFlag{
+				Name:    "slow-checks",
+				Usage:   "Slow checks mode: auto, on, off",
+				Sources: cli.EnvVars("TALLY_SLOW_CHECKS"),
+			},
+			&cli.StringFlag{
+				Name:    "slow-checks-timeout",
+				Usage:   "Timeout for slow checks (e.g., 20s)",
+				Sources: cli.EnvVars("TALLY_SLOW_CHECKS_TIMEOUT"),
+			},
 			&cli.BoolFlag{
 				Name:    "fix",
 				Usage:   "Apply all safe fixes automatically",
@@ -144,6 +157,7 @@ func checkCommand() *cli.Command {
 // lintResults holds the aggregated results of linting all discovered files.
 type lintResults struct {
 	violations  []rules.Violation
+	asyncPlans  []async.CheckRequest
 	fileSources map[string][]byte
 	fileConfigs map[string]*config.Config
 	firstCfg    *config.Config
@@ -179,6 +193,14 @@ func runCheck(ctx stdcontext.Context, cmd *cli.Command) error {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return cli.Exit("", ExitConfigError)
+	}
+
+	// Execute async checks if enabled and plans exist.
+	if len(res.asyncPlans) > 0 {
+		asyncResult := runAsyncChecks(ctx, res)
+		if asyncResult != nil {
+			res.violations = mergeAsyncViolations(res.violations, asyncResult)
+		}
 	}
 
 	// Build processor chain for violation processing.
@@ -270,6 +292,7 @@ func lintFiles(ctx stdcontext.Context, discovered []discovery.DiscoveredFile, cm
 
 		res.fileSources[file] = result.ParseResult.Source
 		res.violations = append(res.violations, result.Violations...)
+		res.asyncPlans = append(res.asyncPlans, result.AsyncPlan...)
 	}
 
 	return res, nil
@@ -408,6 +431,14 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 
 	if cmd.IsSet("require-reason") {
 		cfg.InlineDirectives.RequireReason = cmd.Bool("require-reason")
+	}
+
+	// Apply slow-checks CLI overrides
+	if cmd.IsSet("slow-checks") {
+		cfg.SlowChecks.Mode = cmd.String("slow-checks")
+	}
+	if cmd.IsSet("slow-checks-timeout") {
+		cfg.SlowChecks.Timeout = cmd.String("slow-checks-timeout")
 	}
 
 	return cfg, nil
@@ -623,6 +654,152 @@ func buildPerFileFixModes(fileConfigs map[string]*config.Config) map[string]map[
 		}
 	}
 	return result
+}
+
+// runAsyncChecks executes async check plans if slow checks are enabled.
+// Returns nil if slow checks are disabled or no plans exist.
+func runAsyncChecks(ctx stdcontext.Context, res *lintResults) *async.RunResult {
+	if res.firstCfg == nil || len(res.asyncPlans) == 0 {
+		return nil
+	}
+
+	slowCfg := res.firstCfg.SlowChecks
+	enabled := config.SlowChecksEnabled(slowCfg.Mode)
+
+	if !enabled {
+		// Print summary note only in "auto" mode (CI-detected skip).
+		// When explicitly "off", the user chose to disable — no note needed.
+		if slowCfg.Mode == "auto" {
+			n := len(res.asyncPlans)
+			ciName := config.CIName()
+			if ciName != "" {
+				fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (%s detected; use --slow-checks=on to enable)\n", n, ciName)
+			} else {
+				fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (use --slow-checks=on to enable)\n", n)
+			}
+		}
+		return nil
+	}
+
+	// Parse timeout.
+	timeout, err := time.ParseDuration(slowCfg.Timeout)
+	if err != nil {
+		timeout = 20 * time.Second
+	}
+
+	// Per-file fail-fast: if fast rules produced SeverityError, drop async requests for that file.
+	var plans []async.CheckRequest
+	if slowCfg.FailFast {
+		errorFiles := filesWithErrors(res.violations)
+		for _, req := range res.asyncPlans {
+			if !errorFiles[req.File] {
+				plans = append(plans, req)
+			}
+		}
+	} else {
+		plans = res.asyncPlans
+	}
+
+	if len(plans) == 0 {
+		return nil
+	}
+
+	// Register the registry resolver (once per invocation).
+	if registry.NewDefaultResolver == nil {
+		fmt.Fprintf(os.Stderr, "note: slow checks not available (missing build tags)\n")
+		return nil
+	}
+	imgResolver := registry.NewDefaultResolver()
+	asyncImgResolver := registry.NewAsyncImageResolver(imgResolver)
+
+	rt := &async.Runtime{
+		Concurrency: 4,
+		Timeout:     timeout,
+		Resolvers: map[string]async.Resolver{
+			asyncImgResolver.ID(): asyncImgResolver,
+		},
+	}
+
+	result := rt.Run(ctx, plans)
+
+	// Report skipped checks grouped by reason.
+	if len(result.Skipped) > 0 {
+		counts := make(map[async.SkipReason]int)
+		for _, s := range result.Skipped {
+			counts[s.Reason]++
+		}
+		if n := counts[async.SkipTimeout]; n > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d slow check(s) timed out (increase --slow-checks-timeout)\n", n)
+		}
+		if n := counts[async.SkipNetwork]; n > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (registry unreachable or rate-limited)\n", n)
+		}
+		if n := counts[async.SkipAuth]; n > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (authentication failed)\n", n)
+		}
+		if n := counts[async.SkipNotFound]; n > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped (image not found)\n", n)
+		}
+		if n := counts[async.SkipResolverErr]; n > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped due to errors\n", n)
+		}
+	}
+
+	return result
+}
+
+// filesWithErrors returns a set of files that have SeverityError violations.
+func filesWithErrors(violations []rules.Violation) map[string]bool {
+	m := make(map[string]bool)
+	for _, v := range violations {
+		if v.Severity == rules.SeverityError {
+			m[v.File()] = true
+		}
+	}
+	return m
+}
+
+// mergeAsyncViolations merges async results into the fast violations.
+// For UndefinedVar: async results for a stage replace fast violations for that stage.
+// Other async violations are appended.
+func mergeAsyncViolations(fast []rules.Violation, asyncResult *async.RunResult) []rules.Violation {
+	if asyncResult == nil || len(asyncResult.Violations) == 0 {
+		return fast
+	}
+
+	// Convert []any to []rules.Violation.
+	var asyncViolations []rules.Violation
+	for _, v := range asyncResult.Violations {
+		if viol, ok := v.(rules.Violation); ok {
+			asyncViolations = append(asyncViolations, viol)
+		}
+	}
+
+	if len(asyncViolations) == 0 {
+		return fast
+	}
+
+	// Identify files that got async UndefinedVar results.
+	// Async results for these files replace fast UndefinedVar violations.
+	asyncUndefinedVarFiles := make(map[string]bool)
+	for _, v := range asyncViolations {
+		if v.RuleCode == "buildkit/UndefinedVar" {
+			asyncUndefinedVarFiles[v.File()] = true
+		}
+	}
+
+	// Filter out fast UndefinedVar violations for files that have async results.
+	var merged []rules.Violation
+	for _, v := range fast {
+		if v.RuleCode == "buildkit/UndefinedVar" && asyncUndefinedVarFiles[v.File()] {
+			continue // replaced by async result
+		}
+		merged = append(merged, v)
+	}
+
+	// Append all async violations.
+	merged = append(merged, asyncViolations...)
+	return merged
 }
 
 // filterFixedViolations removes violations that were fixed from the list.

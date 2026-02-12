@@ -47,7 +47,9 @@ func TestMain(m *testing.M) {
 		}
 		buildArgs = append(buildArgs, "-cover")
 	}
-	buildArgs = append(buildArgs, "-o", binaryPath, "github.com/tinovyatkin/tally")
+	buildArgs = append(buildArgs,
+		"-tags", "containers_image_openpgp,containers_image_storage_stub,containers_image_docker_daemon_stub",
+		"-o", binaryPath, "github.com/tinovyatkin/tally")
 
 	cmd := exec.Command("go", buildArgs...)
 	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
@@ -91,7 +93,7 @@ func TestCheck(t *testing.T) {
 		useContext bool   // If true, add --context flag for context-aware tests
 	}{
 		// Total rules enabled test - validates rule count (no --ignore/--select)
-		{name: "total-rules-enabled", dir: "total-rules-enabled", args: []string{"--format", "json"}},
+		{name: "total-rules-enabled", dir: "total-rules-enabled", args: []string{"--format", "json", "--slow-checks=off"}},
 
 		// Basic tests (isolated to max-lines rule)
 		{name: "simple", dir: "simple", args: append([]string{"--format", "json"}, selectRules("tally/max-lines")...)},
@@ -140,11 +142,16 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 
-		// BuildKit linter warnings tests (isolated to buildkit rules)
+		// BuildKit linter warnings tests (isolated to the rules this fixture triggers)
 		{
-			name:     "buildkit-warnings",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "json"}, selectRules("buildkit/*")...),
+			name: "buildkit-warnings",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "json"}, selectRules(
+				"buildkit/InvalidDefinitionDescription",
+				"buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated",
+				"buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 		},
 		{
@@ -222,43 +229,40 @@ func TestCheck(t *testing.T) {
 		},
 
 		// Semantic model construction-time violations
-		// Note: These violations come from semantic analysis, not the rule registry.
-		// We don't filter rules here because semantic violations would be filtered out.
-		// These 6 tests use full rule count and will need updating when new rules are added.
 		{
 			name:     "duplicate-stage-name",
 			dir:      "duplicate-stage-name",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/DuplicateStageName", "tally/no-unreachable-stages")...),
 			wantExit: 1,
 		},
 		{
 			name:     "multiple-healthcheck",
 			dir:      "multiple-healthcheck",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("buildkit/MultipleInstructionsDisallowed")...),
 			wantExit: 1,
 		},
 		{
 			name:     "copy-from-own-alias",
 			dir:      "copy-from-own-alias",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3022", "hadolint/DL3023")...),
 			wantExit: 1,
 		},
 		{
 			name:     "onbuild-forbidden",
 			dir:      "onbuild-forbidden",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3043")...),
 			wantExit: 1,
 		},
 		{
 			name:     "invalid-instruction-order",
 			dir:      "invalid-instruction-order",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3061")...),
 			wantExit: 1,
 		},
 		{
 			name:     "no-from-instruction",
 			dir:      "no-from-instruction",
-			args:     []string{"--format", "json"},
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3061")...),
 			wantExit: 1,
 		},
 
@@ -393,46 +397,64 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 
-		// Output format tests (isolated to buildkit rules)
+		// Output format tests (same fixture as buildkit-warnings)
 		{
-			name:     "format-sarif",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "sarif"}, selectRules("buildkit/*")...),
+			name: "format-sarif",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "sarif"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 			snapExt:  ".sarif",
 		},
 		{
-			name:     "format-github-actions",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "github-actions"}, selectRules("buildkit/*")...),
+			name: "format-github-actions",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "github-actions"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 			snapExt:  ".txt",
 			snapRaw:  true,
 		},
 		{
-			name:     "format-markdown",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "markdown"}, selectRules("buildkit/*")...),
+			name: "format-markdown",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "markdown"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 			snapExt:  ".md",
 			snapRaw:  true,
 		},
 
-		// Fail-level tests (isolated to buildkit rules)
+		// Fail-level tests (same fixture as buildkit-warnings)
 		{
 			name: "fail-level-none",
 			dir:  "buildkit-warnings",
-			args: append([]string{"--format", "json", "--fail-level", "none"}, selectRules("buildkit/*")...),
+			args: append([]string{"--format", "json", "--fail-level", "none"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 		},
 		{
 			name: "fail-level-error",
 			dir:  "buildkit-warnings",
-			args: append([]string{"--format", "json", "--fail-level", "error"}, selectRules("buildkit/*")...),
+			args: append([]string{"--format", "json", "--fail-level", "error"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 		},
 		{
-			name:     "fail-level-warning",
-			dir:      "buildkit-warnings",
-			args:     append([]string{"--format", "json", "--fail-level", "warning"}, selectRules("buildkit/*")...),
+			name: "fail-level-warning",
+			dir:  "buildkit-warnings",
+			args: append([]string{"--format", "json", "--fail-level", "warning"}, selectRules(
+				"buildkit/InvalidDefinitionDescription", "buildkit/StageNameCasing",
+				"buildkit/MaintainerDeprecated", "buildkit/JSONArgsRecommended",
+			)...),
 			wantExit: 1,
 		},
 
@@ -564,7 +586,7 @@ func TestCheck(t *testing.T) {
 		{
 			name:     "undefined-var",
 			dir:      "undefined-var",
-			args:     append([]string{"--format", "json"}, selectRules("buildkit/UndefinedVar")...),
+			args:     append([]string{"--format", "json", "--slow-checks=off"}, selectRules("buildkit/UndefinedVar")...),
 			wantExit: 1,
 		},
 
@@ -582,7 +604,7 @@ func TestCheck(t *testing.T) {
 			t.Parallel()
 			testdataDir := filepath.Join("testdata", tc.dir)
 
-			args := make([]string, 0, 1+len(tc.args)+2)
+			args := make([]string, 0, 1+len(tc.args)+4)
 			args = append(args, "check")
 			args = append(args, tc.args...)
 

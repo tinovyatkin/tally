@@ -44,9 +44,32 @@ type Config struct {
 	// AI configures opt-in AI features (e.g., AI AutoFix).
 	AI AIConfig `json:"ai" koanf:"ai"`
 
+	// SlowChecks configures async checks that require network or other slow I/O.
+	SlowChecks SlowChecksConfig `json:"slow-checks" jsonschema:"description=Slow checks configuration" koanf:"slow-checks"`
+
 	// ConfigFile is the path to the config file that was loaded (if any).
 	// This is metadata, not loaded from config.
 	ConfigFile string `json:"-" koanf:"-"`
+}
+
+// SlowChecksConfig configures async checks that require potentially slow I/O
+// (registry access, network, filesystem).
+//
+// Example TOML configuration:
+//
+//	[slow-checks]
+//	mode = "auto"
+//	fail-fast = true
+//	timeout = "20s"
+type SlowChecksConfig struct {
+	// Mode controls when slow checks run: auto (CI detection), on, off.
+	Mode string `json:"mode,omitempty" jsonschema:"default=auto,enum=auto,enum=on,enum=off,description=When to run slow checks" koanf:"mode"`
+
+	// FailFast skips async checks when fast checks already produce SeverityError violations.
+	FailFast bool `json:"fail-fast,omitempty" jsonschema:"default=true,description=Skip slow checks when errors found" koanf:"fail-fast"`
+
+	// Timeout is the wall-clock budget for all async checks per invocation.
+	Timeout string `json:"timeout,omitempty" jsonschema:"default=20s,description=Timeout for slow checks (e.g. 20s)" koanf:"timeout"`
 }
 
 // OutputConfig configures output formatting and behavior.
@@ -132,6 +155,11 @@ func Default() *Config {
 			MaxInputBytes: 256 * 1024,
 			RedactSecrets: true,
 		},
+		SlowChecks: SlowChecksConfig{
+			Mode:     "auto",
+			FailFast: true,
+			Timeout:  "20s",
+		},
 	}
 }
 
@@ -197,6 +225,8 @@ var knownHyphenatedKeys = map[string]string{
 	"fail.level":        "fail-level",
 	"max.input.bytes":   "max-input-bytes",
 	"redact.secrets":    "redact-secrets",
+	"slow.checks":       "slow-checks",
+	"fail.fast":         "fail-fast",
 }
 
 // envKeyTransform converts environment variable names to config keys.
