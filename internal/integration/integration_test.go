@@ -395,6 +395,21 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 		{
+			name:     "dl3011",
+			dir:      "dl3011",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3011")...),
+			wantExit: 1,
+		},
+		// Cross-rule: DL3011 (error) + ExposeProtoCasing (warning) on same EXPOSE line.
+		// ExposeProtoCasing warning is suppressed by supersession processor since DL3011 error exists.
+		{
+			name: "dl3011-cross-rules",
+			dir:  "dl3011-cross-rules",
+			args: append([]string{"--format", "json"},
+				selectRules("hadolint/DL3011", "buildkit/ExposeProtoCasing")...),
+			wantExit: 1,
+		},
+		{
 			name:     "dl3021",
 			dir:      "dl3021",
 			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3021")...),
