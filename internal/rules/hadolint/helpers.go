@@ -15,7 +15,8 @@ type RunCommandCallback func(run *instructions.RunCommand, shellVariant shell.Va
 
 // ScanRunCommandsWithPOSIXShell scans all RUN instructions in the input,
 // calling the provided callback for each RUN command with the appropriate shell variant.
-// It skips non-POSIX shells (e.g., PowerShell, cmd) as they have incompatible syntax.
+// For non-POSIX shells (e.g., PowerShell, cmd), it skips shell-form RUNs but still
+// processes exec-form RUNs since they don't require shell parsing.
 //
 // This helper extracts the common pattern used by rules that need to check RUN commands
 // with shell-aware parsing (e.g., DL3004, DL3027).
@@ -31,13 +32,11 @@ func ScanRunCommandsWithPOSIXShell(input rules.LintInput, callback RunCommandCal
 	for stageIdx, stage := range input.Stages {
 		// Get shell variant for this stage
 		shellVariant := shell.VariantBash
+		isNonPOSIX := false
 		if sem != nil {
 			if info := sem.StageInfo(stageIdx); info != nil {
 				shellVariant = info.ShellSetting.Variant
-				// Skip shell analysis for non-POSIX shells
-				if shellVariant.IsNonPOSIX() {
-					continue
-				}
+				isNonPOSIX = shellVariant.IsNonPOSIX()
 			}
 		}
 
@@ -47,8 +46,22 @@ func ScanRunCommandsWithPOSIXShell(input rules.LintInput, callback RunCommandCal
 				continue
 			}
 
+			// For non-POSIX shells, skip shell-form RUNs (they need shell parsing)
+			// but still process exec-form RUNs (PrependShell=false) since they
+			// execute binaries directly without shell interpretation.
+			if isNonPOSIX && run.PrependShell {
+				continue
+			}
+
+			// For exec-form in non-POSIX stages, use default bash variant for parsing
+			// the command string (exec-form arguments don't need shell parsing anyway)
+			effectiveVariant := shellVariant
+			if isNonPOSIX {
+				effectiveVariant = shell.VariantBash
+			}
+
 			// Call the callback for each RUN command
-			violations = append(violations, callback(run, shellVariant, input.File)...)
+			violations = append(violations, callback(run, effectiveVariant, input.File)...)
 		}
 	}
 

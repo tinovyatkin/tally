@@ -458,6 +458,12 @@ func TestCheck(t *testing.T) {
 			wantExit: 1,
 		},
 		{
+			name:     "dl3046",
+			dir:      "dl3046",
+			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3046")...),
+			wantExit: 1,
+		},
+		{
 			name:     "dl3047",
 			dir:      "dl3047",
 			args:     append([]string{"--format", "json"}, selectRules("hadolint/DL3047")...),
@@ -926,6 +932,13 @@ func TestFix(t *testing.T) {
 			input:       "FROM ubuntu:22.04\nRUN apt update && apt install -y curl\n",
 			args:        []string{"--fix"},
 			wantApplied: 1, // Single violation with multiple edits
+		},
+		// DL3046: useradd with high UID -> useradd -l
+		{
+			name:        "dl3046-useradd-high-uid",
+			input:       "FROM debian:bookworm\nRUN useradd -u 123456 appuser\n",
+			args:        []string{"--fix"},
+			wantApplied: 1,
 		},
 		// DL3047: wget -> wget --progress=dot:giga
 		{

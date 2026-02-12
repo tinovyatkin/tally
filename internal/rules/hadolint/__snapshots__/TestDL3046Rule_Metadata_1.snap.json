@@ -1,0 +1,10 @@
+{
+ "Category": "performance",
+ "Code": "hadolint/DL3046",
+ "DefaultSeverity": "warning",
+ "Description": "`useradd` without flag `-l` and high UID will result in excessively large Image",
+ "DocURL": "https://github.com/hadolint/hadolint/wiki/DL3046",
+ "FixPriority": 0,
+ "IsExperimental": false,
+ "Name": "useradd without -l and high UID"
+}
