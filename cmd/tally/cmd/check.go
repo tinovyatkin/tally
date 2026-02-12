@@ -261,6 +261,7 @@ func lintFiles(ctx stdcontext.Context, discovered []discovery.DiscoveredFile, cm
 
 		validateRuleConfigs(cfg, file)
 		validateAIConfig(cfg, file)
+		validateDurationConfigs(cfg, file)
 		res.fileConfigs[file] = cfg
 
 		if res.firstCfg == nil {
@@ -580,6 +581,26 @@ func validateAIConfig(cfg *config.Config, file string) {
 			source = cfg.ConfigFile
 		}
 		fmt.Fprintf(os.Stderr, "Warning: ai.enabled=true but ai.command is empty (%s)\n", source)
+	}
+}
+
+// validateDurationConfigs validates duration string fields at config load time
+// so the user sees a clear warning instead of silent fallback to defaults.
+func validateDurationConfigs(cfg *config.Config, file string) {
+	source := file
+	if cfg.ConfigFile != "" {
+		source = cfg.ConfigFile
+	}
+
+	if t := cfg.SlowChecks.Timeout; t != "" {
+		if _, err := time.ParseDuration(t); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid slow-checks.timeout %q (%s): %v\n", t, source, err)
+		}
+	}
+	if t := cfg.AI.Timeout; t != "" {
+		if _, err := time.ParseDuration(t); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: invalid ai.timeout %q (%s): %v\n", t, source, err)
+		}
 	}
 }
 
