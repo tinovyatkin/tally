@@ -18,10 +18,11 @@ func TestDL3046Rule_Metadata(t *testing.T) {
 func TestDL3046Rule_Check(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name       string
-		dockerfile string
-		wantCount  int
-		wantCode   string
+		name        string
+		dockerfile  string
+		wantCount   int
+		wantCode    string
+		useSemantic bool // Use semantic model for shell variant detection
 	}{
 		// Test cases from original Hadolint spec
 		{
@@ -162,12 +163,45 @@ RUN useradd -m -s /bin/bash developer
 `,
 			wantCount: 0,
 		},
+		// Non-POSIX shell stage tests (require semantic model for shell variant detection)
+		{
+			name: "exec form useradd in PowerShell stage still triggers",
+			dockerfile: `FROM mcr.microsoft.com/windows/servercore:ltsc2022
+SHELL ["powershell", "-Command"]
+RUN ["useradd", "-u", "123456", "luser"]
+`,
+			wantCount:   1,
+			useSemantic: true,
+		},
+		{
+			name: "shell form useradd in PowerShell stage is skipped",
+			dockerfile: `FROM mcr.microsoft.com/windows/servercore:ltsc2022
+SHELL ["powershell", "-Command"]
+RUN useradd -u 123456 luser
+`,
+			wantCount:   0, // shell-form skipped in non-POSIX stage
+			useSemantic: true,
+		},
+		{
+			name: "exec form ok with -l in PowerShell stage",
+			dockerfile: `FROM mcr.microsoft.com/windows/servercore:ltsc2022
+SHELL ["powershell", "-Command"]
+RUN ["useradd", "-l", "-u", "123456", "luser"]
+`,
+			wantCount:   0,
+			useSemantic: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			var input rules.LintInput
+			if tt.useSemantic {
+				input = testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
+			} else {
+				input = testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			}
 
 			r := NewDL3046Rule()
 			violations := r.Check(input)
