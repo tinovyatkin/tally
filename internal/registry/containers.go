@@ -9,6 +9,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/docker/distribution/registry/api/errcode"
+	v2 "github.com/docker/distribution/registry/api/v2"
 	"go.podman.io/image/v5/docker"
 	"go.podman.io/image/v5/docker/reference"
 	"go.podman.io/image/v5/manifest"
@@ -271,6 +273,9 @@ func parseEnvList(envList []string) map[string]string {
 }
 
 // classifyContainersError wraps errors from containers/image into typed errors.
+// It uses typed error matching (errcode.ErrorCoder, docker.ErrUnauthorizedForCredentials,
+// docker.UnexpectedHTTPStatusError) where possible, falling back to string matching
+// only for errors that don't carry structured type information.
 func classifyContainersError(ref string, err error) error {
 	if err == nil {
 		return nil
@@ -285,24 +290,58 @@ func classifyContainersError(ref string, err error) error {
 		return &NetworkError{Err: fmt.Errorf("registry %s: %w", ref, err)}
 	}
 
-	errStr := err.Error()
-
-	// Check for HTTP status codes in error messages.
-	if strings.Contains(errStr, "401") || strings.Contains(errStr, "403") ||
-		strings.Contains(errStr, "unauthorized") || strings.Contains(errStr, "authentication required") ||
-		strings.Contains(errStr, "denied") {
+	// Typed error: containers/image returns ErrUnauthorizedForCredentials for 401.
+	var authCredErr docker.ErrUnauthorizedForCredentials
+	if errors.As(err, &authCredErr) {
 		return &AuthError{Err: err}
 	}
 
-	if strings.Contains(errStr, "404") || strings.Contains(errStr, "not found") ||
-		strings.Contains(errStr, "manifest unknown") || strings.Contains(errStr, "name unknown") {
-		return &NotFoundError{Ref: ref, Err: err}
+	// Typed error: containers/image returns ErrTooManyRequests for 429.
+	if errors.Is(err, docker.ErrTooManyRequests) {
+		return &NetworkError{Err: fmt.Errorf("registry %s: %w", ref, err)}
 	}
 
-	// Check for network errors.
+	// Typed error: errcode.ErrorCoder carries the registry API error code.
+	var ecoder errcode.ErrorCoder
+	if errors.As(err, &ecoder) {
+		switch ecoder.ErrorCode() {
+		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeDenied:
+			return &AuthError{Err: err}
+		case v2.ErrorCodeManifestUnknown, v2.ErrorCodeNameUnknown, v2.ErrorCodeBlobUnknown:
+			return &NotFoundError{Ref: ref, Err: err}
+		case errcode.ErrorCodeTooManyRequests, errcode.ErrorCodeUnavailable:
+			return &NetworkError{Err: err}
+		}
+	}
+
+	// Typed error: UnexpectedHTTPStatusError carries the HTTP status code directly.
+	var httpErr docker.UnexpectedHTTPStatusError
+	if errors.As(err, &httpErr) {
+		switch {
+		case httpErr.StatusCode == 401 || httpErr.StatusCode == 403:
+			return &AuthError{Err: err}
+		case httpErr.StatusCode == 404:
+			return &NotFoundError{Ref: ref, Err: err}
+		default:
+			return &NetworkError{Err: err}
+		}
+	}
+
+	// Typed error: net.Error for network-level failures.
 	var netErr net.Error
 	if errors.As(err, &netErr) {
 		return &NetworkError{Err: err}
+	}
+
+	// Fallback: string matching for errors that don't carry typed information.
+	errStr := err.Error()
+	if strings.Contains(errStr, "unauthorized") || strings.Contains(errStr, "authentication required") ||
+		strings.Contains(errStr, "denied") {
+		return &AuthError{Err: err}
+	}
+	if strings.Contains(errStr, "not found") || strings.Contains(errStr, "manifest unknown") ||
+		strings.Contains(errStr, "name unknown") {
+		return &NotFoundError{Ref: ref, Err: err}
 	}
 
 	return &NetworkError{Err: err}
