@@ -36,52 +36,22 @@ func (r *InvalidBaseImagePlatformRule) Check(_ rules.LintInput) []rules.Violatio
 
 // PlanAsync creates check requests for each external base image.
 func (r *InvalidBaseImagePlatformRule) PlanAsync(input rules.LintInput) []async.CheckRequest {
-	sem, ok := input.Semantic.(*semantic.Model)
-	if !ok || sem == nil {
-		return nil
-	}
-
-	meta := r.Metadata()
-	var requests []async.CheckRequest
-
-	for info := range sem.ExternalImageStages() {
-		if info.Stage == nil {
-			continue
-		}
-
-		expectedPlatform, unresolved := semantic.ExpectedPlatform(info, sem)
-		if len(unresolved) > 0 || expectedPlatform == "" {
-			continue // skip when platform has unresolved ARGs or is empty
-		}
-
-		ref := info.Stage.BaseName
-		key := ref + "|" + expectedPlatform
-
-		var loc []parser.Range
-		if info.BaseImage != nil {
-			loc = info.BaseImage.Location
-		}
-
-		requests = append(requests, async.CheckRequest{
-			RuleCode:   meta.Code,
-			Category:   async.CategoryNetwork,
-			Key:        key,
-			ResolverID: registry.RegistryResolverID(),
-			Data:       &registry.ResolveRequest{Ref: ref, Platform: expectedPlatform},
-			File:       input.File,
-			StageIndex: info.Index,
-			Handler: &platformCheckHandler{
+	return planExternalImageChecks(input, r.Metadata(),
+		func(meta rules.RuleMetadata, info *semantic.StageInfo, file, platform string) async.ResultHandler {
+			var loc []parser.Range
+			if info.BaseImage != nil {
+				loc = info.BaseImage.Location
+			}
+			return &platformCheckHandler{
 				meta:     meta,
-				file:     input.File,
-				ref:      ref,
-				expected: expectedPlatform,
+				file:     file,
+				ref:      info.Stage.BaseName,
+				expected: platform,
 				location: loc,
 				stageIdx: info.Index,
-			},
-		})
-	}
-
-	return requests
+			}
+		},
+	)
 }
 
 // platformCheckHandler processes resolved image config for platform validation.
