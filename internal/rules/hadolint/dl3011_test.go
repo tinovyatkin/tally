@@ -160,6 +160,16 @@ EXPOSE ${START}-60000
 `,
 			wantCount: 0,
 		},
+		// Cross-rule interaction: DL3011 fires correctly even with uppercase protocol
+		// (ExposeProtoCasing would also flag this line, but at warning level)
+		{
+			name: "invalid port with uppercase protocol (overlap with ExposeProtoCasing)",
+			dockerfile: `FROM alpine:3.18
+EXPOSE 70000/TCP
+`,
+			wantCount: 1,
+			wantCode:  rules.HadolintRulePrefix + "DL3011",
+		},
 	}
 
 	for _, tt := range tests {
