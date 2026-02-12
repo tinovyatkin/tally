@@ -260,6 +260,7 @@ func (r *DL4006Rule) determineFixShell(input rules.LintInput, stageIdx int) stri
 	if sem, ok := input.Semantic.(*semantic.Model); ok {
 		if info := sem.StageInfo(stageIdx); info != nil && len(info.ShellSetting.Shell) > 0 {
 			shellBase := strings.ToLower(path.Base(info.ShellSetting.Shell[0]))
+			shellBase = strings.TrimSuffix(shellBase, ".exe")
 			if pipefailValidShells[shellBase] {
 				fixShell = info.ShellSetting.Shell[0]
 			}
