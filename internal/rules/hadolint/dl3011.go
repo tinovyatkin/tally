@@ -78,13 +78,17 @@ func validatePortSpec(portSpec string) []string {
 	// Strip protocol suffix if present (e.g., "80/tcp" -> "80")
 	portPart, _, _ := strings.Cut(portSpec, "/")
 
-	// Check if it's a range (e.g., "80-90")
-	startPort, endPort, isRange := strings.Cut(portPart, "-")
-	if isRange {
+	// Check if it's a range (e.g., "80-90" or "-1-80")
+	// Find the range separator: a "-" that's not at position 0 (which would be a negative sign)
+	rangeIdx := strings.Index(portPart[1:], "-") // Skip first char to ignore leading negative sign
+	if rangeIdx >= 0 {
+		rangeIdx++ // Adjust for the skipped character
+		startPort := portPart[:rangeIdx]
+		endPort := portPart[rangeIdx+1:]
 		return validatePortRange(startPort, endPort)
 	}
 
-	// Single port
+	// Single port (including negative numbers like "-1")
 	return validateSinglePort(portPart)
 }
 
@@ -119,7 +123,7 @@ func checkPortValue(portStr string) string {
 	if err != nil {
 		return "" // Non-numeric values are handled elsewhere
 	}
-	if port > 65535 {
+	if port < 0 || port > 65535 {
 		return portStr
 	}
 	return ""

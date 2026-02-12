@@ -170,6 +170,29 @@ EXPOSE 70000/TCP
 			wantCount: 1,
 			wantCode:  rules.HadolintRulePrefix + "DL3011",
 		},
+		// Negative port validation (lower bound)
+		{
+			name: "negative port -1",
+			dockerfile: `FROM alpine:3.18
+EXPOSE -1
+`,
+			wantCount: 1,
+			wantCode:  rules.HadolintRulePrefix + "DL3011",
+		},
+		{
+			name: "negative port -100",
+			dockerfile: `FROM alpine:3.18
+EXPOSE -100
+`,
+			wantCount: 1,
+		},
+		{
+			name: "negative port in range start (-1-80)",
+			dockerfile: `FROM alpine:3.18
+EXPOSE -1-80
+`,
+			wantCount: 1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -210,10 +233,15 @@ func TestValidatePortSpec(t *testing.T) {
 		{"65535", nil},
 		{"0", nil},
 
-		// Invalid ports
+		// Invalid ports - above max
 		{"65536", []string{"65536"}},
 		{"70000", []string{"70000"}},
 		{"80000", []string{"80000"}},
+
+		// Invalid ports - negative (below min)
+		{"-1", []string{"-1"}},
+		{"-100", []string{"-100"}},
+		{"-1/tcp", []string{"-1"}},
 
 		// With protocol
 		{"80/tcp", nil},
