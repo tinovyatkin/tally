@@ -99,6 +99,22 @@ HEALTHCHECK --interval=30s CMD curl -f http://localhost/ || exit 1
 `,
 			wantCount: 0,
 		},
+		{
+			name: "HEALTHCHECK CMD followed by HEALTHCHECK NONE uses last instruction",
+			dockerfile: `FROM scratch
+HEALTHCHECK CMD /bin/check
+HEALTHCHECK NONE
+`,
+			wantCount: 1, // Last HEALTHCHECK is NONE, so violation
+		},
+		{
+			name: "HEALTHCHECK NONE followed by HEALTHCHECK CMD uses last instruction",
+			dockerfile: `FROM scratch
+HEALTHCHECK NONE
+HEALTHCHECK CMD /bin/check
+`,
+			wantCount: 0, // Last HEALTHCHECK is CMD, so no violation
+		},
 	}
 
 	for _, tt := range tests {

@@ -178,32 +178,40 @@ func (h *healthcheckHandler) OnSuccess(resolved any) []any {
 	return out
 }
 
-// stageHasHealthcheckCmd checks whether a stage contains a HEALTHCHECK CMD instruction
-// (not HEALTHCHECK NONE).
+// stageHasHealthcheckCmd reports whether the last HEALTHCHECK instruction in a
+// stage is a CMD (not NONE). Docker only honours the final HEALTHCHECK, so we
+// must scan all commands rather than returning on the first match.
 func stageHasHealthcheckCmd(stage *instructions.Stage) bool {
+	last := ""
 	for _, cmd := range stage.Commands {
 		if hc, ok := cmd.(*instructions.HealthCheckCommand); ok {
 			if hc.Health != nil && hc.Health.Test != nil &&
-				len(hc.Health.Test) > 0 && hc.Health.Test[0] != "NONE" {
-				return true
+				len(hc.Health.Test) > 0 {
+				last = hc.Health.Test[0]
 			}
 		}
 	}
-	return false
+	return last != "" && last != "NONE"
 }
 
-// healthcheckNoneLocation returns the location of the first HEALTHCHECK NONE
-// instruction in a stage, or nil if none exists.
+// healthcheckNoneLocation returns the location of the last HEALTHCHECK
+// instruction in a stage if it is NONE, or nil otherwise. Docker only honours
+// the final HEALTHCHECK, so earlier instructions are irrelevant.
 func healthcheckNoneLocation(stage *instructions.Stage) []parser.Range {
+	var lastLoc []parser.Range
 	for _, cmd := range stage.Commands {
 		if hc, ok := cmd.(*instructions.HealthCheckCommand); ok {
 			if hc.Health != nil && hc.Health.Test != nil &&
-				len(hc.Health.Test) > 0 && hc.Health.Test[0] == "NONE" {
-				return hc.Location()
+				len(hc.Health.Test) > 0 {
+				if hc.Health.Test[0] == "NONE" {
+					lastLoc = hc.Location()
+				} else {
+					lastLoc = nil // CMD overrides earlier NONE
+				}
 			}
 		}
 	}
-	return nil
+	return lastLoc
 }
 
 // findDescendants returns the indices of all stages that transitively inherit
