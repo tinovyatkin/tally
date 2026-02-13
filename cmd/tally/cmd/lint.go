@@ -2,9 +2,11 @@ package cmd
 
 import (
 	stdcontext "context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/urfave/cli/v3"
@@ -156,10 +158,10 @@ func lintCommand() *cli.Command {
 				Usage:   "Enable AI AutoFix (requires an ACP agent command)",
 				Sources: cli.EnvVars("TALLY_AI_ENABLED"),
 			},
-			&cli.StringSliceFlag{
-				Name:    "ai-command",
-				Usage:   "ACP agent command argv (repeatable, in order)",
-				Sources: cli.EnvVars("TALLY_AI_COMMAND"),
+			&cli.StringFlag{
+				Name:    "acp-command",
+				Usage:   "ACP agent command line (e.g. \"gemini --experimental-acp\")",
+				Sources: cli.EnvVars("TALLY_ACP_COMMAND"),
 			},
 			&cli.StringFlag{
 				Name:    "ai-timeout",
@@ -474,8 +476,13 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 	if cmd.IsSet("ai") {
 		cfg.AI.Enabled = cmd.Bool("ai")
 	}
-	if cmd.IsSet("ai-command") {
-		cfg.AI.Command = cmd.StringSlice("ai-command")
+	if cmd.IsSet("acp-command") {
+		argv, err := parseACPCmd(cmd.String("acp-command"))
+		if err != nil {
+			return nil, err
+		}
+		cfg.AI.Command = argv
+		cfg.AI.Enabled = true
 	}
 	if cmd.IsSet("ai-timeout") {
 		cfg.AI.Timeout = cmd.String("ai-timeout")
@@ -488,6 +495,14 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 	}
 
 	return cfg, nil
+}
+
+func parseACPCmd(commandLine string) ([]string, error) {
+	fields := strings.Fields(commandLine)
+	if len(fields) == 0 {
+		return nil, errors.New("acp-command is empty")
+	}
+	return fields, nil
 }
 
 // outputConfig holds output configuration values.
