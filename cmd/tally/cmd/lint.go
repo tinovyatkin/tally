@@ -731,6 +731,10 @@ func applyFixes(
 		req.SetFixContext(fixCtx)
 	}
 
+	aiFixes, maxAITimeout := planAcpFixSpinner(violations, safetyThreshold, ruleFilter, fixModes, normalizedConfigs)
+	stopSpinner := startAcpFixSpinner(aiFixes, maxAITimeout)
+	defer stopSpinner()
+
 	fixer := &fix.Fixer{
 		SafetyThreshold: safetyThreshold,
 		RuleFilter:      ruleFilter,
