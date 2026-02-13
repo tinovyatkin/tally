@@ -148,7 +148,11 @@ func runFixCase(t *testing.T, tc fixCase) {
 	)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("check --fix failed: %v\noutput:\n%s", err, output)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("check --fix command failed to run: %v\noutput:\n%s", err, output)
+		}
+		// Non-zero exits are valid for fix runs when unfixed violations remain.
 	}
 
 	// Read the fixed Dockerfile and snapshot it
