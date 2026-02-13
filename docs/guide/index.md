@@ -12,6 +12,7 @@ Learn how to use tally effectively.
 - [Configuration](./configuration.md) - Config files, environment variables, and CLI flags
 - [Rules](../rules/) - Available rules and how to configure them
 - [Auto-Fix](./auto-fix.md) - Automatically fix violations
+- [AI AutoFix (ACP/MCP)](./ai-autofix-acp.md) - Use ACP agents for complex fixes (opt-in)
 
 ## Integration
 
