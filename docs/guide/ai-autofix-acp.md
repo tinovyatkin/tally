@@ -29,6 +29,7 @@ gemini --experimental-acp --allowed-mcp-server-names=none --model=gemini-3-flash
 ```
 
 Note: `--allowed-mcp-server-names` is an allowlist. Using a name you don’t have configured (like `none`) effectively disables all MCP servers.
+tally doesn’t provide any MCP servers to the agent today, so enabling MCP is usually just extra startup/latency overhead.
 
 ## Quick Start
 
