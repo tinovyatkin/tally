@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,13 +19,43 @@ var (
 	mockRegistry *testutil.MockRegistry
 )
 
+var errNoRulesSelected = errors.New("selectRules requires at least one rule")
+
 func TestMain(m *testing.M) {
-	// Build the binary once before running tests
+	code, err := runIntegrationTestMain(m)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "integration test setup failed: %v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(code)
+}
+
+func runIntegrationTestMain(m *testing.M) (int, error) {
+	// Build the binary once before running tests.
 	tmpDir, err := os.MkdirTemp("", "tally-test")
 	if err != nil {
-		panic(err)
+		return 0, fmt.Errorf("create temporary directory: %w", err)
+	}
+	defer func() {
+		_ = os.RemoveAll(tmpDir)
+	}()
+
+	if err := buildIntegrationBinary(tmpDir); err != nil {
+		return 0, err
 	}
 
+	if err := setupMockRegistry(tmpDir); err != nil {
+		return 0, err
+	}
+
+	code := m.Run()
+	if mockRegistry != nil {
+		mockRegistry.Close()
+	}
+	return code, nil
+}
+
+func buildIntegrationBinary(tmpDir string) error {
 	binaryName := "tally"
 	if runtime.GOOS == "windows" {
 		binaryName = "tally.exe"
@@ -36,14 +68,13 @@ func TestMain(m *testing.M) {
 	buildArgs := []string{"build"}
 	coverageDir = os.Getenv("GOCOVERDIR")
 	if coverageDir != "" {
-		coverageDir, err = filepath.Abs(coverageDir)
+		absCoverageDir, err := filepath.Abs(coverageDir)
 		if err != nil {
-			_ = os.RemoveAll(tmpDir)
-			panic("failed to get absolute coverage directory path: " + err.Error())
+			return fmt.Errorf("get absolute coverage directory path: %w", err)
 		}
+		coverageDir = absCoverageDir
 		if err := os.MkdirAll(coverageDir, 0o750); err != nil {
-			_ = os.RemoveAll(tmpDir)
-			panic("failed to create coverage directory: " + err.Error())
+			return fmt.Errorf("create coverage directory %q: %w", coverageDir, err)
 		}
 		buildArgs = append(buildArgs, "-cover")
 	}
@@ -53,23 +84,16 @@ func TestMain(m *testing.M) {
 
 	cmd := exec.Command("go", buildArgs...)
 	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to build binary: " + string(out))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("build integration binary: %w (output: %s)", err, out)
 	}
-
-	setupMockRegistry(tmpDir)
-
-	code := m.Run()
-
-	mockRegistry.Close()
-	_ = os.RemoveAll(tmpDir)
-	os.Exit(code)
+	return nil
 }
 
 // setupMockRegistry starts the mock OCI registry, populates it with test
 // images, writes registries.conf, and sets environment variables.
-func setupMockRegistry(tmpDir string) {
+func setupMockRegistry(tmpDir string) error {
 	mockRegistry = testutil.New()
 
 	// python:3.12 as single-platform linux/arm64 only — used for platform mismatch tests.
@@ -85,8 +109,7 @@ func setupMockRegistry(tmpDir string) {
 		},
 	}); err != nil {
 		mockRegistry.Close()
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to add python:3.12 image: " + err.Error())
+		return fmt.Errorf("add python:3.12 image: %w", err)
 	}
 
 	// multiarch:latest — a multi-arch manifest index with linux/amd64 and linux/arm64.
@@ -99,8 +122,7 @@ func setupMockRegistry(tmpDir string) {
 			Env: map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"}},
 	}); err != nil {
 		mockRegistry.Close()
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to add multiarch:latest index: " + err.Error())
+		return fmt.Errorf("add multiarch:latest index: %w", err)
 	}
 
 	// withhealthcheck:latest — image with HEALTHCHECK CMD. Used for DL3057 async tests.
@@ -113,8 +135,7 @@ func setupMockRegistry(tmpDir string) {
 		Healthcheck: []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"},
 	}); err != nil {
 		mockRegistry.Close()
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to add withhealthcheck:latest image: " + err.Error())
+		return fmt.Errorf("add withhealthcheck:latest image: %w", err)
 	}
 
 	// Delayed images — each has a 30-second artificial delay.
@@ -129,8 +150,7 @@ func setupMockRegistry(tmpDir string) {
 			Env:  map[string]string{"PATH": "/usr/local/bin:/usr/bin:/bin"},
 		}); err != nil {
 			mockRegistry.Close()
-			_ = os.RemoveAll(tmpDir)
-			panic("failed to add " + repo + ":latest: " + err.Error())
+			return fmt.Errorf("add %s:latest image: %w", repo, err)
 		}
 		mockRegistry.SetDelay(repo, 30*time.Second)
 	}
@@ -139,35 +159,33 @@ func setupMockRegistry(tmpDir string) {
 	confPath, err := mockRegistry.WriteRegistriesConf(tmpDir, "docker.io")
 	if err != nil {
 		mockRegistry.Close()
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to create registries.conf: " + err.Error())
+		return fmt.Errorf("create registries.conf: %w", err)
 	}
 	if err := os.Setenv("CONTAINERS_REGISTRIES_CONF", confPath); err != nil {
 		mockRegistry.Close()
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to set CONTAINERS_REGISTRIES_CONF: " + err.Error())
+		return fmt.Errorf("set CONTAINERS_REGISTRIES_CONF: %w", err)
 	}
 	// Set default platform to match the mock registry's image platform (linux/arm64).
 	if err := os.Setenv("DOCKER_DEFAULT_PLATFORM", "linux/arm64"); err != nil {
 		mockRegistry.Close()
-		_ = os.RemoveAll(tmpDir)
-		panic("failed to set DOCKER_DEFAULT_PLATFORM: " + err.Error())
+		return fmt.Errorf("set DOCKER_DEFAULT_PLATFORM: %w", err)
 	}
 
 	// Clear setup requests (image pushes) so only test-time requests are tracked.
 	mockRegistry.ResetRequests()
+	return nil
 }
 
 // selectRules returns args to disable all rules except the specified ones.
 // This isolates tests from global rule count changes.
-func selectRules(rules ...string) []string {
+func selectRules(rules ...string) ([]string, error) {
 	if len(rules) == 0 {
-		panic("selectRules requires at least one rule")
+		return nil, fmt.Errorf("select rules: %w", errNoRulesSelected)
 	}
 	args := make([]string, 0, 2+2*len(rules))
 	args = append(args, "--ignore", "*")
 	for _, r := range rules {
 		args = append(args, "--select", r)
 	}
-	return args
+	return args, nil
 }
