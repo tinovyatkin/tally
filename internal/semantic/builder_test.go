@@ -167,10 +167,42 @@ func TestBuilderHelpersHandleNilInputs(t *testing.T) {
 	}
 }
 
-func TestParseOnbuildCopyInvalidExpressionReturnsNil(t *testing.T) {
+func TestParseOnbuildExpressionInvalidExpressionReturnsNil(t *testing.T) {
 	t.Parallel()
-	b := NewBuilder(nil, nil, "Dockerfile")
-	if cmd := b.parseOnbuildCopy("COPY"); cmd != nil {
+	// "COPY" without arguments is invalid and should return nil.
+	if cmd := parseOnbuildExpression("COPY"); cmd != nil {
 		t.Errorf("expected nil for invalid ONBUILD expression, got %#v", cmd)
+	}
+}
+
+func TestParseOnbuildExpressionValidExpressions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		expr     string
+		wantType string
+	}{
+		{"RUN command", "RUN echo hello", "*instructions.RunCommand"},
+		{"COPY command", "COPY --from=builder /app /app", "*instructions.CopyCommand"},
+		{"ENV command", "ENV FOO=bar", "*instructions.EnvCommand"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cmd := parseOnbuildExpression(tt.expr)
+			if cmd == nil {
+				t.Fatalf("expected non-nil command for %q", tt.expr)
+			}
+		})
+	}
+}
+
+func TestParseOnbuildExpressionInvalidSyntaxReturnsNil(t *testing.T) {
+	t.Parallel()
+	// Completely invalid syntax
+	if cmd := parseOnbuildExpression("NOT_A_COMMAND ???"); cmd != nil {
+		t.Errorf("expected nil for invalid syntax, got %#v", cmd)
 	}
 }

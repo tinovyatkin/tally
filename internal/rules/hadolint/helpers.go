@@ -63,6 +63,32 @@ func ScanRunCommandsWithPOSIXShell(input rules.LintInput, callback RunCommandCal
 			// Call the callback for each RUN command
 			violations = append(violations, callback(run, effectiveVariant, input.File)...)
 		}
+
+		// Also check ONBUILD RUN commands from the semantic model.
+		// ONBUILD commands are parsed from a synthetic wrapper Dockerfile, so their
+		// Location() points to the wrapper, not the original file. We force
+		// PrependShell=false so callbacks use CmdLine directly (exec-form path)
+		// instead of source-map lookup, and skip auto-fix generation.
+		if sem != nil {
+			for _, onbuild := range sem.OnbuildInstructions(stageIdx) {
+				run, ok := onbuild.Command.(*instructions.RunCommand)
+				if !ok {
+					continue
+				}
+
+				// Force exec-form treatment: callbacks will use run.CmdLine directly
+				// and won't attempt source-map-based auto-fix. The parsed command is
+				// a fresh object from parseOnbuildExpression, so mutation is safe.
+				run.PrependShell = false
+
+				effectiveVariant := shellVariant
+				if isNonPOSIX {
+					effectiveVariant = shell.VariantBash
+				}
+
+				violations = append(violations, callback(run, effectiveVariant, input.File)...)
+			}
+		}
 	}
 
 	return violations

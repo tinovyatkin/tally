@@ -25,7 +25,7 @@ RUN apt-get install python`,
 			name: "ONBUILD apt-get install without -y",
 			dockerfile: `FROM ubuntu
 ONBUILD RUN apt-get install python`,
-			wantCount: 0, // ONBUILD not yet supported
+			wantCount: 1,
 		},
 
 		// Insufficient Quiet Levels - should trigger
@@ -152,7 +152,7 @@ RUN apt install python`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 			r := NewDL3014Rule()
 			violations := r.Check(input)
 

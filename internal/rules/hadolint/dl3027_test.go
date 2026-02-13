@@ -120,14 +120,14 @@ RUN apk add python`,
 			name: "ONBUILD with apt",
 			dockerfile: `FROM ubuntu
 ONBUILD RUN apt install python`,
-			wantCount: 0, // ONBUILD not yet supported in our implementation
+			wantCount: 1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 			r := NewDL3027Rule()
 			violations := r.Check(input)
 

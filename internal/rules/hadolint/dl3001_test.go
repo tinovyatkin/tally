@@ -197,7 +197,8 @@ RUN apt-get install -y vim
 			dockerfile: `FROM ubuntu:22.04
 ONBUILD RUN top
 `,
-			wantCount: 0, // ONBUILD not yet supported
+			wantCount: 1,
+			wantCode:  rules.HadolintRulePrefix + "DL3001",
 		},
 		{
 			name: "onbuild with valid command",
@@ -211,7 +212,7 @@ ONBUILD RUN apt-get install ssh
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 
 			r := NewDL3001Rule()
 			violations := r.Check(input)
