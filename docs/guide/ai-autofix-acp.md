@@ -1,4 +1,4 @@
-# AI AutoFix via ACP (MCP-friendly)
+# AI AutoFix via ACP
 
 tally supports **opt-in AI AutoFix** for the kinds of Dockerfile improvements that are hard to express as a purely mechanical rewrite (or too risky
 to apply without extra validation).
@@ -12,15 +12,33 @@ From a user perspective, that means:
 - You keep **credentials and model choice** inside that agent.
 - tally stays a **linter first** — fast, deterministic where possible — and uses AI only when you explicitly opt in.
 
+## Recommended setup (low latency)
+
+Dockerfiles are a mature, relatively stable domain that most modern models are already trained on. For AI fixes, you usually don’t need external
+tools or context servers — you want fast, predictable transformations.
+
+For that reason, we recommend:
+
+- A **fast/smaller model** with solid general reasoning.
+- Disabling any agent-side tool integrations (for example, MCP servers) unless you *know* you need them.
+
+Example (Gemini CLI):
+
+```bash
+gemini --experimental-acp --allowed-mcp-server-names=none --model=gemini-3-flash-preview
+```
+
 ## Quick Start
 
 ### 1) Pick an ACP agent
 
 The simplest way to get started is an ACP-capable CLI agent, such as:
 
-- Gemini CLI (native ACP): <https://github.com/google-gemini/gemini-cli>
-- OpenCode (native ACP): <https://opencode.ai/docs/acp/>
-- GitHub Copilot CLI (native ACP, public preview): <https://github.blog/changelog/2026-01-28-acp-support-in-copilot-cli-is-now-in-public-preview/>
+- Gemini CLI (native ACP): <https://agentclientprotocol.com/agents/gemini-cli>
+- OpenCode (native ACP): <https://agentclientprotocol.com/agents/opencode>
+- Kiro CLI (native ACP): <https://agentclientprotocol.com/agents/kiro>
+- Cline (CLI v2, native ACP): <https://agentclientprotocol.com/agents/cline>
+- GitHub Copilot CLI (native ACP): <https://agentclientprotocol.com/agents/github-copilot>
 
 You can always browse the latest registry here:
 
@@ -37,8 +55,13 @@ timeout = "90s"
 max-input-bytes = 262144
 redact-secrets = true
 
-# Example: Gemini CLI
-command = ["gemini", "--experimental-acp"]
+# Example: Gemini CLI (recommended: fast model + no MCP servers)
+command = [
+  "gemini",
+  "--experimental-acp",
+  "--allowed-mcp-server-names=none",
+  "--model=gemini-3-flash-preview",
+]
 ```
 
 ### 3) Run an AI-powered fix
@@ -84,10 +107,10 @@ Common reasons:
 - You didn’t pass `--fix` (no fixes run at all).
 - You didn’t pass `--fix-unsafe` (AI fixes won’t run).
 - You set `--fix-rule ...` and the rule you picked **didn’t trigger** for that Dockerfile.
-  - Example: `tally/prefer-multi-stage-build` only triggers for Dockerfiles with **exactly one `FROM`**.
+- Example: `tally/prefer-multi-stage-build` only triggers for Dockerfiles with **exactly one `FROM`**.
 - Your AI agent timed out or failed. tally prints the reason on stderr (and keeps stdout clean for JSON/SARIF).
 
-## Why ACP (and MCP) Is a Better Fit Than API Keys
+## Why ACP Is a Better Fit Than API Keys
 
 Lots of tools bolt AI onto a linter by asking for an OpenAI/Anthropic API key. That’s easy to ship, but it’s a poor long-term UX for a linter:
 
@@ -102,13 +125,8 @@ ACP flips that around:
 - You bring your own agent (and your existing auth setup).
 - You can switch models/providers without waiting for tally to add a new integration.
 
-Where MCP fits:
-
-- **MCP (Model Context Protocol)** is about tools and context servers: <https://modelcontextprotocol.io/>
-- **ACP** is about how a client (like tally or an editor) talks to an agent.
-
-Many ACP agents also support MCP internally. Today, tally intentionally runs AI fixes in a “no-tools” mode (no filesystem, no terminal) to keep the
-behavior as predictable and safe as possible — but adopting ACP keeps the door open for future “context-aware” workflows when that makes sense.
+Many ACP agents also support tool/context integrations (for example, MCP servers). For Dockerfile fixes, we recommend keeping those disabled for
+lower latency and fewer surprises — the Dockerfile text and rule evidence is usually enough.
 
 ## Configuration Reference
 
@@ -119,7 +137,7 @@ All AI settings live under `[ai]`:
 ```toml
 [ai]
 enabled = false                 # Default: false
-command = ["gemini", "--experimental-acp"]
+command = ["gemini", "--experimental-acp", "--allowed-mcp-server-names=none", "--model=gemini-3-flash-preview"]
 timeout = "90s"                 # Per-fix timeout
 max-input-bytes = 262144        # Prompt size limit
 redact-secrets = true           # Default: true
@@ -128,7 +146,7 @@ redact-secrets = true           # Default: true
 | Setting | Default | Meaning |
 |---------|---------|---------|
 | `ai.enabled` | `false` | Master kill-switch for AI features |
-| `ai.command` | _(empty)_ | ACP agent argv (stdio). If empty, AI fixes can’t run |
+| `ai.command` | *(empty)* | ACP agent argv (stdio). If empty, AI fixes can’t run |
 | `ai.timeout` | `"90s"` | Per-fix timeout for the ACP interaction |
 | `ai.max-input-bytes` | `262144` | Maximum prompt size to send to the agent |
 | `ai.redact-secrets` | `true` | Redact obvious secrets in prompts (best-effort) |
@@ -136,7 +154,7 @@ redact-secrets = true           # Default: true
 ### Environment variables
 
 - `TALLY_AI_ENABLED=true`
-- `TALLY_ACP_COMMAND="gemini --experimental-acp"`
+- `TALLY_ACP_COMMAND="gemini --experimental-acp --allowed-mcp-server-names=none --model=gemini-3-flash-preview"`
 - `TALLY_AI_TIMEOUT=90s`
 - `TALLY_AI_MAX_INPUT_BYTES=262144`
 - `TALLY_AI_REDACT_SECRETS=true`
@@ -167,16 +185,16 @@ Some tools implement ACP natively, others are wired in via adapters maintained b
 
 ### Native ACP agents
 
-- Gemini CLI: <https://github.com/google-gemini/gemini-cli>
-- OpenCode: <https://opencode.ai/docs/acp/>
-- Kiro CLI: <https://kiro.dev/docs/cli/acp/> (see also: <https://kiro.dev/blog/kiro-adopts-acp.html>)
-- Cline (CLI v2): <https://cline.bot/>
-- GitHub Copilot CLI: <https://github.com/github/copilot-cli>
+- Gemini CLI: <https://agentclientprotocol.com/agents/gemini-cli>
+- OpenCode: <https://agentclientprotocol.com/agents/opencode>
+- Kiro CLI: <https://agentclientprotocol.com/agents/kiro>
+- Cline (CLI v2): <https://agentclientprotocol.com/agents/cline>
+- GitHub Copilot CLI: <https://agentclientprotocol.com/agents/github-copilot>
 
 ### Zed-maintained adapters
 
-- Claude Code: <https://code.claude.com/docs/en/overview> (adapter: <https://github.com/zed-industries/claude-code-acp>)
-- OpenAI Codex CLI: <https://developers.openai.com/codex/cli> (adapter: <https://github.com/zed-industries/codex-acp>)
+- Claude Code: <https://agentclientprotocol.com/agents/claude-code> (adapter: <https://github.com/zed-industries/claude-code-acp>)
+- OpenAI Codex CLI: <https://agentclientprotocol.com/agents/codex> (adapter: <https://github.com/zed-industries/codex-acp>)
 
 For background on ACP and the registry, see:
 
