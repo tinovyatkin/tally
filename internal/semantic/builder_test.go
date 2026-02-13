@@ -170,7 +170,7 @@ func TestBuilderHelpersHandleNilInputs(t *testing.T) {
 func TestParseOnbuildExpressionInvalidExpressionReturnsNil(t *testing.T) {
 	t.Parallel()
 	// "COPY" without arguments is invalid and should return nil.
-	if cmd := parseOnbuildExpression("COPY"); cmd != nil {
+	if cmd := parseOnbuildExpression("COPY", 0); cmd != nil {
 		t.Errorf("expected nil for invalid ONBUILD expression, got %#v", cmd)
 	}
 }
@@ -191,7 +191,7 @@ func TestParseOnbuildExpressionValidExpressions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			cmd := parseOnbuildExpression(tt.expr)
+			cmd := parseOnbuildExpression(tt.expr, 0)
 			if cmd == nil {
 				t.Fatalf("expected non-nil command for %q", tt.expr)
 			}
@@ -199,10 +199,25 @@ func TestParseOnbuildExpressionValidExpressions(t *testing.T) {
 	}
 }
 
+func TestParseOnbuildExpressionPatchesLocation(t *testing.T) {
+	t.Parallel()
+	cmd := parseOnbuildExpression("RUN echo hello", 42)
+	if cmd == nil {
+		t.Fatal("expected non-nil command")
+	}
+	loc := cmd.Location()
+	if len(loc) == 0 {
+		t.Fatal("expected non-empty location")
+	}
+	if loc[0].Start.Line != 42 {
+		t.Errorf("Start.Line = %d, want 42", loc[0].Start.Line)
+	}
+}
+
 func TestParseOnbuildExpressionInvalidSyntaxReturnsNil(t *testing.T) {
 	t.Parallel()
 	// Completely invalid syntax
-	if cmd := parseOnbuildExpression("NOT_A_COMMAND ???"); cmd != nil {
+	if cmd := parseOnbuildExpression("NOT_A_COMMAND ???", 0); cmd != nil {
 		t.Errorf("expected nil for invalid syntax, got %#v", cmd)
 	}
 }

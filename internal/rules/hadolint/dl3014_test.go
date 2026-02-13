@@ -214,7 +214,7 @@ RUN apt-get install curl wget`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+			input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", tt.dockerfile)
 			r := NewDL3014Rule()
 			violations := r.Check(input)
 
@@ -239,6 +239,45 @@ RUN apt-get install curl wget`,
 				}
 			}
 		})
+	}
+}
+
+// TestDL3014_OnbuildAutoFix verifies that DL3014 provides auto-fix for ONBUILD RUN commands.
+func TestDL3014_OnbuildAutoFix(t *testing.T) {
+	t.Parallel()
+	input := testutil.MakeLintInputWithSemantic(t, "Dockerfile", `FROM ubuntu
+ONBUILD RUN apt-get install python`)
+	r := NewDL3014Rule()
+	violations := r.Check(input)
+
+	if len(violations) != 1 {
+		t.Fatalf("got %d violations, want 1", len(violations))
+	}
+
+	v := violations[0]
+
+	// Violation should point to the ONBUILD line
+	if v.Location.Start.Line != 2 {
+		t.Errorf("violation line = %d, want 2", v.Location.Start.Line)
+	}
+
+	// Auto-fix should be present with correct position
+	if v.SuggestedFix == nil {
+		t.Fatal("expected SuggestedFix for ONBUILD RUN")
+	}
+	if len(v.SuggestedFix.Edits) == 0 {
+		t.Fatal("expected at least one edit")
+	}
+	edit := v.SuggestedFix.Edits[0]
+	// "ONBUILD RUN apt-get install" — "install" ends at column 27
+	if edit.Location.Start.Column != 27 {
+		t.Errorf("insert column = %d, want 27", edit.Location.Start.Column)
+	}
+	if edit.NewText != " -y" {
+		t.Errorf("NewText = %q, want %q", edit.NewText, " -y")
+	}
+	if edit.Location.Start.Line != 2 {
+		t.Errorf("edit line = %d, want 2", edit.Location.Start.Line)
 	}
 }
 

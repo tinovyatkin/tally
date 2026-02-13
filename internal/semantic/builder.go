@@ -492,15 +492,16 @@ func (b *Builder) processStageCommands(stage *instructions.Stage, info *StageInf
 // stores it in the stage info. ONBUILD instructions execute when the image is
 // used as a base for another build, not in the current build.
 func (b *Builder) processOnbuildCommand(c *instructions.OnbuildCommand, info *StageInfo) {
-	parsed := parseOnbuildExpression(c.Expression)
-	if parsed == nil {
-		return
-	}
-
 	sourceLine := 0
 	if loc := c.Location(); len(loc) > 0 {
 		sourceLine = loc[0].Start.Line
 	}
+
+	parsed := parseOnbuildExpression(c.Expression, sourceLine)
+	if parsed == nil {
+		return
+	}
+
 	info.OnbuildInstructions = append(info.OnbuildInstructions, OnbuildInstruction{
 		Command:    parsed,
 		SourceLine: sourceLine,
@@ -588,14 +589,24 @@ func (b *Builder) processOnbuildCopyFrom(cmd *instructions.CopyCommand, stageInd
 
 // parseOnbuildExpression parses an ONBUILD expression string into a typed
 // instructions.Command by wrapping it in a minimal Dockerfile and parsing
-// with BuildKit. Returns nil if parsing fails or the expression is not
-// a recognized instruction.
-func parseOnbuildExpression(expr string) instructions.Command {
+// with BuildKit. sourceLine is the 1-based line number of the original
+// ONBUILD instruction; the parsed command's Location() will report this line.
+// Returns nil if parsing fails or the expression is not a recognized instruction.
+func parseOnbuildExpression(expr string, sourceLine int) instructions.Command {
 	// Parse by wrapping in a minimal Dockerfile
 	dummyDockerfile := "FROM scratch\n" + expr + "\n"
 	result, err := parser.Parse(strings.NewReader(dummyDockerfile))
 	if err != nil {
 		return nil
+	}
+
+	// Patch the AST node's location to the original ONBUILD line before
+	// instructions.Parse bakes it into the command. The expression node is
+	// the second child (index 1, after "FROM scratch").
+	if sourceLine > 0 && len(result.AST.Children) >= 2 {
+		node := result.AST.Children[1]
+		node.StartLine = sourceLine
+		node.EndLine = sourceLine
 	}
 
 	stages, _, err := instructions.Parse(result.AST, nil)
