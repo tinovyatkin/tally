@@ -135,10 +135,35 @@ func (r *DL3001Rule) Check(input rules.LintInput) []rules.Violation {
 				strings.Join(found, ", "),
 				strings.Join(cfg.InvalidCommands, ", "),
 			)
-			return []rules.Violation{
-				rules.NewViolation(loc, meta.Code, msg, meta.DefaultSeverity).
-					WithDocURL(meta.DocURL),
+			v := rules.NewViolation(loc, meta.Code, msg, meta.DefaultSeverity).
+				WithDocURL(meta.DocURL)
+
+			// Offer a comment-out fix when every command in the RUN is invalid
+			// and the instruction fits on a single line (no continuation lines).
+			ranges := run.Location()
+			singleLine := len(ranges) == 1 && ranges[0].Start.Line == ranges[0].End.Line
+			if len(found) == len(names) && singleLine {
+				sm := input.SourceMap()
+				line := sm.Line(loc.Start.Line - 1)
+				if line != "" {
+					commented := "# [commented out by tally - " +
+						"command has no purpose in a container]: " + line
+					v = v.WithSuggestedFix(&rules.SuggestedFix{
+						Description: "Comment out RUN instruction that " +
+							"only runs container-irrelevant commands",
+						Safety: rules.FixSuggestion,
+						Edits: []rules.TextEdit{{
+							Location: rules.NewRangeLocation(
+								file, loc.Start.Line, 0,
+								loc.Start.Line, len(line),
+							),
+							NewText: commented,
+						}},
+					})
+				}
 			}
+
+			return []rules.Violation{v}
 		},
 	)
 }

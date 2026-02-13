@@ -224,6 +224,87 @@ ONBUILD RUN apt-get install ssh
 	}
 }
 
+func TestDL3001Rule_SuggestedFix(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		dockerfile string
+		wantFix    bool
+		wantText   string
+	}{
+		{
+			name: "single invalid command gets fix",
+			dockerfile: `FROM ubuntu:22.04
+RUN top
+`,
+			wantFix:  true,
+			wantText: "# [commented out by tally - command has no purpose in a container]: RUN top",
+		},
+		{
+			name: "all invalid commands on one line get fix",
+			dockerfile: `FROM ubuntu:22.04
+RUN top && ps
+`,
+			wantFix:  true,
+			wantText: "# [commented out by tally - command has no purpose in a container]: RUN top && ps",
+		},
+		{
+			name: "mixed valid and invalid commands get no fix",
+			dockerfile: `FROM ubuntu:22.04
+RUN apt-get update && top
+`,
+			wantFix: false,
+		},
+		{
+			name: "multi-line RUN gets no fix",
+			dockerfile: `FROM ubuntu:22.04
+RUN top \
+    && ps
+`,
+			wantFix: false,
+		},
+		{
+			name: "fix has suggestion safety level",
+			dockerfile: `FROM ubuntu:22.04
+RUN ssh user@host
+`,
+			wantFix: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			input := testutil.MakeLintInput(t, "Dockerfile", tt.dockerfile)
+
+			r := NewDL3001Rule()
+			violations := r.Check(input)
+
+			if len(violations) == 0 {
+				t.Fatal("expected at least one violation")
+			}
+
+			v := violations[0]
+			if tt.wantFix {
+				if v.SuggestedFix == nil {
+					t.Fatal("expected SuggestedFix, got nil")
+				}
+				if v.SuggestedFix.Safety != rules.FixSuggestion {
+					t.Errorf("Safety = %v, want FixSuggestion", v.SuggestedFix.Safety)
+				}
+				if tt.wantText != "" && len(v.SuggestedFix.Edits) > 0 {
+					if v.SuggestedFix.Edits[0].NewText != tt.wantText {
+						t.Errorf("NewText = %q, want %q",
+							v.SuggestedFix.Edits[0].NewText, tt.wantText)
+					}
+				}
+			} else if v.SuggestedFix != nil {
+				t.Errorf("expected no SuggestedFix, got %+v", v.SuggestedFix)
+			}
+		})
+	}
+}
+
 func TestDL3001Rule_CheckWithConfig(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
