@@ -60,7 +60,7 @@ func (r *DL3057Rule) Metadata() rules.RuleMetadata {
 // async path may later suppress this if a base image provides HEALTHCHECK.
 func (r *DL3057Rule) Check(input rules.LintInput) []rules.Violation {
 	sem, ok := input.Semantic.(*semantic.Model)
-	if !ok {
+	if !ok || sem == nil {
 		return nil
 	}
 
