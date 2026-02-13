@@ -32,34 +32,27 @@ Keep these invariant during refactor:
 
 This split is Go-idiomatic and does not introduce a meaningful performance penalty because `go test` still builds one test binary per package.
 
-## 4. Target File Layout
+## 4. File Layout (Current Implementation)
 
 ```text
 internal/integration/
 ├── main_test.go                         # TestMain + binary/mock-registry bootstrap
 ├── harness_test.go                      # shared runners, env wiring, snapshot helpers
 ├── check_test.go                        # TestCheck entrypoint + runner invocation
-├── check_cases_core_test.go             # config/discovery/format/fail-level + generic checks
-├── check_cases_buildkit_compat_test.go  # BuildKit compatibility fixtures (mostly stable)
-├── check_cases_hadolint_compat_test.go  # Hadolint compatibility fixtures (mostly stable)
-├── check_cases_tally_static_test.go     # new tally/* static checks (no external I/O)
-├── check_cases_tally_context_test.go    # tally/* rules needing --context / filesystem
-├── check_cases_tally_async_test.go      # tally/* rules needing --slow-checks / registry/network
-├── check_cases_tally_crossrule_test.go  # multi-rule interactions and suppression/supersession
+├── check_cases_test.go                  # all check case catalogs (grouped by domain buckets)
 ├── version_test.go                      # TestVersion
 ├── fix_test.go                          # TestFix entrypoint + runner invocation
-├── fix_cases_buildkit_compat_test.go    # existing BuildKit fix compatibility cases
-├── fix_cases_hadolint_compat_test.go    # existing Hadolint fix compatibility cases
-├── fix_cases_tally_test.go              # new tally/* fix cases
-├── fix_crossrule_test.go                # multi-rule fix ordering/conflict tests
-├── fix_realworld_test.go                # larger scenario regression tests
+├── fix_cases_test.go                    # table-driven fix cases (single + cross-rule)
+├── fix_scenarios_test.go                # larger scenario regression tests
 └── benchmark_test.go                    # benchmarks
 ```
 
 Notes:
 
-- BuildKit/Hadolint suites are now mostly compatibility/regression coverage.
-- Most future changes should land in `check_cases_tally_*` and `fix_cases_tally*.go`.
+- BuildKit/Hadolint suites are mostly compatibility/regression coverage.
+- `check_cases_test.go` and `fix_cases_test.go` are intentionally consolidated right now.
+- Domain grouping is done with sectioned buckets in those files; if they grow too large, split by domain into `check_cases_<domain>_test.go` /
+  `fix_cases_<domain>_test.go` without changing behavior.
 
 ## 5. Shared Harness Contract
 
@@ -104,17 +97,19 @@ GOEXPERIMENT=jsonv2 go test ./internal/integration/...
 2. Keep `TestCheck`/`TestFix` still in one file but call helpers.
 3. Verify no behavior changes.
 
-### Step 3: Split `TestCheck` by Domain
+### Step 3: Organize `TestCheck` Cases by Domain
 
-1. Create case catalogs in `check_cases_*.go` grouped by domain.
+1. Keep case catalogs in `check_cases_test.go` grouped by domain buckets.
 2. Keep a single `TestCheck` runner in `check_test.go` that concatenates catalogs.
-3. Preserve each case `name` string exactly.
+3. Optionally split into multiple `check_cases_<domain>_test.go` files later if merge pressure/readability requires it.
+4. Preserve each case `name` string exactly.
 
-### Step 4: Split `TestFix` by Domain
+### Step 4: Organize `TestFix` Cases by Domain
 
-1. Create `fix_cases_*.go` case catalogs.
+1. Keep case catalogs in `fix_cases_test.go` grouped by domain buckets.
 2. Keep `TestFix` runner in `fix_test.go`.
-3. Move one-off scenarios into dedicated files (`fix_realworld_test.go`, etc.).
+3. Keep one-off scenarios in dedicated files (`fix_scenarios_test.go`, etc.).
+4. Optionally split into multiple `fix_cases_<domain>_test.go` files later if needed.
 
 ### Step 5: Enforce Placement Rules for New Work
 
@@ -143,19 +138,21 @@ BuildKit/Hadolint are feature-complete in this project context. Treat them as co
 For every new `tally/*` rule:
 
 1. Add or update **unit tests** near the rule implementation (primary logic coverage).
-2. Add **integration check** coverage in `internal/integration/check_cases_tally_*.go`:
+2. Add **integration check** coverage in `internal/integration/check_cases_test.go`:
    - static/context/async/crossrule bucket selected by decision tree.
-3. If rule is fixable, add **integration fix** coverage in `fix_cases_tally_test.go` or `fix_crossrule_test.go`.
+3. If rule is fixable, add **integration fix** coverage in `internal/integration/fix_cases_test.go`:
+   - single-rule or cross-rule bucket selected by decision tree.
 4. Add dedicated scenario test only when table-driven format becomes unnatural.
 
 ### 7.1 Buckets
 
-- `check_cases_tally_static_test.go`: no context, no network, deterministic CLI behavior.
-- `check_cases_tally_context_test.go`: requires `--context`, filesystem, `.dockerignore`, discovery interactions.
-- `check_cases_tally_async_test.go`: requires `--slow-checks`, registry/network/mocked async behavior.
-- `check_cases_tally_crossrule_test.go`: multiple rules interacting (suppression, supersession, ordering).
-- `fix_cases_tally_test.go`: single-rule fix behavior.
-- `fix_crossrule_test.go`: fix priority/order conflicts or multi-rule edit overlap.
+- `check_cases_test.go` static bucket: no context, no network, deterministic CLI behavior.
+- `check_cases_test.go` context bucket: requires `--context`, filesystem, `.dockerignore`, discovery interactions.
+- `check_cases_test.go` async bucket: requires `--slow-checks`, registry/network/mocked async behavior.
+- `check_cases_test.go` cross-rule bucket: multiple rules interacting (suppression, supersession, ordering).
+- `fix_cases_test.go` single-rule bucket: single-rule fix behavior.
+- `fix_cases_test.go` cross-rule bucket: fix priority/order conflicts or multi-rule edit overlap.
+- `fix_scenarios_test.go`: larger non-table scenarios.
 
 ## 8. Decision Tree (Where Should This Test Go?)
 
@@ -167,29 +164,29 @@ Start: I changed or added behavior
 |      |-- No  -> continue
 |
 |-- Is this a BuildKit/Hadolint compatibility regression?
-|      |-- Yes -> check_cases_buildkit_compat_test.go or check_cases_hadolint_compat_test.go
+|      |-- Yes -> check_cases_test.go (compatibility bucket section)
 |      |-- No  -> continue (assume tally/*)
 |
 |-- Does it require --fix / --fix-unsafe?
 |      |-- Yes
-|      |    |-- Single-rule fix -> fix_cases_tally_test.go
-|      |    |-- Multi-rule ordering/conflict -> fix_crossrule_test.go
+|      |    |-- Single-rule fix -> fix_cases_test.go (single-rule bucket)
+|      |    |-- Multi-rule ordering/conflict -> fix_cases_test.go (cross-rule bucket)
 |      |
 |      |-- No (check-only)
 |           |-- Needs --slow-checks / registry / async timeout behavior?
-|           |      |-- Yes -> check_cases_tally_async_test.go
+|           |      |-- Yes -> check_cases_test.go (async bucket)
 |           |      |-- No  -> continue
 |           |
 |           |-- Needs --context, discovery, .dockerignore, filesystem context?
-|           |      |-- Yes -> check_cases_tally_context_test.go
+|           |      |-- Yes -> check_cases_test.go (context bucket)
 |           |      |-- No  -> continue
 |           |
 |           |-- Interacts with other rules (suppression/supersession/priority)?
-|           |      |-- Yes -> check_cases_tally_crossrule_test.go
-|           |      |-- No  -> check_cases_tally_static_test.go
+|           |      |-- Yes -> check_cases_test.go (cross-rule bucket)
+|           |      |-- No  -> check_cases_test.go (static bucket)
 |
 |-- Is assertion shape not table-friendly (complex custom setup/assertions)?
-       |-- Yes -> dedicated *_test.go scenario file + small helper reuse
+       |-- Yes -> dedicated *_test.go scenario file (e.g. fix_scenarios_test.go) + helper reuse
        |-- No  -> keep in the appropriate case catalog
 ```
 
@@ -237,7 +234,7 @@ Otherwise, prefer case catalogs.
 For each new `tally/*` rule PR:
 
 1. Unit tests added/updated near rule package.
-2. Integration check case added to the correct `check_cases_tally_*` file.
+2. Integration check case added to the correct bucket in `check_cases_test.go`.
 3. Fix case added if rule has fix support.
 4. Cross-rule test added if behavior depends on ordering/suppression/conflicts.
 5. Snapshot updates reviewed for intentional changes only.
@@ -248,6 +245,6 @@ For each new `tally/*` rule PR:
 The refactor is complete when:
 
 1. `internal/integration/integration_test.go` is removed or reduced to small compatibility shims.
-2. Case catalogs are separated by domain with shared harness helpers.
+2. Case catalogs are organized by domain buckets (in consolidated files or split files) with shared harness helpers.
 3. Engineers can place a new `tally/*` test via the decision tree without guessing.
 4. Integration runtime remains comparable to pre-refactor runs.
