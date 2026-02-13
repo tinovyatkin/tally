@@ -89,13 +89,11 @@ func runCheckCase(t *testing.T, tc checkCase) {
 	// Normalize line endings (Windows CRLF -> LF) for consistent snapshots
 	outputStr = strings.ReplaceAll(outputStr, "\r\n", "\n")
 
-	if tc.isDir {
-		// Replace absolute paths with relative ones for reproducible snapshots
-		wd, err := os.Getwd()
-		if err == nil {
-			wdSlash := filepath.ToSlash(wd) + "/"
-			outputStr = strings.ReplaceAll(outputStr, wdSlash, "")
-		}
+	// Replace absolute paths with relative ones for reproducible snapshots.
+	wd, err := os.Getwd()
+	if err == nil {
+		wdSlash := filepath.ToSlash(wd) + "/"
+		outputStr = strings.ReplaceAll(outputStr, wdSlash, "")
 	}
 
 	if tc.snapRaw {
