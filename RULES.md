@@ -17,7 +17,7 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 |-----------|-------------|---------------------|-------|
 | tally | 8 | - | 8 |
 | buildkit | 17 + 5 captured | - | 22 |
-| hadolint | 23 | 11 | 66 |
+| hadolint | 24 | 11 | 66 |
 <!-- END RULES_SUMMARY -->
 
 ---
@@ -182,7 +182,7 @@ See the [Hadolint Wiki](https://github.com/hadolint/hadolint/wiki) for detailed 
 | [DL4003](https://github.com/hadolint/hadolint/wiki/DL4003) | Multiple `CMD` instructions found. | Warning | 🔄 `buildkit/MultipleInstructionsDisallowed` |
 | [DL4004](https://github.com/hadolint/hadolint/wiki/DL4004) | Multiple `ENTRYPOINT` instructions found. | Error | 🔄 `buildkit/MultipleInstructionsDisallowed` |
 | [DL4005](https://github.com/hadolint/hadolint/wiki/DL4005) | Use `SHELL` to change the default shell. | Warning | ✅🔧 `hadolint/DL4005` |
-| [DL4006](https://github.com/hadolint/hadolint/wiki/DL4006) | Set the `SHELL` option -o pipefail before `RUN` with a pipe in it | Warning | ⏳ |
+| [DL4006](https://github.com/hadolint/hadolint/wiki/DL4006) | Set the `SHELL` option -o pipefail before `RUN` with a pipe in it | Warning | ✅🔧 `hadolint/DL4006` |
 <!-- END HADOLINT_DL_RULES -->
 
 ### SC Rules (ShellCheck)

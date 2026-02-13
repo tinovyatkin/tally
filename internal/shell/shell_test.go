@@ -308,6 +308,10 @@ func TestVariantFromShell(t *testing.T) {
 		{"cmd.exe", VariantNonPOSIX},
 		{"unknown", VariantBash}, // unknown defaults to bash
 		{"", VariantBash},
+		// Windows backslash paths
+		{`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, VariantNonPOSIX},
+		{`C:\Program Files\PowerShell\7\pwsh.exe`, VariantNonPOSIX},
+		{`C:\Windows\System32\cmd.exe`, VariantNonPOSIX},
 	}
 
 	for _, tt := range tests {

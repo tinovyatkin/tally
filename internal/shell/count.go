@@ -274,6 +274,36 @@ func hasExitCommandFromAST(prog *syntax.File) bool {
 	return hasExit
 }
 
+// HasPipes checks if a shell script contains any pipe operators (| or |&).
+// Returns false for non-POSIX shells or unparseable scripts.
+func HasPipes(script string, variant Variant) bool {
+	if variant.IsNonPOSIX() {
+		return false
+	}
+
+	prog, err := parseScript(script, variant)
+	if err != nil {
+		return false
+	}
+
+	return hasPipesFromAST(prog)
+}
+
+// hasPipesFromAST checks if a pre-parsed AST contains pipe operators.
+func hasPipesFromAST(prog *syntax.File) bool {
+	found := false
+	syntax.Walk(prog, func(node syntax.Node) bool {
+		if bin, ok := node.(*syntax.BinaryCmd); ok {
+			if bin.Op == syntax.Pipe || bin.Op == syntax.PipeAll {
+				found = true
+				return false // Stop walking
+			}
+		}
+		return true
+	})
+	return found
+}
+
 // HasExitCommand checks if a script contains exit commands that would change
 // control flow if merged with other commands.
 func HasExitCommand(script string, variant Variant) bool {

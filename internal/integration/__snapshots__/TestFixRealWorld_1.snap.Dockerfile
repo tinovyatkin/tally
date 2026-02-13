@@ -164,6 +164,7 @@ WORKDIR /app
 ENV NVARCH=x86_64
 RUN <<EOF
 set -e
+set -o pipefail
 apt-get update
 apt-get install -y --no-install-recommends gnupg2 curl ca-certificates
 curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/${NVARCH}/3bf863cc.pub | apt-key add -
@@ -351,6 +352,7 @@ ENV LD_LIBRARY_PATH="/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/li
 
 RUN <<EOF
 set -e
+set -o pipefail
 echo $PATH
 echo $LD_LIBRARY_PATH
 pip install -U --force-reinstall --no-cache-dir wheel==0.43.0 setuptools==70.1.0
@@ -498,8 +500,10 @@ chmod +x ${HOME_DIR}/oss_compliance/generate_oss_compliance.sh
 ${HOME_DIR}/oss_compliance/generate_oss_compliance.sh ${HOME_DIR} ${PYTHON}
 rm -rf ${HOME_DIR}/oss_compliance*
 rm -rf /tmp/tmp*
-rm -rf /root/.cache | true
 EOF
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN rm -rf /root/.cache | true
 
 ENTRYPOINT ["bash", "-m", "start_with_right_hostname.sh"]
 

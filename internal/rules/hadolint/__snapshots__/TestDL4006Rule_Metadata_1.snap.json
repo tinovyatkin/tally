@@ -1,0 +1,10 @@
+{
+ "Category": "reliability",
+ "Code": "hadolint/DL4006",
+ "DefaultSeverity": "warning",
+ "Description": "Set the SHELL option -o pipefail before RUN with a pipe in it",
+ "DocURL": "https://github.com/hadolint/hadolint/wiki/DL4006",
+ "FixPriority": 0,
+ "IsExperimental": false,
+ "Name": "Set pipefail"
+}
