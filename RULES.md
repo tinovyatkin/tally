@@ -17,7 +17,7 @@ tally supports rules from multiple sources, each with its own namespace prefix.
 |-----------|-------------|---------------------|-------|
 | tally | 8 | - | 8 |
 | buildkit | 17 + 5 captured | - | 22 |
-| hadolint | 24 | 11 | 66 |
+| hadolint | 25 | 11 | 66 |
 <!-- END RULES_SUMMARY -->
 
 ---
