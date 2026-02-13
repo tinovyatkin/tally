@@ -37,7 +37,7 @@ type DL3001Config struct {
 // DefaultDL3001Config returns the default configuration.
 func DefaultDL3001Config() DL3001Config {
 	return DL3001Config{
-		InvalidCommands: defaultInvalidCommands,
+		InvalidCommands: slices.Clone(defaultInvalidCommands),
 	}
 }
 
