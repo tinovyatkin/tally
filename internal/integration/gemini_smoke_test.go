@@ -6,12 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
-)
 
-var fromRE = regexp.MustCompile(`(?im)^\\s*FROM\\b`)
+	"github.com/tinovyatkin/tally/internal/dockerfile"
+)
 
 func TestGeminiSmoke_FixPreferMultiStageBuild(t *testing.T) {
 	if os.Getenv("ACP_ENABLE_GEMINI_TESTS") != "1" {
@@ -29,9 +28,12 @@ func TestGeminiSmoke_FixPreferMultiStageBuild(t *testing.T) {
 		t.Fatalf("expected Dockerfile to change, but it did not")
 	}
 
-	fromCount := len(fromRE.FindAllIndex(fixed, -1))
-	if fromCount < 2 {
-		t.Fatalf("expected multi-stage Dockerfile with 2+ FROM, got %d\nDockerfile:\n%s", fromCount, fixed)
+	parsed, err := dockerfile.Parse(bytes.NewReader(fixed), nil)
+	if err != nil {
+		t.Fatalf("parse fixed Dockerfile: %v\nDockerfile:\n%s", err, fixed)
+	}
+	if len(parsed.Stages) < 2 {
+		t.Fatalf("expected multi-stage Dockerfile with 2+ stages, got %d\nDockerfile:\n%s", len(parsed.Stages), fixed)
 	}
 	if !bytes.Contains(fixed, []byte(`CMD ["app"]`)) {
 		t.Fatalf("expected CMD to be preserved in final stage\nDockerfile:\n%s", fixed)
