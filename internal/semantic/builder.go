@@ -1,8 +1,8 @@
 package semantic
 
 import (
+	"cmp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -710,8 +710,8 @@ func topLevelInstructionNodes(root *parser.Node) []*parser.Node {
 		}
 	}
 
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].StartLine < nodes[j].StartLine
+	slices.SortFunc(nodes, func(a, b *parser.Node) int {
+		return cmp.Compare(a.StartLine, b.StartLine)
 	})
 
 	return nodes

@@ -2,10 +2,10 @@ package fix
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/tinovyatkin/tally/internal/config"
@@ -103,6 +103,10 @@ func (f *Fixer) Apply(ctx context.Context, violations []rules.Violation, sources
 		// Record skipped fixes for any that still need resolution (resolver failed)
 		for _, fc := range asyncCandidates {
 			if fc.fix.NeedsResolve {
+				if fc.fix.ResolveErr != nil {
+					// Resolver already reported a concrete error; avoid double-recording.
+					continue
+				}
 				recordSkipped(result.Changes, fc.violation, SkipResolveError, "resolver failed or missing")
 			}
 		}
@@ -248,42 +252,73 @@ func (f *Fixer) fixModeAllowed(filePath, ruleCode string) bool {
 // This ensures each resolver sees the content after previous async fixes were applied,
 // avoiding position drift between async fixes.
 func (f *Fixer) resolveAsyncFixes(ctx context.Context, changes map[string]*FileChange, candidates []*fixCandidate) {
+	byFile := make(map[string][]*fixCandidate)
 	for _, candidate := range candidates {
-		fix := candidate.fix
-		if !fix.NeedsResolve {
-			continue
+		if candidate.fix.NeedsResolve {
+			normalizedFile := normalizePath(candidate.violation.File())
+			byFile[normalizedFile] = append(byFile[normalizedFile], candidate)
 		}
+	}
 
-		resolver := GetResolver(fix.ResolverID)
-		if resolver == nil {
-			// Unknown resolver, will be skipped later
-			continue
-		}
+	files := make([]string, 0, len(byFile))
+	for file := range byFile {
+		files = append(files, file)
+	}
+	slices.Sort(files)
 
-		// Get the CURRENT content (may have been modified by previous async fixes)
-		normalizedFile := normalizePath(candidate.violation.File())
-		fc := changes[normalizedFile]
+	for _, file := range files {
+		fc := changes[file]
 		if fc == nil {
 			continue
 		}
 
-		resolveCtx := ResolveContext{
-			FilePath: fc.Path,
-			Content:  fc.ModifiedContent,
-		}
+		fileCandidates := byFile[file]
+		// Resolve in SuggestedFix.Priority order so whole-file rewrites (high priority)
+		// run after content/structural async transforms for the same file.
+		slices.SortStableFunc(fileCandidates, func(a, b *fixCandidate) int {
+			if c := cmp.Compare(a.fix.Priority, b.fix.Priority); c != 0 {
+				return c
+			}
+			if c := cmp.Compare(a.violation.RuleCode, b.violation.RuleCode); c != 0 {
+				return c
+			}
+			return cmp.Compare(a.violation.Location.Start.Line, b.violation.Location.Start.Line)
+		})
 
-		// Resolve synchronously (sequential to avoid position drift between async fixes)
-		edits, err := resolver.Resolve(ctx, resolveCtx, fix)
-		if err != nil {
-			// Mark as failed but continue with other fixes
-			continue
-		}
-		fix.Edits = edits
-		fix.NeedsResolve = false
+		for _, candidate := range fileCandidates {
+			fix := candidate.fix
+			if !fix.NeedsResolve {
+				continue
+			}
 
-		// Apply this fix immediately so the next resolver sees updated content
-		if len(fix.Edits) > 0 {
-			f.applyFixesToFile(fc, []*fixCandidate{candidate})
+			resolver := GetResolver(fix.ResolverID)
+			if resolver == nil {
+				recordSkipped(changes, candidate.violation, SkipResolveError, "resolver not registered: "+fix.ResolverID)
+				fix.NeedsResolve = false
+				continue
+			}
+
+			resolveCtx := ResolveContext{
+				FilePath: fc.Path,
+				Content:  fc.ModifiedContent,
+			}
+
+			// Resolve synchronously (sequential within a file to avoid position drift).
+			edits, err := resolver.Resolve(ctx, resolveCtx, fix)
+			if err != nil {
+				fix.ResolveErr = err
+				recordSkipped(changes, candidate.violation, SkipResolveError, err.Error())
+				fix.NeedsResolve = false
+				continue
+			}
+			fix.ResolveErr = nil
+			fix.Edits = edits
+			fix.NeedsResolve = false
+
+			// Apply this fix immediately so the next resolver sees updated content.
+			if len(fix.Edits) > 0 {
+				f.applyFixesToFile(fc, []*fixCandidate{candidate})
+			}
 		}
 	}
 }
@@ -312,14 +347,20 @@ func (f *Fixer) applyFixesToFile(fc *FileChange, candidates []*fixCandidate) {
 	// Sort edits by priority first (lower = earlier), then by position (descending).
 	// This ensures content fixes (priority 0) run before structural transforms (priority 100+),
 	// and within the same priority, later positions are processed first to handle position drift.
-	sort.Slice(allEdits, func(i, j int) bool {
-		iPriority := allEdits[i].candidate.fix.Priority
-		jPriority := allEdits[j].candidate.fix.Priority
-		if iPriority != jPriority {
-			return iPriority < jPriority
+	slices.SortFunc(allEdits, func(a, b editWithSource) int {
+		aPriority := a.candidate.fix.Priority
+		bPriority := b.candidate.fix.Priority
+		if aPriority != bPriority {
+			return cmp.Compare(aPriority, bPriority)
 		}
-		// Within same priority, later positions first (existing behavior)
-		return !compareEdits(allEdits[i].edit, allEdits[j].edit)
+
+		// Within same priority, later positions first (existing behavior).
+		aLine, aCol := editPosition(a.edit)
+		bLine, bCol := editPosition(b.edit)
+		if aLine != bLine {
+			return cmp.Compare(bLine, aLine)
+		}
+		return cmp.Compare(bCol, aCol)
 	})
 
 	// Track which candidates have been applied or skipped

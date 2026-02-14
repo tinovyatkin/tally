@@ -1,14 +1,21 @@
 package cmd
 
 import (
+	"cmp"
 	stdcontext "context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/tinovyatkin/tally/internal/ai/autofix"
+	"github.com/tinovyatkin/tally/internal/ai/autofixdata"
 	"github.com/tinovyatkin/tally/internal/async"
 	"github.com/tinovyatkin/tally/internal/config"
 	"github.com/tinovyatkin/tally/internal/context"
@@ -149,6 +156,32 @@ func lintCommand() *cli.Command {
 				Usage:   "Also apply suggestion/unsafe fixes (requires --fix)",
 				Sources: cli.EnvVars("TALLY_FIX_UNSAFE"),
 			},
+			&cli.BoolFlag{
+				Name:    "ai",
+				Usage:   "Enable AI AutoFix (requires an ACP agent command)",
+				Sources: cli.EnvVars("TALLY_AI_ENABLED"),
+			},
+			&cli.StringFlag{
+				Name:    "acp-command",
+				Usage:   "ACP agent command line (e.g. \"gemini --experimental-acp\")",
+				Sources: cli.EnvVars("TALLY_ACP_COMMAND"),
+			},
+			&cli.StringFlag{
+				Name:    "ai-timeout",
+				Usage:   "Per-fix AI timeout (e.g., 90s)",
+				Sources: cli.EnvVars("TALLY_AI_TIMEOUT"),
+			},
+			&cli.IntFlag{
+				Name:    "ai-max-input-bytes",
+				Usage:   "Maximum prompt size in bytes",
+				Sources: cli.EnvVars("TALLY_AI_MAX_INPUT_BYTES"),
+			},
+			&cli.BoolFlag{
+				Name:    "ai-redact-secrets",
+				Usage:   "Redact obvious secrets before sending content to the agent",
+				Value:   true,
+				Sources: cli.EnvVars("TALLY_AI_REDACT_SECRETS"),
+			},
 		},
 		Action: runLint,
 	}
@@ -161,6 +194,99 @@ type lintResults struct {
 	fileSources map[string][]byte
 	fileConfigs map[string]*config.Config
 	firstCfg    *config.Config
+}
+
+func collectRegistryInsights(
+	plans []async.CheckRequest,
+	result *async.RunResult,
+) map[string][]autofixdata.RegistryInsight {
+	if result == nil || len(result.Resolved) == 0 || len(plans) == 0 {
+		return nil
+	}
+
+	byFile := make(map[string]map[string]autofixdata.RegistryInsight)
+
+	for _, req := range plans {
+		if req.ResolverID != registry.RegistryResolverID() {
+			continue
+		}
+
+		data, ok := req.Data.(*registry.ResolveRequest)
+		if !ok || data == nil {
+			continue
+		}
+
+		resolved, ok := result.Resolved[async.ResolutionKey{ResolverID: req.ResolverID, Key: req.Key}]
+		if !ok {
+			continue
+		}
+
+		fileKey := filepath.ToSlash(req.File)
+		if fileKey == "" {
+			continue
+		}
+
+		stageKey := strconv.Itoa(req.StageIndex) + "|" + req.Key
+		insight := autofixdata.RegistryInsight{
+			StageIndex:         req.StageIndex,
+			Ref:                data.Ref,
+			RequestedPlatform:  data.Platform,
+			ResolvedPlatform:   "",
+			Digest:             "",
+			AvailablePlatforms: nil,
+		}
+
+		switch v := resolved.(type) {
+		case *registry.ImageConfig:
+			if v != nil {
+				insight.ResolvedPlatform = formatPlatformParts(v.OS, v.Arch, v.Variant)
+				insight.Digest = v.Digest
+			}
+		case *registry.PlatformMismatchError:
+			if v != nil && len(v.Available) > 0 {
+				insight.AvailablePlatforms = append([]string(nil), v.Available...)
+			}
+		}
+
+		m := byFile[fileKey]
+		if m == nil {
+			m = make(map[string]autofixdata.RegistryInsight)
+			byFile[fileKey] = m
+		}
+		m[stageKey] = insight
+	}
+
+	if len(byFile) == 0 {
+		return nil
+	}
+
+	out := make(map[string][]autofixdata.RegistryInsight, len(byFile))
+	for file, m := range byFile {
+		list := make([]autofixdata.RegistryInsight, 0, len(m))
+		for _, ins := range m {
+			list = append(list, ins)
+		}
+		slices.SortFunc(list, func(a, b autofixdata.RegistryInsight) int {
+			if d := cmp.Compare(a.StageIndex, b.StageIndex); d != 0 {
+				return d
+			}
+			if d := strings.Compare(a.Ref, b.Ref); d != 0 {
+				return d
+			}
+			return strings.Compare(a.RequestedPlatform, b.RequestedPlatform)
+		})
+		out[file] = list
+	}
+
+	return out
+}
+
+func formatPlatformParts(osName, arch, variant string) string {
+	s := osName + "/" + arch
+	if variant != "" {
+		s += "/" + variant
+	}
+	return s
 }
 
 // runLint is the action handler for the lint command.
@@ -196,8 +322,12 @@ func runLint(ctx stdcontext.Context, cmd *cli.Command) error {
 	}
 
 	// Execute async checks if enabled and plans exist.
+	var (
+		asyncResult *async.RunResult
+		asyncPlans  []async.CheckRequest
+	)
 	if len(res.asyncPlans) > 0 {
-		asyncResult := runAsyncChecks(ctx, res)
+		asyncResult, asyncPlans = runAsyncChecks(ctx, res)
 		if asyncResult != nil {
 			res.violations = mergeAsyncViolations(res.violations, asyncResult)
 		}
@@ -224,7 +354,7 @@ func runLint(ctx stdcontext.Context, cmd *cli.Command) error {
 		fmt.Fprintf(os.Stderr, "Warning: --fix-unsafe has no effect without --fix\n")
 	}
 	if cmd.Bool("fix") {
-		fixResult, fixErr := applyFixes(ctx, cmd, allViolations, res.fileSources, res.fileConfigs)
+		fixResult, fixErr := applyFixes(ctx, cmd, allViolations, res.fileSources, res.fileConfigs, asyncPlans, asyncResult)
 		if fixErr != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to apply fixes: %v\n", fixErr)
 			return cli.Exit("", ExitConfigError)
@@ -236,6 +366,7 @@ func runLint(ctx stdcontext.Context, cmd *cli.Command) error {
 		}
 		if fixResult.TotalSkipped() > 0 {
 			fmt.Fprintf(os.Stderr, "Skipped %d fixes\n", fixResult.TotalSkipped())
+			reportSkippedFixes(fixResult)
 		}
 
 		allViolations = filterFixedViolations(allViolations, fixResult)
@@ -442,7 +573,169 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 		cfg.SlowChecks.Timeout = cmd.String("slow-checks-timeout")
 	}
 
+	// Apply AI CLI overrides
+	if cmd.IsSet("ai") {
+		cfg.AI.Enabled = cmd.Bool("ai")
+	}
+	if cmd.IsSet("acp-command") {
+		argv, err := parseACPCmd(cmd.String("acp-command"))
+		if err != nil {
+			return nil, err
+		}
+		cfg.AI.Command = argv
+		cfg.AI.Enabled = true
+	}
+	if cmd.IsSet("ai-timeout") {
+		cfg.AI.Timeout = cmd.String("ai-timeout")
+	}
+	if cmd.IsSet("ai-max-input-bytes") {
+		cfg.AI.MaxInputBytes = cmd.Int("ai-max-input-bytes")
+	}
+	if cmd.IsSet("ai-redact-secrets") {
+		cfg.AI.RedactSecrets = cmd.Bool("ai-redact-secrets")
+	}
+
 	return cfg, nil
+}
+
+func parseACPCmd(commandLine string) ([]string, error) {
+	fields, err := splitCommandLine(commandLine)
+	if err != nil {
+		return nil, err
+	}
+	if len(fields) == 0 || fields[0] == "" {
+		return nil, errors.New("acp-command is empty")
+	}
+	return fields, nil
+}
+
+func splitCommandLine(commandLine string) ([]string, error) {
+	var s commandLineSplitter
+	for i := range len(commandLine) {
+		var next byte
+		hasNext := false
+		if i+1 < len(commandLine) {
+			next = commandLine[i+1]
+			hasNext = true
+		}
+		s.consume(commandLine[i], next, hasNext)
+	}
+	return s.finish()
+}
+
+type commandLineSplitter struct {
+	out []string
+	cur strings.Builder
+
+	inArg    bool
+	inSingle bool
+	inDouble bool
+	escaped  bool
+}
+
+func (s *commandLineSplitter) flush() {
+	if !s.inArg {
+		return
+	}
+	s.out = append(s.out, s.cur.String())
+	s.cur.Reset()
+	s.inArg = false
+}
+
+func (s *commandLineSplitter) consume(ch, next byte, hasNext bool) {
+	switch {
+	case s.escaped:
+		s.consumeEscaped(ch)
+	case s.inSingle:
+		s.consumeSingle(ch)
+	case s.inDouble:
+		s.consumeDouble(ch, next, hasNext)
+	default:
+		s.consumePlain(ch, next, hasNext)
+	}
+}
+
+func (s *commandLineSplitter) consumeEscaped(ch byte) {
+	s.cur.WriteByte(ch)
+	s.escaped = false
+	s.inArg = true
+}
+
+func (s *commandLineSplitter) consumeSingle(ch byte) {
+	if ch == '\'' {
+		s.inSingle = false
+		s.inArg = true
+		return
+	}
+	s.cur.WriteByte(ch)
+	s.inArg = true
+}
+
+func (s *commandLineSplitter) consumeDouble(ch, next byte, hasNext bool) {
+	switch ch {
+	case '"':
+		s.inDouble = false
+		s.inArg = true
+	case '\\':
+		if hasNext && shouldEscapeNextByte(next) {
+			s.escaped = true
+			s.inArg = true
+			return
+		}
+		s.cur.WriteByte('\\')
+		s.inArg = true
+	default:
+		s.cur.WriteByte(ch)
+		s.inArg = true
+	}
+}
+
+func (s *commandLineSplitter) consumePlain(ch, next byte, hasNext bool) {
+	switch ch {
+	case ' ', '\t', '\n', '\r':
+		s.flush()
+	case '\'':
+		s.inSingle = true
+		s.inArg = true
+	case '"':
+		s.inDouble = true
+		s.inArg = true
+	case '\\':
+		if hasNext && shouldEscapeNextByte(next) {
+			s.escaped = true
+			s.inArg = true
+			return
+		}
+		s.cur.WriteByte('\\')
+		s.inArg = true
+	default:
+		s.cur.WriteByte(ch)
+		s.inArg = true
+	}
+}
+
+func shouldEscapeNextByte(next byte) bool {
+	switch next {
+	case '"', '\'', '\\', ' ', '\t', '\n', '\r':
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *commandLineSplitter) finish() ([]string, error) {
+	if s.escaped {
+		return nil, errors.New("acp-command has a trailing backslash escape")
+	}
+	if s.inSingle {
+		return nil, errors.New("acp-command has an unterminated single quote")
+	}
+	if s.inDouble {
+		return nil, errors.New("acp-command has an unterminated double quote")
+	}
+
+	s.flush()
+	return s.out, nil
 }
 
 // outputConfig holds output configuration values.
@@ -619,6 +912,8 @@ func applyFixes(
 	violations []rules.Violation,
 	sources map[string][]byte,
 	fileConfigs map[string]*config.Config,
+	asyncPlans []async.CheckRequest,
+	asyncResult *async.RunResult,
 ) (*fix.Result, error) {
 	// Determine safety threshold
 	safetyThreshold := fix.FixSafe
@@ -631,6 +926,57 @@ func applyFixes(
 
 	// Build per-file fix modes from fileConfigs
 	fixModes := buildPerFileFixModes(fileConfigs)
+
+	// Register AI resolver only when AI is enabled for at least one file config.
+	aiEnabled := false
+	normalizedConfigs := make(map[string]*config.Config, len(fileConfigs))
+	for path, cfg := range fileConfigs {
+		normalizedConfigs[filepath.ToSlash(path)] = cfg
+		if cfg != nil && cfg.AI.Enabled {
+			aiEnabled = true
+		}
+	}
+	if aiEnabled {
+		autofix.Register()
+	}
+
+	registryInsightsByFile := collectRegistryInsights(asyncPlans, asyncResult)
+
+	// Enrich AI resolver requests with per-file config + outer fix context.
+	fixCtx := autofixdata.FixContext{
+		SafetyThreshold: safetyThreshold,
+		RuleFilter:      ruleFilter,
+		FixModes:        fixModes,
+	}
+	for i := range violations {
+		v := &violations[i]
+		if v.SuggestedFix == nil || !v.SuggestedFix.NeedsResolve {
+			continue
+		}
+		if v.SuggestedFix.ResolverID != autofixdata.ResolverID {
+			continue
+		}
+		req, ok := v.SuggestedFix.ResolverData.(interface {
+			SetConfig(cfg *config.Config)
+			SetFixContext(ctx autofixdata.FixContext)
+		})
+		if !ok {
+			continue
+		}
+		cfg := normalizedConfigs[filepath.ToSlash(v.File())]
+		req.SetConfig(cfg)
+		req.SetFixContext(fixCtx)
+
+		if setter, ok := v.SuggestedFix.ResolverData.(interface {
+			SetRegistryInsights(insights []autofixdata.RegistryInsight)
+		}); ok {
+			setter.SetRegistryInsights(registryInsightsByFile[filepath.ToSlash(v.File())])
+		}
+	}
+
+	aiFixes, maxAITimeout := planAcpFixSpinner(violations, safetyThreshold, ruleFilter, fixModes, normalizedConfigs)
+	stopSpinner := startAcpFixSpinner(aiFixes, maxAITimeout)
+	defer stopSpinner()
 
 	fixer := &fix.Fixer{
 		SafetyThreshold: safetyThreshold,
@@ -671,7 +1017,7 @@ func buildPerFileFixModes(fileConfigs map[string]*config.Config) map[string]map[
 		}
 		modes := fix.BuildFixModes(cfg)
 		if len(modes) > 0 {
-			result[filePath] = modes
+			result[filepath.Clean(filePath)] = modes
 		}
 	}
 	return result
@@ -680,20 +1026,20 @@ func buildPerFileFixModes(fileConfigs map[string]*config.Config) map[string]map[
 // runAsyncChecks executes async check plans if slow checks are enabled.
 // Returns nil if slow checks are disabled or no plans exist.
 // Respects per-file slow-checks configuration from res.fileConfigs.
-func runAsyncChecks(ctx stdcontext.Context, res *lintResults) *async.RunResult {
+func runAsyncChecks(ctx stdcontext.Context, res *lintResults) (*async.RunResult, []async.CheckRequest) {
 	if len(res.asyncPlans) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	plans, maxTimeout := filterAsyncPlans(res)
 	if len(plans) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Register the registry resolver (once per invocation).
 	if registry.NewDefaultResolver == nil {
 		fmt.Fprintf(os.Stderr, "note: slow checks not available (missing build tags)\n")
-		return nil
+		return nil, nil
 	}
 	imgResolver := registry.NewDefaultResolver()
 	asyncImgResolver := registry.NewAsyncImageResolver(imgResolver)
@@ -708,7 +1054,7 @@ func runAsyncChecks(ctx stdcontext.Context, res *lintResults) *async.RunResult {
 
 	result := rt.Run(ctx, plans)
 	reportSkipped(result)
-	return result
+	return result, plans
 }
 
 // filterAsyncPlans applies per-file slow-checks policy to async plans.
@@ -794,6 +1140,79 @@ func reportSkipped(result *async.RunResult) {
 	if n := counts[async.SkipResolverErr]; n > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d slow check(s) skipped due to errors\n", n)
 	}
+}
+
+func reportSkippedFixes(result *fix.Result) {
+	if result == nil || result.TotalSkipped() == 0 {
+		return
+	}
+
+	type skippedFixInfo struct {
+		filePath string
+		ruleCode string
+		errorMsg string
+	}
+
+	var (
+		aiTimeouts int
+		aiErrors   int
+		otherErrs  int
+		samples    []skippedFixInfo
+	)
+
+	for _, fc := range result.Changes {
+		if fc == nil {
+			continue
+		}
+		for _, s := range fc.FixesSkipped {
+			if s.Reason != fix.SkipResolveError || s.Error == "" {
+				continue
+			}
+
+			isAI := strings.Contains(s.Error, "ai-autofix") || strings.Contains(s.Error, "acp ")
+			if isAI {
+				if strings.Contains(s.Error, stdcontext.DeadlineExceeded.Error()) {
+					aiTimeouts++
+				} else {
+					aiErrors++
+				}
+			} else {
+				otherErrs++
+			}
+
+			if len(samples) < 5 {
+				samples = append(samples, skippedFixInfo{
+					filePath: fc.Path,
+					ruleCode: s.RuleCode,
+					errorMsg: compactSingleLine(s.Error, 500),
+				})
+			}
+		}
+	}
+
+	if aiTimeouts > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d AI fix(es) timed out (increase --ai-timeout or ai.timeout)\n", aiTimeouts)
+	}
+	if aiErrors > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d AI fix(es) failed (see details below)\n", aiErrors)
+	}
+	if otherErrs > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d fix(es) skipped due to resolver errors\n", otherErrs)
+	}
+
+	for _, s := range samples {
+		fmt.Fprintf(os.Stderr, "note: skipped fix %s (%s): %s\n", s.ruleCode, s.filePath, s.errorMsg)
+	}
+}
+
+func compactSingleLine(s string, maxLen int) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\n", "; ")
+	s = strings.TrimSpace(s)
+	if maxLen > 0 && len(s) > maxLen {
+		s = s[:maxLen] + "…"
+	}
+	return s
 }
 
 // filesWithErrors returns a set of files that have SeverityError violations.

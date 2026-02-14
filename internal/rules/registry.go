@@ -1,10 +1,15 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"sync"
 )
+
+func byCode(a, b Rule) int {
+	return cmp.Compare(a.Metadata().Code, b.Metadata().Code)
+}
 
 // Registry manages rule registration and lookup.
 type Registry struct {
@@ -57,9 +62,7 @@ func (r *Registry) All() []Rule {
 	for _, rule := range r.rules {
 		result = append(result, rule)
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Metadata().Code < result[j].Metadata().Code
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 
@@ -72,7 +75,7 @@ func (r *Registry) Codes() []string {
 	for code := range r.rules {
 		codes = append(codes, code)
 	}
-	sort.Strings(codes)
+	slices.Sort(codes)
 	return codes
 }
 
@@ -87,9 +90,7 @@ func (r *Registry) ByCategory(category string) []Rule {
 			result = append(result, rule)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Metadata().Code < result[j].Metadata().Code
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 
@@ -104,9 +105,7 @@ func (r *Registry) BySeverity(severity Severity) []Rule {
 			result = append(result, rule)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Metadata().Code < result[j].Metadata().Code
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 
@@ -121,9 +120,7 @@ func (r *Registry) Experimental() []Rule {
 			result = append(result, rule)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Metadata().Code < result[j].Metadata().Code
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 

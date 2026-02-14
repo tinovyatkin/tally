@@ -256,9 +256,15 @@ All configuration can be set via environment variables:
 
 | Flag | Description |
 |------|-------------|
-| `--fix` | Apply safe auto-fixes |
-| `--fix-unsafe` | Apply all auto-fixes including unsafe ones |
-| `--diff` | Show diff of proposed fixes without applying |
+| `--fix` | Apply safe auto-fixes automatically |
+| `--fix-rule` | Only fix specific rules (can be repeated) |
+| `--fix-unsafe` | Also apply suggestion/unsafe fixes (requires `--fix`) |
+
+### AI AutoFix (ACP)
+
+tally also supports **opt-in AI-powered fixes** via ACP (Agent Client Protocol). See:
+
+- [AI AutoFix (ACP)](./ai-autofix-acp.md)
 
 ## Inline Directives
 
