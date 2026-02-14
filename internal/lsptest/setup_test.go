@@ -2,6 +2,7 @@ package lsptest
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
@@ -11,12 +12,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
-	tflsp "github.com/TypeFox/go-lsp/protocol"
 	"github.com/stretchr/testify/require"
+	"go.bug.st/lsp"
+	"go.bug.st/lsp/textedits"
 	"golang.org/x/exp/jsonrpc2"
 )
 
@@ -439,24 +442,62 @@ type unchangedDocumentDiagnosticReport struct {
 	ResultID string `json:"resultId"`
 }
 
-// applyEdits applies LSP TextEdits to content using the TypeFox go-lsp library.
+// applyEdits applies LSP TextEdits to content using the go.bug.st/lsp library.
 // Edits must be non-overlapping (LSP spec requirement).
-func applyEdits(t *testing.T, uri, content string, edits []textEdit) string {
+func applyEdits(t *testing.T, _ /* uri */, content string, edits []textEdit) string {
 	t.Helper()
-	m := tflsp.NewMapper(tflsp.DocumentURI(uri), []byte(content))
-	tfEdits := make([]tflsp.TextEdit, 0, len(edits))
+
+	// Convert to bugst/go-lsp types (int instead of uint32).
+	lspEdits := make([]lsp.TextEdit, 0, len(edits))
 	for _, e := range edits {
-		tfEdits = append(tfEdits, tflsp.TextEdit{
-			Range: tflsp.Range{
-				Start: tflsp.Position{Line: e.Range.Start.Line, Character: e.Range.Start.Character},
-				End:   tflsp.Position{Line: e.Range.End.Line, Character: e.Range.End.Character},
+		lspEdits = append(lspEdits, lsp.TextEdit{
+			Range: lsp.Range{
+				Start: lsp.Position{Line: int(e.Range.Start.Line), Character: int(e.Range.Start.Character)},
+				End:   lsp.Position{Line: int(e.Range.End.Line), Character: int(e.Range.End.Character)},
 			},
 			NewText: e.NewText,
 		})
 	}
-	out, _, err := tflsp.ApplyEdits(m, tfEdits)
-	require.NoError(t, err, "ApplyEdits failed — edits may be overlapping (LSP spec violation)")
-	return string(out)
+
+	// Sort edits by position (ascending) for deterministic processing and overlap detection.
+	slices.SortFunc(lspEdits, func(a, b lsp.TextEdit) int {
+		if c := cmp.Compare(a.Range.Start.Line, b.Range.Start.Line); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Range.Start.Character, b.Range.Start.Character)
+	})
+
+	// Validate that edits don't overlap (LSP spec requirement).
+	validateNonOverlapping(t, lspEdits)
+
+	// Apply edits in reverse order (end to start) to avoid position shifts.
+	for i := len(lspEdits) - 1; i >= 0; i-- {
+		edit := lspEdits[i]
+		var err error
+		content, err = textedits.ApplyTextChange(content, edit.Range, edit.NewText)
+		require.NoError(t, err, "ApplyTextChange failed")
+	}
+
+	return content
+}
+
+// validateNonOverlapping checks that edits don't overlap (LSP spec requirement).
+// Assumes edits are sorted by ascending position.
+func validateNonOverlapping(t *testing.T, edits []lsp.TextEdit) {
+	t.Helper()
+	for i := range len(edits) - 1 {
+		curr := edits[i]
+		next := edits[i+1]
+
+		// Check if current edit's end is after next edit's start.
+		if curr.Range.End.Line > next.Range.Start.Line ||
+			(curr.Range.End.Line == next.Range.Start.Line && curr.Range.End.Character > next.Range.Start.Character) {
+			require.Failf(t, "overlapping edits",
+				"LSP spec violation: edit at line %d:%d overlaps with edit at line %d:%d",
+				curr.Range.Start.Line, curr.Range.Start.Character,
+				next.Range.Start.Line, next.Range.Start.Character)
+		}
+	}
 }
 
 // Formatting types (textDocument/formatting).
