@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -101,7 +102,7 @@ func (h *diagnosticsHandler) Handle(_ context.Context, req *jsonrpc2.Request) (a
 	if req.Method == "textDocument/publishDiagnostics" && len(req.Params) > 0 {
 		var params publishDiagnosticsParams
 		if err := json.Unmarshal(req.Params, &params); err != nil {
-			panic("diagnosticsHandler: unmarshal failed: " + err.Error())
+			return nil, fmt.Errorf("diagnosticsHandler: unmarshal failed: %w", err)
 		}
 		h.diagnosticsCh <- &params
 	}
