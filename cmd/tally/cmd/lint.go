@@ -499,11 +499,118 @@ func loadConfigForFile(cmd *cli.Command, targetPath string) (*config.Config, err
 }
 
 func parseACPCmd(commandLine string) ([]string, error) {
-	fields := strings.Fields(commandLine)
-	if len(fields) == 0 {
+	fields, err := splitCommandLine(commandLine)
+	if err != nil {
+		return nil, err
+	}
+	if len(fields) == 0 || fields[0] == "" {
 		return nil, errors.New("acp-command is empty")
 	}
 	return fields, nil
+}
+
+func splitCommandLine(commandLine string) ([]string, error) {
+	var s commandLineSplitter
+	for i := range len(commandLine) {
+		s.consume(commandLine[i])
+	}
+	return s.finish()
+}
+
+type commandLineSplitter struct {
+	out []string
+	cur strings.Builder
+
+	inArg    bool
+	inSingle bool
+	inDouble bool
+	escaped  bool
+}
+
+func (s *commandLineSplitter) flush() {
+	if !s.inArg {
+		return
+	}
+	s.out = append(s.out, s.cur.String())
+	s.cur.Reset()
+	s.inArg = false
+}
+
+func (s *commandLineSplitter) consume(ch byte) {
+	switch {
+	case s.escaped:
+		s.consumeEscaped(ch)
+	case s.inSingle:
+		s.consumeSingle(ch)
+	case s.inDouble:
+		s.consumeDouble(ch)
+	default:
+		s.consumePlain(ch)
+	}
+}
+
+func (s *commandLineSplitter) consumeEscaped(ch byte) {
+	s.cur.WriteByte(ch)
+	s.escaped = false
+	s.inArg = true
+}
+
+func (s *commandLineSplitter) consumeSingle(ch byte) {
+	if ch == '\'' {
+		s.inSingle = false
+		s.inArg = true
+		return
+	}
+	s.cur.WriteByte(ch)
+	s.inArg = true
+}
+
+func (s *commandLineSplitter) consumeDouble(ch byte) {
+	switch ch {
+	case '"':
+		s.inDouble = false
+		s.inArg = true
+	case '\\':
+		s.escaped = true
+		s.inArg = true
+	default:
+		s.cur.WriteByte(ch)
+		s.inArg = true
+	}
+}
+
+func (s *commandLineSplitter) consumePlain(ch byte) {
+	switch ch {
+	case ' ', '\t', '\n', '\r':
+		s.flush()
+	case '\'':
+		s.inSingle = true
+		s.inArg = true
+	case '"':
+		s.inDouble = true
+		s.inArg = true
+	case '\\':
+		s.escaped = true
+		s.inArg = true
+	default:
+		s.cur.WriteByte(ch)
+		s.inArg = true
+	}
+}
+
+func (s *commandLineSplitter) finish() ([]string, error) {
+	if s.escaped {
+		return nil, errors.New("acp-command has a trailing backslash escape")
+	}
+	if s.inSingle {
+		return nil, errors.New("acp-command has an unterminated single quote")
+	}
+	if s.inDouble {
+		return nil, errors.New("acp-command has an unterminated double quote")
+	}
+
+	s.flush()
+	return s.out, nil
 }
 
 // outputConfig holds output configuration values.
