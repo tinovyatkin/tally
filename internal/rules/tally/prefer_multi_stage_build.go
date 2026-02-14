@@ -117,14 +117,6 @@ func (r *PreferMultiStageBuildRule) Check(input rules.LintInput) []rules.Violati
 }
 
 func (r *PreferMultiStageBuildRule) resolveConfig(config any) PreferMultiStageBuildConfig {
-	switch v := config.(type) {
-	case PreferMultiStageBuildConfig:
-		return v
-	case *PreferMultiStageBuildConfig:
-		if v != nil {
-			return *v
-		}
-	}
 	return configutil.Coerce(config, defaultPreferMultiStageBuildConfig())
 }
 
