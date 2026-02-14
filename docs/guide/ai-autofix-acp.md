@@ -38,10 +38,10 @@ tally doesn’t provide any MCP servers to the agent today, so enabling MCP is u
 The simplest way to get started is an ACP-capable CLI agent, such as:
 
 - Gemini CLI (native ACP): <https://agentclientprotocol.com/agents/gemini-cli>
-- OpenCode (native ACP): <https://agentclientprotocol.com/agents/opencode>
-- Kiro CLI (native ACP): <https://agentclientprotocol.com/agents/kiro>
-- Cline (CLI v2, native ACP): <https://agentclientprotocol.com/agents/cline>
-- GitHub Copilot CLI (native ACP): <https://agentclientprotocol.com/agents/github-copilot>
+- OpenCode (native ACP): <https://opencode.ai/docs/acp/>
+- Kiro CLI (native ACP): <https://kiro.dev/docs/cli/acp/>
+- Cline (CLI v2, native ACP): <https://docs.cline.bot/cline-cli/acp-editor-integrations>
+- GitHub Copilot CLI (native ACP): <https://docs.github.com/en/copilot/reference/acp-server>
 
 You can always browse the latest registry here:
 
@@ -189,10 +189,10 @@ Some tools implement ACP natively, others are wired in via adapters maintained b
 ### Native ACP agents
 
 - Gemini CLI: <https://agentclientprotocol.com/agents/gemini-cli>
-- OpenCode: <https://agentclientprotocol.com/agents/opencode>
-- Kiro CLI: <https://agentclientprotocol.com/agents/kiro>
-- Cline (CLI v2): <https://agentclientprotocol.com/agents/cline>
-- GitHub Copilot CLI: <https://agentclientprotocol.com/agents/github-copilot>
+- OpenCode: <https://opencode.ai/docs/acp/>
+- Kiro CLI: <https://kiro.dev/docs/cli/acp/>
+- Cline (CLI v2): <https://docs.cline.bot/cline-cli/acp-editor-integrations>
+- GitHub Copilot CLI: <https://docs.github.com/en/copilot/reference/acp-server>
 
 ### Zed-maintained adapters
 
