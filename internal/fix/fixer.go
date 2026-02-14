@@ -2,10 +2,10 @@ package fix
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/tinovyatkin/tally/internal/config"
@@ -260,7 +260,7 @@ func (f *Fixer) resolveAsyncFixes(ctx context.Context, changes map[string]*FileC
 	for file := range byFile {
 		files = append(files, file)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 
 	for _, file := range files {
 		fc := changes[file]
@@ -271,20 +271,14 @@ func (f *Fixer) resolveAsyncFixes(ctx context.Context, changes map[string]*FileC
 		fileCandidates := byFile[file]
 		// Resolve in SuggestedFix.Priority order so whole-file rewrites (high priority)
 		// run after content/structural async transforms for the same file.
-		sort.SliceStable(fileCandidates, func(i, j int) bool {
-			pi := fileCandidates[i].fix.Priority
-			pj := fileCandidates[j].fix.Priority
-			if pi != pj {
-				return pi < pj
+		slices.SortStableFunc(fileCandidates, func(a, b *fixCandidate) int {
+			if c := cmp.Compare(a.fix.Priority, b.fix.Priority); c != 0 {
+				return c
 			}
-			ri := fileCandidates[i].violation.RuleCode
-			rj := fileCandidates[j].violation.RuleCode
-			if ri != rj {
-				return ri < rj
+			if c := cmp.Compare(a.violation.RuleCode, b.violation.RuleCode); c != 0 {
+				return c
 			}
-			li := fileCandidates[i].violation.Location.Start.Line
-			lj := fileCandidates[j].violation.Location.Start.Line
-			return li < lj
+			return cmp.Compare(a.violation.Location.Start.Line, b.violation.Location.Start.Line)
 		})
 
 		for _, candidate := range fileCandidates {
@@ -347,14 +341,20 @@ func (f *Fixer) applyFixesToFile(fc *FileChange, candidates []*fixCandidate) {
 	// Sort edits by priority first (lower = earlier), then by position (descending).
 	// This ensures content fixes (priority 0) run before structural transforms (priority 100+),
 	// and within the same priority, later positions are processed first to handle position drift.
-	sort.Slice(allEdits, func(i, j int) bool {
-		iPriority := allEdits[i].candidate.fix.Priority
-		jPriority := allEdits[j].candidate.fix.Priority
-		if iPriority != jPriority {
-			return iPriority < jPriority
+	slices.SortFunc(allEdits, func(a, b editWithSource) int {
+		aPriority := a.candidate.fix.Priority
+		bPriority := b.candidate.fix.Priority
+		if aPriority != bPriority {
+			return cmp.Compare(aPriority, bPriority)
 		}
-		// Within same priority, later positions first (existing behavior)
-		return !compareEdits(allEdits[i].edit, allEdits[j].edit)
+
+		// Within same priority, later positions first (existing behavior).
+		aLine, aCol := editPosition(a.edit)
+		bLine, bCol := editPosition(b.edit)
+		if aLine != bLine {
+			return cmp.Compare(bLine, aLine)
+		}
+		return cmp.Compare(bCol, aCol)
 	})
 
 	// Track which candidates have been applied or skipped
