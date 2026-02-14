@@ -1,6 +1,8 @@
 You are a software engineer with deep knowledge of Dockerfile semantics.
 
-Task: convert the Dockerfile below to a correct multi-stage build (builder stage + final runtime stage).
+Task: convert the Dockerfile below to a correct multi-stage build.
+  - Use one or more builder/cache stages as needed.
+  - Ensure there is a final runtime stage.
 Goals:
 - Reduce the final image size (primary).
 - Improve build caching (secondary).

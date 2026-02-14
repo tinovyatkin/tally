@@ -39,7 +39,9 @@ func buildRound1Prompt(
 
 	var b strings.Builder
 	b.WriteString("You are a software engineer with deep knowledge of Dockerfile semantics.\n\n")
-	b.WriteString("Task: convert the Dockerfile below to a correct multi-stage build (builder stage + final runtime stage).\n")
+	b.WriteString("Task: convert the Dockerfile below to a correct multi-stage build.\n")
+	b.WriteString("  - Use one or more builder/cache stages as needed.\n")
+	b.WriteString("  - Ensure there is a final runtime stage.\n")
 	b.WriteString("Goals:\n")
 	b.WriteString("- Reduce the final image size (primary).\n")
 	b.WriteString("- Improve build caching (secondary).\n\n")
