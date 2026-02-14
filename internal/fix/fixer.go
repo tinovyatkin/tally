@@ -103,6 +103,10 @@ func (f *Fixer) Apply(ctx context.Context, violations []rules.Violation, sources
 		// Record skipped fixes for any that still need resolution (resolver failed)
 		for _, fc := range asyncCandidates {
 			if fc.fix.NeedsResolve {
+				if fc.fix.ResolveErr != nil {
+					// Resolver already reported a concrete error; avoid double-recording.
+					continue
+				}
 				recordSkipped(result.Changes, fc.violation, SkipResolveError, "resolver failed or missing")
 			}
 		}
@@ -302,10 +306,12 @@ func (f *Fixer) resolveAsyncFixes(ctx context.Context, changes map[string]*FileC
 			// Resolve synchronously (sequential within a file to avoid position drift).
 			edits, err := resolver.Resolve(ctx, resolveCtx, fix)
 			if err != nil {
+				fix.ResolveErr = err
 				recordSkipped(changes, candidate.violation, SkipResolveError, err.Error())
 				fix.NeedsResolve = false
 				continue
 			}
+			fix.ResolveErr = nil
 			fix.Edits = edits
 			fix.NeedsResolve = false
 

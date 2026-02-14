@@ -66,6 +66,10 @@ type SuggestedFix struct {
 	// Not serialized to JSON; used internally during fix application.
 	ResolverData any `json:"-"`
 
+	// ResolveErr captures resolver failures during fix application.
+	// Not serialized to JSON; used internally for diagnostics.
+	ResolveErr error `json:"-"`
+
 	// Priority determines application order when multiple fixes exist.
 	// Copied from rule's FixPriority. Lower = applied first.
 	// Content fixes (priority 0) run before structural transforms (priority 100+).
