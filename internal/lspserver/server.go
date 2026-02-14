@@ -110,7 +110,11 @@ func (s *Server) handle(ctx context.Context, req *jsonrpc2.Request) (any, error)
 	case "shutdown":
 		return jsonNull, nil
 	case "exit":
-		close(s.exitCh)
+		select {
+		case <-s.exitCh:
+		default:
+			close(s.exitCh)
+		}
 		return nil, nil //nolint:nilnil // LSP: exit is a notification
 
 	// Document sync
