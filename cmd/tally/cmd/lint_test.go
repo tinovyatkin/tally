@@ -50,6 +50,26 @@ func TestParseACPCmd(t *testing.T) {
 			want:  []string{"cmd", "foo bar"},
 		},
 		{
+			name:  "preserve_backslash_before_letter",
+			input: `cmd foo\bar`,
+			want:  []string{"cmd", `foo\bar`},
+		},
+		{
+			name:  "escape_backslash",
+			input: `cmd foo\\bar`,
+			want:  []string{"cmd", `foo\bar`},
+		},
+		{
+			name:  "windows_path_unquoted",
+			input: `cmd C:\Tools\Gemini\gemini.exe --flag`,
+			want:  []string{"cmd", `C:\Tools\Gemini\gemini.exe`, "--flag"},
+		},
+		{
+			name:  "windows_path_quoted_with_spaces",
+			input: `cmd "C:\Program Files\Gemini\config.json"`,
+			want:  []string{"cmd", `C:\Program Files\Gemini\config.json`},
+		},
+		{
 			name:    "unterminated_double_quote",
 			input:   `cmd "oops`,
 			wantErr: true,

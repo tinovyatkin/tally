@@ -612,7 +612,13 @@ func parseACPCmd(commandLine string) ([]string, error) {
 func splitCommandLine(commandLine string) ([]string, error) {
 	var s commandLineSplitter
 	for i := range len(commandLine) {
-		s.consume(commandLine[i])
+		var next byte
+		hasNext := false
+		if i+1 < len(commandLine) {
+			next = commandLine[i+1]
+			hasNext = true
+		}
+		s.consume(commandLine[i], next, hasNext)
 	}
 	return s.finish()
 }
@@ -636,16 +642,16 @@ func (s *commandLineSplitter) flush() {
 	s.inArg = false
 }
 
-func (s *commandLineSplitter) consume(ch byte) {
+func (s *commandLineSplitter) consume(ch, next byte, hasNext bool) {
 	switch {
 	case s.escaped:
 		s.consumeEscaped(ch)
 	case s.inSingle:
 		s.consumeSingle(ch)
 	case s.inDouble:
-		s.consumeDouble(ch)
+		s.consumeDouble(ch, next, hasNext)
 	default:
-		s.consumePlain(ch)
+		s.consumePlain(ch, next, hasNext)
 	}
 }
 
@@ -665,13 +671,18 @@ func (s *commandLineSplitter) consumeSingle(ch byte) {
 	s.inArg = true
 }
 
-func (s *commandLineSplitter) consumeDouble(ch byte) {
+func (s *commandLineSplitter) consumeDouble(ch, next byte, hasNext bool) {
 	switch ch {
 	case '"':
 		s.inDouble = false
 		s.inArg = true
 	case '\\':
-		s.escaped = true
+		if hasNext && shouldEscapeNextByte(next) {
+			s.escaped = true
+			s.inArg = true
+			return
+		}
+		s.cur.WriteByte('\\')
 		s.inArg = true
 	default:
 		s.cur.WriteByte(ch)
@@ -679,7 +690,7 @@ func (s *commandLineSplitter) consumeDouble(ch byte) {
 	}
 }
 
-func (s *commandLineSplitter) consumePlain(ch byte) {
+func (s *commandLineSplitter) consumePlain(ch, next byte, hasNext bool) {
 	switch ch {
 	case ' ', '\t', '\n', '\r':
 		s.flush()
@@ -690,11 +701,25 @@ func (s *commandLineSplitter) consumePlain(ch byte) {
 		s.inDouble = true
 		s.inArg = true
 	case '\\':
-		s.escaped = true
+		if hasNext && shouldEscapeNextByte(next) {
+			s.escaped = true
+			s.inArg = true
+			return
+		}
+		s.cur.WriteByte('\\')
 		s.inArg = true
 	default:
 		s.cur.WriteByte(ch)
 		s.inArg = true
+	}
+}
+
+func shouldEscapeNextByte(next byte) bool {
+	switch next {
+	case '"', '\'', '\\', ' ', '\t', '\n', '\r':
+		return true
+	default:
+		return false
 	}
 }
 
