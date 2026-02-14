@@ -7,6 +7,10 @@ import (
 	"sync"
 )
 
+func byCode(a, b Rule) int {
+	return cmp.Compare(a.Metadata().Code, b.Metadata().Code)
+}
+
 // Registry manages rule registration and lookup.
 type Registry struct {
 	mu    sync.RWMutex
@@ -58,9 +62,7 @@ func (r *Registry) All() []Rule {
 	for _, rule := range r.rules {
 		result = append(result, rule)
 	}
-	slices.SortFunc(result, func(a, b Rule) int {
-		return cmp.Compare(a.Metadata().Code, b.Metadata().Code)
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 
@@ -88,9 +90,7 @@ func (r *Registry) ByCategory(category string) []Rule {
 			result = append(result, rule)
 		}
 	}
-	slices.SortFunc(result, func(a, b Rule) int {
-		return cmp.Compare(a.Metadata().Code, b.Metadata().Code)
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 
@@ -105,9 +105,7 @@ func (r *Registry) BySeverity(severity Severity) []Rule {
 			result = append(result, rule)
 		}
 	}
-	slices.SortFunc(result, func(a, b Rule) int {
-		return cmp.Compare(a.Metadata().Code, b.Metadata().Code)
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 
@@ -122,9 +120,7 @@ func (r *Registry) Experimental() []Rule {
 			result = append(result, rule)
 		}
 	}
-	slices.SortFunc(result, func(a, b Rule) int {
-		return cmp.Compare(a.Metadata().Code, b.Metadata().Code)
-	})
+	slices.SortFunc(result, byCode)
 	return result
 }
 
