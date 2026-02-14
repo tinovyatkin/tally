@@ -30,7 +30,10 @@ CMD ["app"]
 	data, ok := violations[0].SuggestedFix.ResolverData.(*autofixdata.MultiStageResolveData)
 	require.True(t, ok, "expected MultiStageResolveData, got %T", violations[0].SuggestedFix.ResolverData)
 
-	prompt, err := buildRound1Prompt(input.File, input.Source, data, nil)
+	origParse, err := parseDockerfile(input.Source, nil)
+	require.NoError(t, err)
+
+	prompt, err := buildRound1Prompt(input.File, input.Source, data, nil, origParse)
 	require.NoError(t, err)
 
 	snaps.WithConfig(snaps.Ext(".md")).MatchStandaloneSnapshot(t, prompt)

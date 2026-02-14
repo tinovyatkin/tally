@@ -113,7 +113,7 @@ func (r *resolver) proposeMultiStageDockerfile(
 	var blocking []blockingIssue
 
 	for round := 1; round <= maxAgentRounds; round++ {
-		prompt, err := buildRoundPrompt(round, filePath, roundInput, proposed, blocking, req, cfg)
+		prompt, err := buildRoundPrompt(round, filePath, roundInput, proposed, blocking, req, cfg, origParse)
 		if err != nil {
 			return nil, err
 		}
@@ -149,10 +149,11 @@ func buildRoundPrompt(
 	blocking []blockingIssue,
 	req *autofixdata.MultiStageResolveData,
 	cfg *config.Config,
+	origParse *dockerfile.ParseResult,
 ) (string, error) {
 	switch round {
 	case 1:
-		return buildRound1Prompt(filePath, roundInput, req, cfg)
+		return buildRound1Prompt(filePath, roundInput, req, cfg, origParse)
 	case 2:
 		return buildRound2Prompt(filePath, proposed, blocking, cfg)
 	default:
