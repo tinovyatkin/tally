@@ -3,7 +3,7 @@ module github.com/wharflab/tally/_tools
 go 1.26.5
 
 require (
-	github.com/atombender/go-jsonschema v0.23.0
+	github.com/atombender/go-jsonschema v0.24.0
 	github.com/golangci/plugin-module-register v0.1.2
 	golang.org/x/tools v0.48.0
 )
