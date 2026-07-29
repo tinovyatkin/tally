@@ -689,6 +689,8 @@ github.com/opencontainers/selinux v1.15.1 h1:ERxeh5caJvCzNAKdI8WQbJmB1LDTn4BuaAg
 github.com/opencontainers/selinux v1.15.1/go.mod h1:LenyElirjUHszfxrjuFqC85HIeXZKumHcKMQtnaDlQQ=
 github.com/owenrumney/go-sarif/v3 v3.3.0 h1:p5oSxEV0uPWBRpAspTmwWr4t1YZyKUpdoFzSB7WE90A=
 github.com/owenrumney/go-sarif/v3 v3.3.0/go.mod h1:72MaugkExDexbSauRuPq6BvUAAqAX0TwoNYMIQyZCMw=
+github.com/owenrumney/go-sarif/v3 v3.3.1 h1:bKY8YnWcY8zYTiGVObC5wZLlfEvMkCxK9XMGXBbzEtQ=
+github.com/owenrumney/go-sarif/v3 v3.3.1/go.mod h1:72MaugkExDexbSauRuPq6BvUAAqAX0TwoNYMIQyZCMw=
 github.com/package-url/packageurl-go v0.1.1 h1:KTRE0bK3sKbFKAk3yy63DpeskU7Cvs/x/Da5l+RtzyU=
 github.com/package-url/packageurl-go v0.1.1/go.mod h1:uQd4a7Rh3ZsVg5j0lNyAfyxIeGde9yrlhjF78GzeW0c=
 github.com/pborman/getopt v0.0.0-20170112200414-7148bc3a4c30/go.mod h1:85jBQOZwpVEaDAr341tbn15RS4fCAsIst0qp7i8ex1o=
