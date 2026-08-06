@@ -146,7 +146,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14.6"
+          python-version: "3.14.7"
       - name: Set up MSYS2
         if: matrix.runner_os == 'Windows'
         uses: msys2/setup-msys2@v2
