@@ -14,7 +14,7 @@ require (
 	github.com/compose-spec/compose-go/v2 v2.14.0
 	github.com/containerd/platforms v1.0.0-rc.4
 	github.com/distribution/reference v0.6.0
-	github.com/docker/buildx v0.36.0
+	github.com/docker/buildx v0.36.1
 	github.com/docker/cli v29.7.2+incompatible
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
@@ -30,7 +30,7 @@ require (
 	github.com/knadh/koanf/providers/structs v1.0.0
 	github.com/knadh/koanf/v2 v2.3.5
 	github.com/mattn/go-isatty v0.0.24
-	github.com/moby/buildkit v0.32.0
+	github.com/moby/buildkit v0.32.2
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/patternmatcher v0.6.1
 	github.com/muesli/termenv v0.16.0
