@@ -20,7 +20,7 @@ require (
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
 	github.com/gkampitakis/ciinfo v0.3.4
 	github.com/gkampitakis/go-snaps v0.5.23
-	github.com/google/go-containerregistry v0.21.8
+	github.com/google/go-containerregistry v0.21.9
 	github.com/google/jsonschema-go v0.4.3
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.2
 	github.com/knadh/koanf/providers/confmap v1.0.1
