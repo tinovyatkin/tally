@@ -856,8 +856,14 @@ jobs:
           npm version --no-git-tag-version --ignore-scripts "$CLEAN_VERSION"
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+      # code-server (a devDependency used only by UI tests) has a postinstall
+      # that hard-requires Node 22 and rebuilds native modules this job never
+      # runs. Skip all lifecycle scripts and run only our own postinstall,
+      # which vendors the type stub the compile step imports.
       - name: Install dependencies
-        run: bun --bun install --frozen-lockfile
+        run: |
+          bun --bun install --frozen-lockfile --ignore-scripts
+          bun run postinstall
         working-directory: _integrations/vscode-tally
       - name: Compile extension
         run: bun run prevsce:package

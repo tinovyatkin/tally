@@ -109,8 +109,8 @@
         "GHC_WASM_META_COMMIT\\s*[:=]\\s*(?<currentDigest>[a-f0-9]{40})"
       ],
       "currentValueTemplate": "master",
-      "depNameTemplate": "https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta",
-      "packageNameTemplate": "https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git",
+      "depNameTemplate": "https://github.com/haskell-wasm/ghc-wasm-meta",
+      "packageNameTemplate": "https://github.com/haskell-wasm/ghc-wasm-meta.git",
       "datasourceTemplate": "git-refs"
     },
     {
@@ -167,6 +167,16 @@
         "**/__snapshots__/**"
       ],
       "enabled": false
+    },
+    {
+      "description": "code-server's postinstall hard-requires Node 22; keep the VS Code extension workflow on 22.x",
+      "matchDepNames": [
+        "node"
+      ],
+      "matchFileNames": [
+        ".github/workflows/vscode-extension.yml"
+      ],
+      "allowedVersions": "/^22\\./"
     },
     {
       "matchManagers": [
