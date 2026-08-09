@@ -1104,27 +1104,33 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build-vscode-vsix
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     concurrency:
       group: publish-vscode-marketplace
       cancel-in-progress: false
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
     steps:
+      - name: Validate VS Code Marketplace credentials
+        run: |
+          if [[ -z "$VSCE_PAT" ]]; then
+            echo "::error::VSCE_PAT is required to publish the VS Code extension."
+            exit 1
+          fi
       - name: Checkout
-        if: env.VSCE_PAT != ''
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Setup Bun
-        if: env.VSCE_PAT != ''
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          no-cache: true
       - name: Download all VSIX artifacts
-        if: env.VSCE_PAT != ''
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: vsix-*
           merge-multiple: true
       - name: Publish to VS Code Marketplace
-        if: env.VSCE_PAT != ''
         run: |
           mapfile -t vsixes < <(printf '%s\n' ./*.vsix | sort)
           bash scripts/release/publish_vsix.sh vscode "${vsixes[@]}"
@@ -1148,27 +1154,33 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build-vscode-vsix
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     concurrency:
       group: publish-openvsx
       cancel-in-progress: false
     env:
       OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
     steps:
+      - name: Validate OpenVSX credentials
+        run: |
+          if [[ -z "$OVSX_TOKEN" ]]; then
+            echo "::error::OVSX_TOKEN is required to publish the VS Code extension."
+            exit 1
+          fi
       - name: Checkout
-        if: env.OVSX_TOKEN != ''
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Setup Bun
-        if: env.OVSX_TOKEN != ''
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          no-cache: true
       - name: Download all VSIX artifacts
-        if: env.OVSX_TOKEN != ''
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: vsix-*
           merge-multiple: true
       - name: Publish to OpenVSX
-        if: env.OVSX_TOKEN != ''
         run: |
           mapfile -t vsixes < <(printf '%s\n' ./*.vsix | sort)
           bash scripts/release/publish_vsix.sh openvsx "${vsixes[@]}"

@@ -23,6 +23,8 @@ initial_delay="${PUBLISH_INITIAL_DELAY_SECONDS:-15}"
 between_files="${PUBLISH_BETWEEN_FILES_SECONDS:-20}"
 bunx_bin="${BUNX_BIN:-bunx}"
 
+# Six platform VSIXes consume at most 48m10s of configured sleeps. Publishing
+# workflows reserve 75 minutes so request time and setup have headroom.
 for value in "$max_attempts" "$initial_delay" "$between_files"; do
   if [[ ! "$value" =~ ^[0-9]+$ ]]; then
     echo "publish retry settings must be non-negative integers" >&2

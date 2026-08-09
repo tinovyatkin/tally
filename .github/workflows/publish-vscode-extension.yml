@@ -22,7 +22,7 @@ jobs:
   publish-vscode:
     if: inputs.registry == 'both' || inputs.registry == 'vscode'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     concurrency:
       group: publish-vscode-marketplace
       cancel-in-progress: false
@@ -31,8 +31,20 @@ jobs:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
       VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
+      - name: Validate VS Code Marketplace credentials
+        run: |
+          if [[ -z "$VSCE_PAT" ]]; then
+            echo "::error::VSCE_PAT is required to publish the VS Code extension."
+            exit 1
+          fi
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          no-cache: true
       - name: Download VSIX assets from the existing release
         run: |
           set -euo pipefail
@@ -47,7 +59,7 @@ jobs:
   publish-openvsx:
     if: inputs.registry == 'both' || inputs.registry == 'openvsx'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     concurrency:
       group: publish-openvsx
       cancel-in-progress: false
@@ -56,8 +68,20 @@ jobs:
       OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
       VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
+      - name: Validate OpenVSX credentials
+        run: |
+          if [[ -z "$OVSX_TOKEN" ]]; then
+            echo "::error::OVSX_TOKEN is required to publish the VS Code extension."
+            exit 1
+          fi
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          no-cache: true
       - name: Download VSIX assets from the existing release
         run: |
           set -euo pipefail

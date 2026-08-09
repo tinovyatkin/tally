@@ -8,7 +8,7 @@ guidance; formatting; and safe auto-fixes. Marketplace builds include the
 native `tally` binary, so Docker Desktop and a separate CLI installation are
 not required.
 
-![Tally diagnostics in VS Code](https://raw.githubusercontent.com/wharflab/tally/main/_integrations/vscode-tally/assets/marketplace-diagnostics.png)
+![Tally diagnostics in VS Code](https://raw.githubusercontent.com/wharflab/tally/2da8c20388db0b742ee8be1faa2d331423c1b47b/_integrations/vscode-tally/assets/marketplace-diagnostics.png)
 
 ## Why Tally
 
@@ -31,11 +31,11 @@ not required.
 Tally publishes diagnostics to the Problems panel and provides contextual code
 actions directly in the editor:
 
-![Tally Quick Fix actions](https://raw.githubusercontent.com/wharflab/tally/main/_integrations/vscode-tally/assets/marketplace-quick-fix.png)
+![Tally Quick Fix actions](https://raw.githubusercontent.com/wharflab/tally/2da8c20388db0b742ee8be1faa2d331423c1b47b/_integrations/vscode-tally/assets/marketplace-quick-fix.png)
 
 Safe fixes can be applied together without leaving VS Code:
 
-![Dockerfile after Tally Fix All](https://raw.githubusercontent.com/wharflab/tally/main/_integrations/vscode-tally/assets/marketplace-fixed.png)
+![Dockerfile after Tally Fix All](https://raw.githubusercontent.com/wharflab/tally/2da8c20388db0b742ee8be1faa2d331423c1b47b/_integrations/vscode-tally/assets/marketplace-fixed.png)
 
 ## Install
 
