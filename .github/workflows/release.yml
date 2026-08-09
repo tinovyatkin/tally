@@ -1104,9 +1104,16 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build-vscode-vsix
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: publish-vscode-marketplace
+      cancel-in-progress: false
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
     steps:
+      - name: Checkout
+        if: env.VSCE_PAT != ''
+        uses: actions/checkout@v7
       - name: Setup Bun
         if: env.VSCE_PAT != ''
         uses: oven-sh/setup-bun@v2
@@ -1119,10 +1126,8 @@ jobs:
       - name: Publish to VS Code Marketplace
         if: env.VSCE_PAT != ''
         run: |
-          for vsix in *.vsix; do
-            echo "Publishing $vsix"
-            bunx @vscode/vsce publish --pat "$VSCE_PAT" --packagePath "$vsix"
-          done
+          mapfile -t vsixes < <(printf '%s\n' ./*.vsix | sort)
+          bash scripts/release/publish_vsix.sh vscode "${vsixes[@]}"
   explain-vscode-pr-dry-run:
     if: github.event_name == 'pull_request'
     needs: build-vscode-vsix
@@ -1143,9 +1148,16 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build-vscode-vsix
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: publish-openvsx
+      cancel-in-progress: false
     env:
       OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
     steps:
+      - name: Checkout
+        if: env.OVSX_TOKEN != ''
+        uses: actions/checkout@v7
       - name: Setup Bun
         if: env.OVSX_TOKEN != ''
         uses: oven-sh/setup-bun@v2
@@ -1158,10 +1170,8 @@ jobs:
       - name: Publish to OpenVSX
         if: env.OVSX_TOKEN != ''
         run: |
-          for vsix in *.vsix; do
-            echo "Publishing $vsix"
-            bunx ovsx publish --pat "$OVSX_TOKEN" "$vsix"
-          done
+          mapfile -t vsixes < <(printf '%s\n' ./*.vsix | sort)
+          bash scripts/release/publish_vsix.sh openvsx "${vsixes[@]}"
   publish-homebrew:
     needs: publish-release
     runs-on: ubuntu-latest

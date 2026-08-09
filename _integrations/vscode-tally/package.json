@@ -1,8 +1,8 @@
 {
   "name": "tally",
-  "displayName": "Tally",
+  "displayName": "Tally - Dockerfile Linter, Formatter & Modernizer",
   "version": "0.0.0",
-  "description": "BuildKit-native Dockerfile/Containerfile linter + formatter with auto-fix (powered by tally)",
+  "description": "BuildKit-native Dockerfile intelligence with stack-aware PHP, Ruby, PowerShell, and shell rules, security checks, formatting, and auto-fix.",
   "categories": [
     "Formatters",
     "Linters"
@@ -10,12 +10,28 @@
   "keywords": [
     "BuildKit",
     "Containerfile",
+    "Containerfile linter",
     "Docker",
+    "Docker build check",
     "Dockerfile",
+    "Dockerfile formatter",
+    "Dockerfile linter",
+    "Dockerfile security",
+    "Hadolint",
+    "PHP",
     "Podman",
+    "PowerShell",
+    "Ruby",
+    "ShellCheck",
+    "VS Code",
     "autofix",
+    "cache mounts",
+    "devsecops",
     "formatter",
+    "heredoc",
     "linter",
+    "modernizer",
+    "static analysis",
     "security"
   ],
   "license": "AGPL-3.0-only",
@@ -23,8 +39,15 @@
     "type": "git",
     "url": "https://github.com/wharflab/tally"
   },
+  "bugs": {
+    "url": "https://github.com/wharflab/tally/issues"
+  },
   "publisher": "wharflab",
   "homepage": "https://tally.wharflab.com/",
+  "galleryBanner": {
+    "color": "#064F83",
+    "theme": "dark"
+  },
   "main": "./dist/extension.cjs",
   "extensionKind": [
     "workspace"
@@ -52,7 +75,7 @@
     "@types/bun": "1.3.14",
     "@types/node": "26.1.2",
     "@types/semver": "7.8.0",
-    "@types/vscode": "1.106.0",
+    "@types/vscode": "1.91.0",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.9.2",
     "code-server": "4.117.0",
@@ -294,6 +317,6 @@
   ],
   "icon": "assets/logo.png",
   "engines": {
-    "vscode": "^1.106.0"
+    "vscode": "^1.91.0"
   }
 }

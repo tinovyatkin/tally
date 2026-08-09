@@ -9,6 +9,7 @@ playwright.config.ts
 playwright-report/**
 test-results/**
 .test_setup/**
+assets/marketplace-*.png
 .oxfmtrc.json
 .oxlintrc.json
 bundled/bin/.gitkeep

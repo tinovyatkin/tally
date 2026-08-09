@@ -14,10 +14,20 @@ env:
   CGO_ENABLED: 1
 jobs:
   vscode-smoke:
-    name: VS Code Smoke (Linux)
+    name: VS Code Smoke (${{ matrix.vscode.label }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vscode:
+          - label: Minimum 1.91
+            version: 1.91.1
+            flag: vscode-minimum
+          - label: Latest stable
+            version: latest
+            flag: vscode-latest
     env:
-      GOCOVERDIR: ${{ github.workspace }}/coverage-vscode-smoke
+      GOCOVERDIR: ${{ github.workspace }}/coverage-vscode-smoke-${{ matrix.vscode.version }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/shellcheck-wasm
@@ -62,7 +72,11 @@ jobs:
         id: vscode
         run: |
           set -euo pipefail
-          VERSION=$(curl --retry 5 --retry-connrefused -fsSL "https://update.code.visualstudio.com/api/releases/stable?released=true" | jq -r '.[0]')
+          if [[ "${{ matrix.vscode.version }}" == "latest" ]]; then
+            VERSION=$(curl --retry 5 --retry-connrefused -fsSL "https://update.code.visualstudio.com/api/releases/stable?released=true" | jq -r '.[0]')
+          else
+            VERSION="${{ matrix.vscode.version }}"
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Cache VS Code test install
         uses: actions/cache@v6
@@ -82,14 +96,15 @@ jobs:
         run: xvfb-run -a bun run test:e2e
       - name: Convert coverage
         run: |
-          go tool covdata textfmt -i="$GOCOVERDIR" -o=coverage-vscode-smoke.txt
+          go tool covdata textfmt -i="$GOCOVERDIR" -o=coverage-vscode-smoke-${{ matrix.vscode.version }}.txt
           # Force generated code to 100% coverage to avoid skewing project totals.
-          bash scripts/filter-go-coverprofile.sh coverage-vscode-smoke.txt coverage-vscode-smoke.filtered.txt
+          bash scripts/filter-go-coverprofile.sh coverage-vscode-smoke-${{ matrix.vscode.version }}.txt coverage-vscode-smoke-${{ matrix.vscode.version }}.filtered.txt
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
-          files: coverage-vscode-smoke.filtered.txt
+          files: coverage-vscode-smoke-${{ matrix.vscode.version }}.filtered.txt
+          flags: ${{ matrix.vscode.flag }}
           fail_ci_if_error: true
   vscode-ui-tests:
     name: VS Code UI Tests (Playwright)

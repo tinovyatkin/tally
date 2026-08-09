@@ -35,8 +35,9 @@ The extension provides:
 - Squiggles and Problems panel integration.
 - Picks up `.tally.toml` config files automatically from your workspace.
 
-The extension uses `tally lsp --stdio` under the hood. If `tally` is not on your `PATH`, the extension will use `npx -y tally-cli lsp --stdio` as a
-fallback.
+The extension uses `tally lsp --stdio` under the hood. Marketplace packages
+include a platform-specific `tally` binary, which is used automatically when no
+compatible project or environment installation is available.
 
 ---
 

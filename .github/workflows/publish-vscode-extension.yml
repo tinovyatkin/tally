@@ -1,0 +1,71 @@
+---
+name: Publish Existing VS Code Extension
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing GitHub release tag containing tally-*.vsix assets
+        required: true
+        type: string
+      registry:
+        description: Registry to publish to
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - vscode
+          - openvsx
+permissions:
+  contents: read
+jobs:
+  publish-vscode:
+    if: inputs.registry == 'both' || inputs.registry == 'vscode'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: publish-vscode-marketplace
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - name: Download VSIX assets from the existing release
+        run: |
+          set -euo pipefail
+          gh release download "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'tally-*.vsix' \
+            --dir vsix
+      - name: Publish to VS Code Marketplace
+        run: |
+          mapfile -t vsixes < <(find vsix -maxdepth 1 -type f -name '*.vsix' -print | sort)
+          bash scripts/release/publish_vsix.sh vscode "${vsixes[@]}"
+  publish-openvsx:
+    if: inputs.registry == 'both' || inputs.registry == 'openvsx'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: publish-openvsx
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - name: Download VSIX assets from the existing release
+        run: |
+          set -euo pipefail
+          gh release download "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'tally-*.vsix' \
+            --dir vsix
+      - name: Publish to OpenVSX
+        run: |
+          mapfile -t vsixes < <(find vsix -maxdepth 1 -type f -name '*.vsix' -print | sort)
+          bash scripts/release/publish_vsix.sh openvsx "${vsixes[@]}"
