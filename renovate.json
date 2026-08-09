@@ -169,6 +169,16 @@
       "enabled": false
     },
     {
+      "description": "code-server's postinstall hard-requires Node 22; keep the VS Code extension workflow on 22.x",
+      "matchDepNames": [
+        "node"
+      ],
+      "matchFileNames": [
+        ".github/workflows/vscode-extension.yml"
+      ],
+      "allowedVersions": "/^22\\./"
+    },
+    {
       "matchManagers": [
         "github-actions"
       ],
