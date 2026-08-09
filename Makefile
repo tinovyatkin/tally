@@ -185,8 +185,14 @@ shellcheck-wasm: $(SHELLCHECK_WASM)
 
 $(SHELLCHECK_WASM): $(SHELLCHECK_WASM_INPUTS)
 	@mkdir -p $(dir $@)
-	@docker buildx inspect $(SHELLCHECK_WASM_BUILDER) >/dev/null 2>&1 \
-		|| docker buildx create --name $(SHELLCHECK_WASM_BUILDER) --driver docker-container --bootstrap
+	@driver=$$(docker buildx inspect $(SHELLCHECK_WASM_BUILDER) 2>/dev/null | awk '/^Driver:/ {print $$2}'); \
+	if [ -z "$$driver" ]; then \
+		docker buildx create --name $(SHELLCHECK_WASM_BUILDER) --driver docker-container --bootstrap; \
+	elif [ "$$driver" != "docker-container" ]; then \
+		echo "error: buildx builder '$(SHELLCHECK_WASM_BUILDER)' exists but uses driver '$$driver' (docker-container required)." >&2; \
+		echo "Recreate it with: docker buildx rm $(SHELLCHECK_WASM_BUILDER) && make $@" >&2; \
+		exit 1; \
+	fi
 	docker buildx build \
 		--builder $(SHELLCHECK_WASM_BUILDER) \
 		--progress=plain \
@@ -195,6 +201,7 @@ $(SHELLCHECK_WASM): $(SHELLCHECK_WASM_INPUTS)
 		--build-arg AST_GREP_VERSION="$(AST_GREP_VERSION)" \
 		--output type=local,dest=$(dir $@) \
 		-f _tools/shellcheck-wasm/Dockerfile _tools/shellcheck-wasm
+	@test -s $@ || { echo "error: $@ missing or empty after build" >&2; rm -f $@; exit 1; }
 	@touch $@
 
 # Force-rebuild target kept for humans who want to refresh after pulling new
