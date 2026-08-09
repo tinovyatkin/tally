@@ -193,6 +193,7 @@ $(SHELLCHECK_WASM): $(SHELLCHECK_WASM_INPUTS)
 		echo "Recreate it with: docker buildx rm $(SHELLCHECK_WASM_BUILDER) && make $@" >&2; \
 		exit 1; \
 	fi
+	@rm -f $@
 	docker buildx build \
 		--builder $(SHELLCHECK_WASM_BUILDER) \
 		--progress=plain \
