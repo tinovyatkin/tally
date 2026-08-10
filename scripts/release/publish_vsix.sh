@@ -51,6 +51,18 @@ esac
 
 already_published_pattern='already published|already exists'
 transient_pattern='RequestBlockedException|resource .Concurrency.|exceeding usage|rate.?limit|too many requests|HTTP (408|409|425|429|5[0-9][0-9])|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|temporary unavailable|temporarily unavailable|service unavailable|gateway timeout'
+persistent_vsid_pattern='resource .Concurrency. in namespace .VSID.'
+
+report_persistent_vsid_block() {
+  local output_file="$1"
+  if [[ "$registry" != "vscode" ]] || ! grep -Eqi "$persistent_vsid_pattern" "$output_file"; then
+    return
+  fi
+
+  echo "::error::Visual Studio Marketplace is persistently blocking the publisher identity with VSID Concurrency."
+  echo "::error::Stop automated retries and contact VSMarketplace@microsoft.com to clear the publisher/account block."
+  echo "Include publisher 'wharflab', extension 'wharflab.tally', event ID 3000, and the failed workflow URL."
+}
 
 publish_one() {
   local vsix="$1"
@@ -95,6 +107,7 @@ for index in "${!vsixes[@]}"; do
     fi
 
     if (( attempt >= max_attempts )) || ! grep -Eqi "$transient_pattern" "$output_file"; then
+      report_persistent_vsid_block "$output_file"
       rm -f "$output_file"
       exit "$status"
     fi
