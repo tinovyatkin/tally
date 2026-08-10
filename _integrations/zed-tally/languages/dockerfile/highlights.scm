@@ -1,6 +1,6 @@
 ; Dockerfile instructions set taken from:
 ; https://docs.docker.com/engine/reference/builder/#overview
-; https://github.com/camdencheek/tree-sitter-dockerfile/blob/main/queries/highlights.scm
+; https://github.com/wharflab/tree-sitter-containerfile/blob/main/queries/highlights.scm
 [
 	"FROM"
 	"AS"
