@@ -38,11 +38,8 @@ public final class DesktopRobot {
         int[] keys = new int[args.length - 1];
         for (int i = 1; i < args.length; i++) {
             keys[i - 1] = keyCode(args[i]);
-            robot.keyPress(keys[i - 1]);
         }
-        for (int i = keys.length - 1; i >= 0; i--) {
-            robot.keyRelease(keys[i]);
-        }
+        pressKeys(robot, keys);
     }
 
     private static void type(Robot robot, String[] args) {
@@ -50,10 +47,25 @@ public final class DesktopRobot {
             throw new IllegalArgumentException("usage: DesktopRobot type <text>");
         }
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(args[1]), null);
-        robot.keyPress(KeyEvent.VK_CONTROL);
-        robot.keyPress(KeyEvent.VK_V);
-        robot.keyRelease(KeyEvent.VK_V);
-        robot.keyRelease(KeyEvent.VK_CONTROL);
+        int modifier = isMacOs() ? KeyEvent.VK_META : KeyEvent.VK_CONTROL;
+        pressKeys(robot, modifier, KeyEvent.VK_V);
+    }
+
+    private static void pressKeys(Robot robot, int... keys) {
+        int pressed = 0;
+        try {
+            for (; pressed < keys.length; pressed++) {
+                robot.keyPress(keys[pressed]);
+            }
+        } finally {
+            for (int i = pressed - 1; i >= 0; i--) {
+                robot.keyRelease(keys[i]);
+            }
+        }
+    }
+
+    private static boolean isMacOs() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
     }
 
     private static int keyCode(String name) throws Exception {
