@@ -6,17 +6,18 @@ import { test as base } from "@playwright/test";
 
 import { type CodeServerContext, startCodeServer } from "./utils_code_server";
 
-interface TempDir extends Disposable {
+interface TempDir {
   path: string;
+  dispose(): void;
 }
 
-// A temp dir that removes itself when it leaves a `using` scope, even if the
-// surrounding fixture throws.
+// A temp dir with explicit cleanup so the test runner remains compatible with
+// Node 22, which code-server requires.
 function makeTempDir(prefix: string): TempDir {
   const path = mkdtempSync(join(tmpdir(), prefix));
   return {
     path,
-    [Symbol.dispose]() {
+    dispose() {
       rmSync(path, { recursive: true, force: true });
     },
   };
@@ -44,24 +45,34 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   // throwaway user-data dir. The extensions dir is shared and read-only here.
   sharedCodeServer: [
     async ({}, use) => {
-      // `using`/`await using` guarantee the temp dir is removed and the server
-      // stopped on scope exit, even if startCodeServer or the test throws.
-      using userData = makeTempDir("tally-e2e-udd-");
-      await using ctx = await startCodeServer({
-        extensionsDir: EXTENSIONS_DIR,
-        userDataDir: userData.path,
-        tallyBinaryPath: TALLY_BIN,
-      });
-      await use(ctx);
+      const userData = makeTempDir("tally-e2e-udd-");
+      try {
+        const ctx = await startCodeServer({
+          extensionsDir: EXTENSIONS_DIR,
+          userDataDir: userData.path,
+          tallyBinaryPath: TALLY_BIN,
+        });
+        try {
+          await use(ctx);
+        } finally {
+          await ctx[Symbol.asyncDispose]();
+        }
+      } finally {
+        userData.dispose();
+      }
     },
     { scope: "worker" },
   ],
 
   // A fresh project folder per test so edits/fixes never bleed across cases.
   projectDir: async ({}, use) => {
-    using project = makeTempDir("tally-e2e-proj-");
-    cpSync(FIXTURE_DOCKERFILE, join(project.path, "Dockerfile"));
-    await use(project.path);
+    const project = makeTempDir("tally-e2e-proj-");
+    try {
+      cpSync(FIXTURE_DOCKERFILE, join(project.path, "Dockerfile"));
+      await use(project.path);
+    } finally {
+      project.dispose();
+    }
   },
 });
 

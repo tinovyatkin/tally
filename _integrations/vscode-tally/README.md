@@ -1,62 +1,84 @@
-# Tally for VS Code
+# Tally - Dockerfile Linter, Formatter & Modernizer
 
-Lint, format, and auto-fix **Dockerfiles** and **Containerfiles** in VS Code using
-[tally](https://tally.wharflab.com/): a BuildKit-native linter + formatter with safe auto-fixes (and optional AI-powered fixes).
+**The Dockerfile linter that understands your stack.**
 
-## What you get
+Tally brings BuildKit-native Dockerfile intelligence to VS Code: stack-aware
+PHP, Ruby, PowerShell, and shell rules; security checks; modern Dockerfile
+guidance; formatting; and safe auto-fixes. Marketplace builds include the
+native `tally` binary, so Docker Desktop and a separate CLI installation are
+not required.
 
-- **Inline diagnostics** powered by BuildKit checks + Hadolint-compatible rules + tally's own modernization rules.
-- **Production-grade**: 92% code coverage and 2,900+ Go tests executed in CI.
-- **Quick Fixes** and a one-shot **Fix All** command to apply auto-fixable improvements.
-- **Formatter support** (format on save) using the same engine as `tally lint --fix`.
-- **Semantic highlighting** for Dockerfile structure and embedded shell snippets via the tally LSP server.
-- **Config-aware**: respects `.tally.toml` / `tally.toml` discovery in your repo.
-- **No daemon**: runs locally without Docker Desktop or a Docker daemon.
-- **Zero setup**: Marketplace builds bundle the `tally` binary for your platform (you can also bring your own).
+![Tally diagnostics in VS Code](https://raw.githubusercontent.com/wharflab/tally/2da8c20388db0b742ee8be1faa2d331423c1b47b/_integrations/vscode-tally/assets/marketplace-diagnostics.png)
 
-## Quick start
+## Why Tally
 
-1. Install the extension (`wharflab.tally`).
-2. Open a `Dockerfile` or `Containerfile`.
-3. Run `Tally: Fix all auto-fixable issues` to apply safe fixes.
-4. Optional: run `Tally: Configure as default formatter for Dockerfile` to enable format on save.
+- **Stack-aware rules** for PHP, Ruby, PowerShell, Windows containers, package
+  ecosystems, and embedded shell.
+- **Modern Dockerfile analysis** for heredocs, BuildKit cache mounts,
+  `COPY --link`, modern `ADD` sources, multi-stage builds, and current security
+  practices.
+- **Real language understanding** through embedded ShellCheck and a PowerShell
+  parser instead of treating every `RUN` instruction as opaque text.
+- **Build context awareness** across stages, effective `ENV` and `SHELL`
+  values, registries, `.dockerignore`, Docker Compose, and Buildx Bake.
+- **Fixes, not only findings** with Quick Fix, iterative Fix All, document
+  formatting, and opt-in AI AutoFix for changes that require deeper reasoning.
+- **BuildKit and Hadolint compatibility** for teams migrating existing checks
+  and policy while adopting Tally's richer rule families.
+
+## See It In Action
+
+Tally publishes diagnostics to the Problems panel and provides contextual code
+actions directly in the editor:
+
+![Tally Quick Fix actions](https://raw.githubusercontent.com/wharflab/tally/2da8c20388db0b742ee8be1faa2d331423c1b47b/_integrations/vscode-tally/assets/marketplace-quick-fix.png)
+
+Safe fixes can be applied together without leaving VS Code:
+
+![Dockerfile after Tally Fix All](https://raw.githubusercontent.com/wharflab/tally/2da8c20388db0b742ee8be1faa2d331423c1b47b/_integrations/vscode-tally/assets/marketplace-fixed.png)
+
+## Install
+
+Install `wharflab.tally` from the Visual Studio Marketplace, or run:
+
+```bash
+code --install-extension wharflab.tally
+```
+
+Then open a `Dockerfile` or `Containerfile`. Diagnostics appear automatically.
+Use `Tally: Fix all auto-fixable issues` to apply safe fixes, or
+`Tally: Configure as default formatter for Dockerfile` to enable formatting on
+save.
 
 ## Commands
 
-- `Tally: Fix all auto-fixable issues` (`tally.applyAllFixes`): applies safe fixes. Set `tally.fixUnsafe=true` to also apply unsafe fixes.
-- `Tally: Configure as default formatter for Dockerfile` (`tally.configureDefaultFormatterForDockerfile`): writes workspace/user settings for
-  Dockerfile formatting on save.
-- `Tally: Restart server` (`tally.restartServer`)
-- `Tally: Show output` (`tally.showOutput`)
-- `Tally: Show LSP trace` (`tally.showLspTrace`)
+- `Tally: Fix all auto-fixable issues`: iteratively applies safe fixes. Set
+  `tally.fixUnsafe=true` to include unsafe fixes.
+- `Tally: Configure as default formatter for Dockerfile`: configures Tally and
+  format on save at the workspace or user level.
+- `Tally: Restart server`
+- `Tally: Show output`
+- `Tally: Show LSP trace`
 
 ## Settings
 
-- `tally.enable`: enable/disable the language server.
-- `tally.path`: explicit paths to a `tally` executable (first existing path wins).
-- `tally.importStrategy`: where to resolve `tally` from (`fromEnvironment` or `useBundled`).
-- `tally.configuration`: inline configuration override (merges with `.tally.toml` / `tally.toml`).
-- `tally.configurationPreference`: how to merge editor settings with filesystem config (`editorFirst`, `filesystemFirst`, `editorOnly`).
-- `tally.fixUnsafe`: allow "Fix all" to apply unsafe fixes (includes AI AutoFix, if configured).
-- `tally.trace.server`: LSP protocol trace level (`off`, `messages`, `verbose`).
+- `tally.enable`: enable or disable the language server.
+- `tally.path`: explicit paths to a `tally` executable; the first existing path
+  wins.
+- `tally.importStrategy`: resolve Tally from the environment or require the
+  bundled binary.
+- `tally.configuration`: inline configuration merged with `.tally.toml` or
+  `tally.toml`.
+- `tally.configurationPreference`: choose how editor and filesystem
+  configuration are merged.
+- `tally.fixUnsafe`: allow manual Fix All to apply unsafe fixes, including
+  configured AI AutoFix rules.
+- `tally.trace.server`: control LSP protocol tracing.
 
-The extension enables `editor.semanticHighlighting.enabled` by default for the `dockerfile` language so the server-provided semantic tokens are shown
-consistently across themes.
+## Formatter Setup
 
-## Python projects
-
-If you install `tally` into a Python virtual environment (via `pip install tally`), the
-extension can automatically discover the binary from the active environment. For the best
-experience, install the
-[Python Environments](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs)
-extension by Microsoft. When installed, tally will be resolved from whichever environment
-you have selected for the current workspace, including custom-named venvs and conda
-environments.
-
-Without the Python Environments extension, the extension falls back to checking the
-hardcoded `.venv/` and `venv/` directories in each workspace folder.
-
-## Recommended formatter setup (manual)
+The `Tally: Configure as default formatter for Dockerfile` command writes this
+configuration for you:
 
 ```jsonc
 {
@@ -71,8 +93,22 @@ hardcoded `.venv/` and `venv/` directories in each workspace folder.
 }
 ```
 
-## Learn more
+## Binary Resolution
+
+Marketplace packages include a platform-specific binary. By default, Tally
+first respects explicitly configured and project-local installations, then
+falls back to the bundled binary. Set `tally.importStrategy` to `useBundled` to
+require the bundled version.
+
+Python virtual environments are also discovered. When Microsoft's Python
+Environments extension is installed, Tally follows the environment selected
+for the current workspace; otherwise it checks common `.venv` and `venv`
+locations.
+
+## Documentation
 
 - Rules reference: <https://tally.wharflab.com/rules/overview>
-- Configuration guide: <https://tally.wharflab.com/guides/configuration>
-- AI AutoFix (ACP): <https://tally.wharflab.com/guides/ai-autofix>
+- Configuration: <https://tally.wharflab.com/guides/configuration>
+- Auto-fix: <https://tally.wharflab.com/guides/auto-fix>
+- AI AutoFix: <https://tally.wharflab.com/guides/ai-autofix>
+- Build invocations: <https://tally.wharflab.com/guides/build-invocations>

@@ -9,6 +9,7 @@ This folder contains the VS Code extension that talks to `tally lsp --stdio`.
 - `bun run compile`
 - `bun run test:e2e` (launches VS Code via `@vscode/test-electron`)
 - `bun run test:e2e:ui` (drives rendered VS Code via code-server + Playwright)
+- `UPDATE_MARKETPLACE_ASSETS=true bun run test:e2e:ui` (refreshes Marketplace screenshots)
 
 ## End-to-end tests
 
@@ -41,6 +42,11 @@ The `setup` Playwright project builds a `tally` LSP binary into `.test_setup/`
 and installs the freshly packaged `.vsix`; the `cleanup` project removes
 `.test_setup/` afterwards. Pass `VSIX_PATH=<rel>` or `TALLY_BIN=<abs>` to
 override either artifact.
+
+The Marketplace capture is an opt-in Playwright test. It exercises the same
+packaged extension and rendered workbench as the UI suite, then writes
+`assets/marketplace-*.png`. Normal test runs skip the capture so CI does not
+modify tracked assets.
 
 ## Packaging
 
