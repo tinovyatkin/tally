@@ -1,0 +1,17 @@
+unsafe-fixes = true
+
+[slow-checks]
+mode = "off"
+
+[rules]
+include = [
+  "tally/ruby/asset-precompile-without-dummy-key",
+  "tally/ruby/healthcheck-rails-up-endpoint",
+  "tally/ruby/missing-bundle-deployment",
+  "tally/ruby/prefer-bundler-cache-mount",
+  "tally/ruby/yjit-not-enabled-on-supported-runtime",
+]
+exclude = ["*"]
+
+[output]
+fail-level = "none"

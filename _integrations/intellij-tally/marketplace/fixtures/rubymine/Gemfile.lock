@@ -1,0 +1,6 @@
+GEM
+  specs:
+    rails (8.0.0)
+
+DEPENDENCIES
+  rails (~> 8.0)

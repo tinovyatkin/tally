@@ -1,15 +1,17 @@
 <idea-plugin>
     <id>@PLUGIN_ID@</id>
-    <name>Tally</name>
+    <name>Tally - Dockerfile Linter &amp; Formatter</name>
     <version>@PLUGIN_VERSION@</version>
     <vendor email="hello@wharflab.com" url="https://tally.wharflab.com/">WharfLab</vendor>
     <description><![CDATA[
-      <p><strong>Lint, format, and auto-fix Dockerfiles and Containerfiles in IntelliJ.</strong></p>
+      <p><strong>The Dockerfile linter that understands your stack.</strong></p>
+      <p>BuildKit-native Dockerfile intelligence for JetBrains IDEs, including PhpStorm, RubyMine, Rider, IntelliJ IDEA, GoLand, PyCharm, and WebStorm.</p>
       <ul>
-        <li>BuildKit-native diagnostics plus Hadolint-compatible and modernization rules.</li>
-        <li>Safe quick fixes and <em>Fix All</em> actions from the editor.</li>
+        <li>Stack-aware rules for PHP, Ruby, PowerShell, shell, Windows containers, and package ecosystems.</li>
+        <li>Modern Dockerfile guidance for heredocs, cache mounts, multi-stage builds, security, and current BuildKit practices.</li>
+        <li>Safe quick fixes, <em>Fix All on Save</em>, and Dockerfile formatting from the editor.</li>
         <li>Config-aware behavior with <code>.tally.toml</code> / <code>tally.toml</code> discovery.</li>
-        <li>No Docker daemon required.</li>
+        <li>BuildKit checks and Hadolint-compatible coverage, with no Docker daemon required.</li>
       </ul>
     ]]></description>
 
