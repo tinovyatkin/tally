@@ -43,13 +43,13 @@ Expected result: plugin is reported as **Compatible**. In CE, verifier may still
 
 Anything `make` can do, `./kotlin do <command>` can do directly from this directory:
 
-| Command                          | Make target                       |
-|----------------------------------|-----------------------------------|
-| `./kotlin do build`              | `make intellij-plugin`            |
-| `./kotlin do verify`             | `make intellij-plugin-verify`     |
-| `./kotlin do smoke`              | `make intellij-plugin-smoke`      |
-| `./kotlin do ktlint`             | `make intellij-plugin-ktlint`     |
-| `./kotlin do ktlintFix`          | `make intellij-plugin-ktlint-fix` |
+| Command                 | Make target                       |
+| ----------------------- | --------------------------------- |
+| `./kotlin do build`     | `make intellij-plugin`            |
+| `./kotlin do verify`    | `make intellij-plugin-verify`     |
+| `./kotlin do smoke`     | `make intellij-plugin-smoke`      |
+| `./kotlin do ktlint`    | `make intellij-plugin-ktlint`     |
+| `./kotlin do ktlintFix` | `make intellij-plugin-ktlint-fix` |
 
 The `kotlin` wrapper script self-provisions the toolchain on first run; the
 distribution is cached under `~/.cache/JetBrains/Kotlin/` (or
@@ -64,6 +64,24 @@ import strategy, unsafe-fix toggle, and configuration override.
 The plugin always launches `tally lsp --stdio`. For trusted projects, executable
 auto-resolution checks PATH first, then the project SDK interpreter directory,
 then project virtualenv locations (`.venv`/`venv`), then bundled fallback.
+
+## Marketplace assets
+
+The Marketplace screenshots are generated from the packaged plugin running in
+real JetBrains IDEs. Source fixtures and capture helpers live under
+`marketplace/`.
+
+![Stack-aware PHP diagnostics](marketplace/screenshots/phpstorm-stack-aware-diagnostics.png)
+
+![Tally quick fixes in PhpStorm](marketplace/screenshots/phpstorm-quick-fixes.png)
+
+![Stack-aware Ruby diagnostics](marketplace/screenshots/rubymine-stack-aware-diagnostics.png)
+
+![Tally Fix All in RubyMine](marketplace/screenshots/rubymine-quick-fixes.png)
+
+The PhpStorm fixture demonstrates Composer production dependencies, package
+cache mounts, OPcache, and Xdebug checks. The RubyMine fixture covers Bundler,
+Rails asset compilation, health checks, deployment mode, and YJIT.
 
 ## Build inputs
 

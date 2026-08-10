@@ -1,6 +1,12 @@
 ---
 title: "IDE integration"
-description: "Set up real-time Dockerfile linting in VS Code, JetBrains IDEs, and any LSP-compatible editor."
+description: "Set up stack-aware Dockerfile linting, formatting, and auto-fix in VS Code, JetBrains IDEs, and any LSP-compatible editor."
+keywords:
+  - Dockerfile linter
+  - PhpStorm Dockerfile
+  - RubyMine Dockerfile
+  - JetBrains plugin
+  - VS Code extension
 ---
 
 tally provides real-time diagnostics in your editor via a built-in Language Server Protocol (LSP) server. Official extensions are available for VS
@@ -11,7 +17,7 @@ Code and JetBrains IDEs. Any other editor that supports LSP can connect using `t
     Install the official `wharflab.tally` extension from the Visual Studio Marketplace.
   </Card>
   <Card title="JetBrains" icon="square-j" href="#jetbrains-ides">
-    Install the Tally plugin from JetBrains Marketplace (plugin ID 30255-tally).
+    Install Tally in PhpStorm, RubyMine, Rider, and other JetBrains IDEs.
   </Card>
   <Card title="Generic LSP" icon="square-terminal" href="#generic-lsp">
     Run `tally lsp --stdio` to connect any LSP-compatible editor.
@@ -49,7 +55,57 @@ Install the official plugin from JetBrains Marketplace:
 
 **[Install from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/30255-tally)**
 
-The plugin works in all IntelliJ-based IDEs including IntelliJ IDEA, GoLand, PyCharm, WebStorm, and Rider.
+The plugin works in IntelliJ-based IDEs including **PhpStorm**, **RubyMine**, Rider, IntelliJ IDEA, GoLand, PyCharm, and WebStorm.
+
+It provides:
+
+- Stack-aware Dockerfile diagnostics for PHP, Ruby, PowerShell, shell, and Windows containers.
+- Modern BuildKit guidance for heredocs, cache mounts, multi-stage builds, and security.
+- Safe quick fixes, rule documentation links, and Fix All on Save.
+- Dockerfile and Containerfile formatting through **Reformat Code**.
+- Automatic `.tally.toml` / `tally.toml` discovery and a bundled Tally binary.
+
+<Tabs>
+  <Tab title="Stack-aware diagnostics">
+    <Frame caption="Tally identifies Composer, OPcache, Xdebug, and package-cache issues in PhpStorm.">
+      <img
+        src="/images/integrations/tally-phpstorm-diagnostics.png"
+        alt="PhpStorm showing Tally diagnostics for Composer production dependencies, OPcache, Xdebug, and package cache mounts"
+      />
+    </Frame>
+  </Tab>
+  <Tab title="Quick fixes">
+    <Frame caption="Use Alt+Enter to apply a fix, suppress a rule, or open its documentation.">
+      <img
+        src="/images/integrations/tally-phpstorm-quick-fixes.png"
+        alt="PhpStorm intention menu showing Tally quick fixes and documentation actions for PHP Dockerfile rules"
+      />
+    </Frame>
+  </Tab>
+  <Tab title="RubyMine">
+    <Frame caption="Tally identifies Bundler deployment, Rails asset compilation, health-check, and YJIT issues in RubyMine.">
+      <img
+        src="/images/integrations/tally-rubymine-diagnostics.png"
+        alt="RubyMine showing Tally diagnostics for Bundler deployment mode, Rails asset compilation, health checks, and YJIT"
+      />
+    </Frame>
+  </Tab>
+</Tabs>
+
+### Stack-specific analysis
+
+Tally analyzes the tools and runtimes used by each stage rather than treating every `RUN` instruction as generic shell text.
+
+- **PhpStorm:** Composer production dependencies, OPcache, Xdebug, PHP package installs, cache mounts, and security.
+- **RubyMine:** Bundler deployment mode and cache mounts, Rails asset compilation and health checks, YJIT, runtime state paths, and secrets.
+- **Rider and Windows projects:** PowerShell semantics, Windows container behavior, effective `SHELL`, and PowerShell security rules.
+
+BuildKit and Hadolint-compatible checks remain available alongside these stack-specific rules.
+
+### Configure the plugin
+
+Open **Settings → Tools → Tally** to configure the executable, an explicit configuration file, unsafe fixes, formatting, and Fix All on Save. The
+plugin discovers the nearest `.tally.toml` or `tally.toml` by default.
 
 ---
 
@@ -62,10 +118,7 @@ User-facing setting:
 
 ```json
 {
-  "tally.invocationEntrypoints": [
-    "compose.yaml",
-    "docker-bake.hcl"
-  ]
+  "tally.invocationEntrypoints": ["compose.yaml", "docker-bake.hcl"]
 }
 ```
 
@@ -78,10 +131,7 @@ For generic LSP clients that send the full tally settings envelope, the payload 
       {
         "uri": "file:///repo",
         "settings": {
-          "invocationEntrypoints": [
-            "compose.yaml",
-            "docker-bake.hcl"
-          ]
+          "invocationEntrypoints": ["compose.yaml", "docker-bake.hcl"]
         }
       }
     ]
@@ -159,5 +209,6 @@ args = ["lsp", "--stdio"]
 </CodeGroup>
 
 <Note>
-  tally's LSP server uses cascading config discovery — it finds the nearest `.tally.toml` relative to each Dockerfile being edited, the same way the CLI does.
+  tally's LSP server uses cascading config discovery — it finds the nearest `.tally.toml` relative
+  to each Dockerfile being edited, the same way the CLI does.
 </Note>

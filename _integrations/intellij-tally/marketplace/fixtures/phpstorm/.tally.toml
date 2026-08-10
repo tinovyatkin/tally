@@ -1,0 +1,16 @@
+unsafe-fixes = true
+
+[slow-checks]
+mode = "off"
+
+[rules]
+include = [
+  "tally/php/composer-no-dev-in-production",
+  "tally/php/enable-opcache-in-production",
+  "tally/php/no-xdebug-in-final-image",
+  "tally/prefer-package-cache-mounts",
+]
+exclude = ["*"]
+
+[output]
+fail-level = "none"

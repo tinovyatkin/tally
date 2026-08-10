@@ -1,0 +1,6 @@
+{
+  "name": "acme/storefront",
+  "require": {
+    "php": "^8.4"
+  }
+}
