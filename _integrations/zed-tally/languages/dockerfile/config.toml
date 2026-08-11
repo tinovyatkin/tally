@@ -1,5 +1,5 @@
 name = "Dockerfile"
-grammar = "dockerfile"
+grammar = "containerfile"
 path_suffixes = ["Dockerfile", "Containerfile", "dockerfile"]
 line_comments = ["# "]
 brackets = [
