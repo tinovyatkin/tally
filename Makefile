@@ -75,11 +75,19 @@ lint-fix: check-shellcheck-wasm bin/golangci-lint-$(GOLANGCI_LINT_VERSION) bin/c
 # Filter out internal/lsp/protocol/ from deadcode: that package is generated
 # and only a subset of LSP methods are dispatched, so helpers backing unused
 # methods are expected to appear unreachable.
-deadcode: check-shellcheck-wasm bin/deadcode-$(DEADCODE_VERSION)
-	@tmp=$$(mktemp); \
-	bin/deadcode -test ./... 2>&1 | grep -v 'internal/lsp/protocol/' >"$$tmp" || true; \
-	if [ -s "$$tmp" ]; then cat "$$tmp"; rm "$$tmp"; exit 1; fi; \
-	rm "$$tmp"
+#
+# TEMPORARILY DISABLED: x/tools' RTA call-graph (which deadcode relies on)
+# panics on Go 1.27 generic methods — e.g. (*RulesConfig).DecodeRuleOptions[T]
+# in internal/config. Verified broken with x/tools v0.41.0, v0.48.0, v0.49.0,
+# and master (2026-08-20). Restore the recipe below (and DEADCODE_VERSION)
+# once an x/tools release supports generic methods.
+deadcode:
+	@echo "deadcode: SKIPPED — x/tools RTA does not yet support Go 1.27 generic methods"
+# deadcode: check-shellcheck-wasm bin/deadcode-$(DEADCODE_VERSION)
+# 	@tmp=$$(mktemp); \
+# 	bin/deadcode -test ./... 2>&1 | grep -v 'internal/lsp/protocol/' >"$$tmp" || true; \
+# 	if [ -s "$$tmp" ]; then cat "$$tmp"; rm "$$tmp"; exit 1; fi; \
+# 	rm "$$tmp"
 
 PMD_VERSION := 7.20.0
 
