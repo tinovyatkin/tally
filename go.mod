@@ -12,7 +12,7 @@ require (
 	github.com/cenkalti/backoff/v7 v7.0.0
 	github.com/coder/acp-go-sdk v0.13.5
 	github.com/compose-spec/compose-go/v2 v2.14.0
-	github.com/containerd/platforms v1.0.0-rc.4
+	github.com/containerd/platforms v1.0.0-rc.5
 	github.com/distribution/reference v0.6.0
 	github.com/docker/buildx v0.36.1
 	github.com/docker/cli v29.7.2+incompatible
