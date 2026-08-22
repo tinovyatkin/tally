@@ -82,7 +82,7 @@ Outcome: case files become data-only (or near data-only), runners stay consisten
 Suggested command:
 
 ```bash
-GOEXPERIMENT=jsonv2 go test ./internal/integration/...
+go test ./internal/integration/...
 ```
 
 ### Step 1: Extract Bootstrap
@@ -121,14 +121,14 @@ GOEXPERIMENT=jsonv2 go test ./internal/integration/...
 Run full checks:
 
 ```bash
-GOEXPERIMENT=jsonv2 go test ./internal/integration/... ./internal/...
-GOEXPERIMENT=jsonv2 make test
+go test ./internal/integration/... ./internal/...
+make test
 ```
 
 If output shape intentionally changes:
 
 ```bash
-UPDATE_SNAPS=true GOEXPERIMENT=jsonv2 go test ./internal/integration/...
+UPDATE_SNAPS=true go test ./internal/integration/...
 ```
 
 ## 7. Placement Policy for Future `tally/*` Rules

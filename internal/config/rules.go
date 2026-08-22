@@ -341,9 +341,10 @@ func isPowerShellAnalyzerRuleName(name string) bool {
 	return true
 }
 
-// GetOptionsTyped returns typed rule options merged over defaults.
+// DecodeRuleOptions returns typed rule options merged over defaults.
 // Returns defaults if the rule has no options or decoding fails.
-func DecodeRuleOptions[T any](rc *RulesConfig, ruleCode string, defaults T) T {
+// A nil receiver is valid and returns defaults.
+func (rc *RulesConfig) DecodeRuleOptions[T any](ruleCode string, defaults T) T {
 	if rc == nil {
 		return defaults
 	}

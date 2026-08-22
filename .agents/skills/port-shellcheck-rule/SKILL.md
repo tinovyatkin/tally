@@ -169,7 +169,7 @@ In `internal/rules/shellcheck/<rule-lower>_test.go`:
 
 Run:
 
-- `GOEXPERIMENT=jsonv2 go test ./internal/rules/shellcheck -count=1`
+- `go test ./internal/rules/shellcheck -count=1`
 
 ## Step 6: Integration Tests and Snapshots
 
@@ -188,7 +188,7 @@ Add lint and fix coverage:
 
 Update snapshots intentionally:
 
-- `UPDATE_SNAPS=true GOEXPERIMENT=jsonv2 go test ./internal/integration -run 'Test(Lint|Fix)Fixtures' -count=1`
+- `UPDATE_SNAPS=true go test ./internal/integration -run 'Test(Lint|Fix)Fixtures' -count=1`
 
 Then re-run without `UPDATE_SNAPS`.
 
@@ -220,8 +220,8 @@ Ensure emitted `DocURL` points to this page.
 
 Minimum checks:
 
-1. `GOEXPERIMENT=jsonv2 go test ./internal/rules/shellcheck -count=1`
-2. `GOEXPERIMENT=jsonv2 go test ./internal/integration -run '<new shellcheck cases>' -count=1`
+1. `go test ./internal/rules/shellcheck -count=1`
+2. `go test ./internal/integration -run '<new shellcheck cases>' -count=1`
 3. If wasm changed, rebuild done successfully:
    - `make update-shellcheck-wasm`
 4. Verify no unexpected drift:

@@ -334,11 +334,10 @@ func buildEOLRubyVersionFix(
 //	ruby:2.7.0p100-alpine -> ruby:3.4-alpine
 //	docker.io/library/ruby:3.0 -> docker.io/library/ruby:3.4
 func rewriteRubyTagToSupportedBranch(raw, targetBranch string) string {
-	colon := strings.LastIndex(raw, ":")
-	if colon < 0 || colon == len(raw)-1 {
+	before, tag, ok := strings.CutLast(raw, ":")
+	if !ok || tag == "" {
 		return ""
 	}
-	before, tag := raw[:colon], raw[colon+1:]
 	// Find the variant suffix (everything starting from the first `-`
 	// in the tag — `slim`, `alpine`, `bookworm`, etc. don't appear in
 	// the version itself).

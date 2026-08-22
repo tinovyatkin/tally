@@ -27765,7 +27765,7 @@ func (o *DocumentHighlightsOrNull) UnmarshalJSONFrom(dec *jsontext.Decoder) erro
 
 type SymbolInformationOrDocumentSymbolsOrNull struct {
 	SymbolInformation *[]*SymbolInformation
-	DocumentSymbols    *[]*DocumentSymbol
+	DocumentSymbols   *[]*DocumentSymbol
 }
 
 var _ json.MarshalerTo = (*SymbolInformationOrDocumentSymbolsOrNull)(nil)
@@ -27887,7 +27887,7 @@ func (o *CommandOrCodeActionArrayOrNull) UnmarshalJSONFrom(dec *jsontext.Decoder
 
 type SymbolInformationOrWorkspaceSymbolsOrNull struct {
 	SymbolInformation *[]*SymbolInformation
-	WorkspaceSymbols   *[]*WorkspaceSymbol
+	WorkspaceSymbols  *[]*WorkspaceSymbol
 }
 
 var _ json.MarshalerTo = (*SymbolInformationOrWorkspaceSymbolsOrNull)(nil)

@@ -28,14 +28,12 @@ func TestSecretsInCodeRule_Check_AWSKeyInHeredoc(t *testing.T) {
 			{
 				Commands: []instructions.Command{
 					&instructions.RunCommand{
-						ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-							Files: []instructions.ShellInlineFile{
-								{
-									// gitleaks:allow
-									// AWS access key: AKIA + 16 chars from [A-Z2-7]
-									Data: `AWS_ACCESS_KEY_ID=AKIAABCDEFGH23456723
+						Files: []instructions.ShellInlineFile{
+							{
+								// gitleaks:allow
+								// AWS access key: AKIA + 16 chars from [A-Z2-7]
+								Data: `AWS_ACCESS_KEY_ID=AKIAABCDEFGH23456723
 AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`,
-								},
 							},
 						},
 					},
@@ -72,15 +70,13 @@ func TestSecretsInCodeRule_Check_PrivateKeyInCopyHeredoc(t *testing.T) {
 			{
 				Commands: []instructions.Command{
 					&instructions.CopyCommand{
-						SourcesAndDest: instructions.SourcesAndDest{
-							SourceContents: []instructions.SourceContent{
-								{
-									// gitleaks:allow
-									Path: "/root/.ssh/id_rsa",
-									Data: `-----BEGIN RSA PRIVATE KEY-----
+						SourceContents: []instructions.SourceContent{
+							{
+								// gitleaks:allow
+								Path: "/root/.ssh/id_rsa",
+								Data: `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MaWdP0rPpJz5
 -----END RSA PRIVATE KEY-----`,
-								},
 							},
 						},
 					},
@@ -190,9 +186,7 @@ func TestSecretsInCodeRule_Check_NoSecrets(t *testing.T) {
 			{
 				Commands: []instructions.Command{
 					&instructions.RunCommand{
-						ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-							CmdLine: []string{"echo", "hello world"},
-						},
+						CmdLine: []string{"echo", "hello world"},
 					},
 					&instructions.EnvCommand{
 						Env: []instructions.KeyValuePair{
@@ -273,10 +267,8 @@ func TestSecretsInCodeRule_Check_SecretInRunCommand(t *testing.T) {
 			{
 				Commands: []instructions.Command{
 					&instructions.RunCommand{
-						ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-							CmdLine: []string{
-								"curl", "-H", "Authorization: Bearer " + token, "https://api.github.com",
-							},
+						CmdLine: []string{
+							"curl", "-H", "Authorization: Bearer " + token, "https://api.github.com",
 						},
 					},
 				},

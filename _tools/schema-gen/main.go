@@ -732,9 +732,9 @@ func rewriteRefValue(currentRel, ref string, defKeyByPath map[string]string) (st
 
 	refPath := ref
 	fragment := ""
-	if idx := strings.Index(ref, "#"); idx >= 0 {
-		refPath = ref[:idx]
-		fragment = ref[idx+1:]
+	if before, after, ok0 := strings.Cut(ref, "#"); ok0 {
+		refPath = before
+		fragment = after
 	}
 	if refPath == "" {
 		return "", false, nil

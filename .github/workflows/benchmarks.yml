@@ -10,8 +10,6 @@ on:
 permissions:
   contents: read
   id-token: write # Required for CodSpeed OIDC authentication
-env:
-  GOEXPERIMENT: jsonv2
 jobs:
   benchmarks:
     name: CodSpeed Benchmarks

@@ -1,8 +1,5 @@
 .PHONY: build check-shellcheck-wasm intellij-plugin intellij-plugin-verify intellij-plugin-smoke intellij-plugin-ktlint intellij-plugin-ktlint-fix test test-verbose lint lint-fix deadcode cpd clean release publish-prepare publish-gem publish jsonschema schema-gen schema-check lsp-protocol print-gotestsum-bin shellcheck-wasm update-shellcheck-wasm
 
-GOEXPERIMENT ?= jsonv2
-export GOEXPERIMENT
-
 # Pinned versions for the embedded ShellCheck wasm. Changing any value here
 # invalidates the local file-target, the CI cache, and the release workflow's
 # restored artifact. See _tools/shellcheck-wasm/versions.env.

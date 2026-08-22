@@ -449,19 +449,19 @@ func sortKey(pkg string) string {
 
 	// Handle npm scoped packages: @scope/name@version → @scope/name
 	if strings.HasPrefix(key, "@") {
-		lastAt := strings.LastIndex(key, "@")
-		if lastAt > 0 { // Must be > 0 to skip the leading @
-			key = key[:lastAt]
+		// An empty name means the last @ is the leading one (no version).
+		if name, _, ok := strings.CutLast(key, "@"); ok && name != "" {
+			key = name
 		}
 		return strings.ToLower(key)
 	}
 
 	// Handle unscoped npm packages: name@version → name
 	// Guard against URLs (git+ssh://git@host/repo) and path-like specs.
-	if at := strings.LastIndex(key, "@"); at > 0 &&
+	if name, _, ok := strings.CutLast(key, "@"); ok && name != "" &&
 		!strings.Contains(key, "://") &&
-		!strings.Contains(key[:at], "/") {
-		key = key[:at]
+		!strings.Contains(name, "/") {
+		key = name
 	}
 
 	// Strip version specifiers: first occurrence of =, >=, <=, ~=, !=, <, >

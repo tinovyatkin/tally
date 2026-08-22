@@ -78,7 +78,7 @@ func heredocMinCommands(cfg *config.Config) int {
 	if cfg == nil {
 		return 0
 	}
-	opts := config.DecodeRuleOptions(&cfg.Rules, rules.HeredocRuleCode, heredocRuleOptions{})
+	opts := cfg.Rules.DecodeRuleOptions(rules.HeredocRuleCode, heredocRuleOptions{})
 	if opts.MinCommands == nil {
 		return 0
 	}

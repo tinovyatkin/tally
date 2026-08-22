@@ -155,10 +155,8 @@ func (mr *MockRegistry) AddIndex(repo, tag string, manifests []ImageOpts) (strin
 			Variant:      m.Variant,
 		}
 		adds = append(adds, mutate.IndexAddendum{
-			Add: img,
-			Descriptor: v1.Descriptor{
-				Platform: platform,
-			},
+			Add:      img,
+			Platform: platform,
 		})
 	}
 

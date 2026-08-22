@@ -263,8 +263,7 @@ func isBundlerHostCredentialKey(key string) bool {
 	if bundlerNonHostConfigPrefixes[first] {
 		return false
 	}
-	idx := strings.LastIndex(rest, "__")
-	tld := rest[idx+2:]
+	_, tld, _ := strings.CutLast(rest, "__")
 	return looksLikeTLD(tld)
 }
 

@@ -601,10 +601,8 @@ func TestStageFacts_FileContent_DirectoryContextSourceAvailableButUnobservable(t
 	t.Parallel()
 
 	ctx := &pathAwareContextReader{
-		countingContextReader: countingContextReader{
-			files: map[string]string{
-				"srcdir/entrypoint.sh": "#!/bin/sh\nexec gosu app \"$@\"\n",
-			},
+		files: map[string]string{
+			"srcdir/entrypoint.sh": "#!/bin/sh\nexec gosu app \"$@\"\n",
 		},
 		paths:           map[string]bool{"srcdir": true},
 		pathExistsCalls: map[string]int{},

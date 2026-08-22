@@ -11,6 +11,10 @@ extend-ignore-re = [
     # hash (e.g. v0.0.0-20240121214520-5f936abd7ae8). Hex hashes occasionally spell
     # English-like fragments ("abd"), which typos flags as misspellings in go.mod.
     "[0-9]{14}-[0-9a-f]{12}",
+    # Fake GitHub personal access tokens in secret-detection test fixtures.
+    # Random token bodies occasionally spell English-like fragments ("Fo").
+    "ghp_[A-Za-z0-9]{36}",
+    "ghp_\\.\\.\\.[A-Za-z0-9]{4}",
 ]
 
 [default.extend-words]

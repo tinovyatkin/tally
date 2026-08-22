@@ -374,8 +374,8 @@ func basenameLower(p string) string {
 	if p == "" {
 		return ""
 	}
-	if idx := strings.LastIndex(p, "/"); idx >= 0 {
-		p = p[idx+1:]
+	if _, after, ok := strings.CutLast(p, "/"); ok {
+		p = after
 	}
 	return strings.ToLower(p)
 }

@@ -60,7 +60,6 @@ func TestMain(m *testing.M) {
 	buildArgs = append(buildArgs, "-o", binaryPath, "github.com/wharflab/tally")
 
 	cmd := exec.Command("go", buildArgs...)
-	cmd.Env = append(os.Environ(), "GOEXPERIMENT=jsonv2")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(tmpDir)
 		panic("failed to build binary: " + string(out))

@@ -61,8 +61,6 @@ type Runner struct {
 	rt       wazero.Runtime
 	compiled wazero.CompiledModule
 
-	cache wazero.CompilationCache
-
 	// Single long-lived reactor instance and cached exports.
 	mod     api.Module
 	mem     api.Memory
@@ -120,8 +118,10 @@ func (r *Runner) Version(ctx context.Context) (string, error) {
 	return string(verBytes), nil
 }
 
-// Close releases the WASM runtime and compilation cache resources.
-// Resources are closed in reverse init order: module → compiled → runtime → cache.
+// Close releases the WASM runtime resources.
+// Resources are closed in reverse init order: module → compiled → runtime.
+// The compilation cache is process-wide and shared across runners, so it is
+// intentionally left open (it lives for the life of the process).
 func (r *Runner) Close(ctx context.Context) error {
 	var errs []error
 	if r.mod != nil {
@@ -132,9 +132,6 @@ func (r *Runner) Close(ctx context.Context) error {
 	}
 	if r.rt != nil {
 		errs = append(errs, r.rt.Close(ctx))
-	}
-	if r.cache != nil {
-		errs = append(errs, r.cache.Close(ctx))
 	}
 	return errors.Join(errs...)
 }
@@ -164,7 +161,6 @@ func (r *Runner) init(ctx context.Context) error {
 		cache := newCompilationCache()
 		if cache != nil {
 			rtCfg = rtCfg.WithCompilationCache(cache)
-			r.cache = cache
 		}
 
 		rt := wazero.NewRuntimeWithConfig(initCtx, rtCfg)
@@ -416,7 +412,14 @@ func runtimeInitContext(ctx context.Context) context.Context {
 	return context.WithoutCancel(ctx)
 }
 
-func newCompilationCache() wazero.CompilationCache {
+// newCompilationCache returns the process-wide shared compilation cache.
+//
+// A single CompilationCache is shared across all Runners (wazero recommends
+// sharing one cache between runtimes). This also serializes the first call
+// into wazero, which lazily caches its module version in an unsynchronized
+// package global — creating caches concurrently from multiple runners races
+// on that global.
+var newCompilationCache = sync.OnceValue(func() wazero.CompilationCache {
 	cacheDir := os.Getenv("TALLY_SHELLCHECK_WAZERO_CACHE_DIR")
 	if cacheDir == "" {
 		baseDir, err := os.UserCacheDir()
@@ -426,7 +429,7 @@ func newCompilationCache() wazero.CompilationCache {
 		cacheDir = filepath.Join(baseDir, "tally", "shellcheck-wazero-cache")
 	}
 
-	if err := os.MkdirAll(cacheDir, 0o750); err != nil { //nolint:gosec // G703: cacheDir from os.UserCacheDir + constant subpath
+	if err := os.MkdirAll(cacheDir, 0o750); err != nil {
 		return nil
 	}
 
@@ -435,4 +438,4 @@ func newCompilationCache() wazero.CompilationCache {
 		return nil
 	}
 	return cache
-}
+})

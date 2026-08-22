@@ -1,5 +1,10 @@
 # JSON v2 Migration Plan (`encoding/json/v2`)
 
+> **Status update (Go 1.27):** `encoding/json/v2` and `encoding/json/jsontext` are now
+> stable standard-library packages. The `GOEXPERIMENT=jsonv2` environment contract
+> described in §2 is obsolete and has been removed from the repo's build/CI/tooling
+> configuration. The rest of this document is kept as a historical record of the migration.
+
 ## 1. Decision
 
 Migrate tally from legacy `encoding/json` to Go stdlib JSON v2:

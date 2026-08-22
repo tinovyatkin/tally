@@ -7,8 +7,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-env:
-  GOEXPERIMENT: jsonv2
 jobs:
   sync:
     runs-on: ubuntu-latest

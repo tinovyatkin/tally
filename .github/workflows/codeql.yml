@@ -9,8 +9,6 @@ on:
     - cron: '30 1 * * 0' # Weekly Sunday 1:30 UTC
 permissions:
   contents: read
-env:
-  GOEXPERIMENT: jsonv2
 defaults:
   run:
     shell: bash
