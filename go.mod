@@ -49,7 +49,7 @@ require (
 	github.com/zricethezav/gitleaks/v8 v8.30.1
 	go.bug.st/lsp v0.1.3
 	go.opentelemetry.io/otel v1.45.0
-	go.podman.io/image/v5 v5.41.0
+	go.podman.io/image/v5 v5.41.1
 	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	golang.org/x/exp/jsonrpc2 v0.0.0-20250718183923-645b1fa84792
 	golang.org/x/sys v0.47.0
