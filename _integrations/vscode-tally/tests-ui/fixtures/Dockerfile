@@ -2,7 +2,7 @@
 # Most instructions are uppercase so the lone lowercase `copy`/`workdir` are the
 # minority case: tally's ConsistentInstructionCasing rule flags them and offers a
 # FixSafe quick-fix that uppercases them (copy -> COPY, workdir -> WORKDIR).
-FROM ubuntu:latest@sha256:b7f48194d4d8b763a478a621cdc81c27be222ba2206ca3ca6bc42b49685f3d9e
+FROM ubuntu:latest@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b
 RUN apt-get update && apt-get install -y curl
 copy . /app
 workdir /app
