@@ -781,9 +781,7 @@ CMD ["python"]
 	// Facts assembled through the parser always carry location ranges, so
 	// the only way to model a file-level-only RUN is to splice one in.
 	fileLevelRun := &instructions.RunCommand{
-		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			CmdLine: []string{"conda install -y torch"},
-		},
+		CmdLine: []string{"conda install -y torch"},
 	}
 	if loc := fileLevelRun.Location(); len(loc) != 0 {
 		t.Fatalf("expected synthetic RUN to have empty Location, got %v", loc)
@@ -861,10 +859,8 @@ func TestRunScriptText_Heredoc(t *testing.T) {
 	t.Parallel()
 
 	heredocRun := &instructions.RunCommand{
-		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			Files: []instructions.ShellInlineFile{
-				{Data: "conda install -y torch\n"},
-			},
+		Files: []instructions.ShellInlineFile{
+			{Data: "conda install -y torch\n"},
 		},
 	}
 	got := runScriptText(heredocRun)
@@ -914,9 +910,7 @@ func TestRunScriptText(t *testing.T) {
 	}
 
 	shellRun := &instructions.RunCommand{
-		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			CmdLine: []string{"conda install -y torch"},
-		},
+		CmdLine: []string{"conda install -y torch"},
 	}
 	if !strings.Contains(runScriptText(shellRun), "conda install") {
 		t.Errorf("runScriptText(shell) did not include script, got %q", runScriptText(shellRun))

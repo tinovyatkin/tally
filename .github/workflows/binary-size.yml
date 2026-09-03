@@ -9,7 +9,6 @@ permissions:
   contents: write
   pull-requests: write
 env:
-  GOEXPERIMENT: jsonv2
   # Keep build flags in sync with the shipped full-featured build shape.
   BUILD_TAGS: containers_image_openpgp,containers_image_storage_stub,containers_image_docker_daemon_stub
   NOTES_REF: refs/notes/binary-size

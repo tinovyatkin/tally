@@ -406,8 +406,8 @@ func copiesIdentityDB(destPath string, sources []string, targetPath string) bool
 // pathBase returns the last path segment, handling trailing slashes.
 func pathBase(p string) string {
 	p = strings.TrimRight(p, "/")
-	if i := strings.LastIndex(p, "/"); i >= 0 {
-		return p[i+1:]
+	if _, base, ok := strings.CutLast(p, "/"); ok {
+		return base
 	}
 	return p
 }

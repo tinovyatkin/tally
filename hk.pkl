@@ -1,4 +1,5 @@
 amends "package://github.com/jdx/hk/releases/download/v1.44.2/hk@1.44.2#/Config.pkl"
+
 import "package://github.com/jdx/hk/releases/download/v1.44.2/hk@1.44.2#/Builtins.pkl"
 
 // Git hook manager: https://hk.jdx.dev
@@ -6,7 +7,6 @@ import "package://github.com/jdx/hk/releases/download/v1.44.2/hk@1.44.2#/Builtin
 // Preferred: `hk install --global` (requires Git 2.54+; uses config-based hooks).
 
 env {
-  ["GOEXPERIMENT"] = "jsonv2"
   ["KOTLIN_CLI_NO_WELCOME_BANNER"] = "1"
 }
 

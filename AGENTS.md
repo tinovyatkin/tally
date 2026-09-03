@@ -50,7 +50,7 @@ common mistakes.
 
 ## JSON v2 Notice
 
-- This repo uses Go JSON v2 experiment: `GOEXPERIMENT=jsonv2` must be set for Go commands.
+- `encoding/json/v2` is a stable standard-library package as of Go 1.27; no `GOEXPERIMENT` setting is needed.
 - Prefer `encoding/json/v2` (and `encoding/json/jsontext`) for all JSON code.
 - Avoid `encoding/json` except explicit compatibility boundaries (for example APIs that require v1 types).
 

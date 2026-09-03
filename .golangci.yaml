@@ -3,7 +3,7 @@
 version: '2'
 run:
   concurrency: 4
-  go: "1.26.0"
+  go: "1.27.0"
   modules-download-mode: readonly
   timeout: 5m
   build-tags:
@@ -18,10 +18,12 @@ linters:
     - dupword # duplicate words - too noisy
     - err113 # dynamic errors - too strict for CLI tool
     - exhaustruct # requires all struct fields - too strict
+    - exhaustruct_v5 # requires all struct fields (v5) - too strict
     - gochecknoglobals # global vars - CLI requires them
     - gochecknoinits # init functions - CLI requires them
     - godoclint # doc lint - too strict
     - godot # dots at end of comments - too strict
+    - gomodguard # deprecated since v2.12; replaced by gomodguard_v2 (auto-enabled)
     - ireturn # return interfaces - too strict for this codebase
     - mnd # magic numbers - too noisy
     - nlreturn # newlines before returns - too opinionated
@@ -77,12 +79,23 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: true
+      exclude-functions:
+        # errors.AsType[E](err) returns (E, bool); discarding the typed match
+        # with _ is intentional (existence check only).
+        - errors.AsType
     funlen:
       lines: 500
       statements: 50
     goconst:
       min-len: 3
       min-occurrences: 3
+      # goconst ≥ v2.12 also scans composite literal fields, map keys, and
+      # call arguments; keep the previous detection scope (rule metadata and
+      # matcher literals would flood).
+      ignore-map-keys: true
+      exclude-types:
+        - CompositeLit
+        - Call
     gocritic:
       disabled-checks:
         - whyNoLint
@@ -101,7 +114,6 @@ linters:
       disable:
         - fieldalignment
         - shadow # too strict for idiomatic Go err handling patterns
-        - stdversion # GOEXPERIMENT=jsonv2 intentionally uses experimental stdlib APIs.
       enable-all: true
     lll:
       line-length: 140
@@ -202,14 +214,6 @@ linters:
           - errcheck
         text: "Error return value is not checked"
         source: "defer func\\(\\) \\{ _ ="
-      # errcheck: errors.AsType[E](err) returns (E, bool); discarding the typed
-      # match with _ is intentional (existence check only).
-      # exclude-functions does not reach generic calls — call.Fun is *ast.IndexExpr,
-      # which errcheck.selectorAndFunc rejects (kisielk/errcheck#v1.10.0).
-      - linters:
-          - errcheck
-        text: "Error return value is not checked"
-        source: "errors\\.AsType\\["
       # depguard: keep stdlib encoding/json only at the jsonrpc2 interop boundary.
       - linters:
           - depguard

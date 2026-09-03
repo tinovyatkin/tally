@@ -8,8 +8,6 @@ import (
 )
 
 // Severity represents the severity level of a rule violation.
-//
-//nolint:recvcheck // UnmarshalJSON requires pointer receiver per json.Unmarshaler interface
 type Severity int
 
 const (

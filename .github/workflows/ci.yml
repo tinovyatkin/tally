@@ -9,8 +9,6 @@ permissions:
   contents: read
   pull-requests: read
   id-token: write
-env:
-  GOEXPERIMENT: jsonv2
 jobs:
   metrics:
     name: Mehen Metrics

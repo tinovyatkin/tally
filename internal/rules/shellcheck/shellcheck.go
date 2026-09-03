@@ -536,7 +536,7 @@ func (r *Rule) checkShellMapping(
 }
 
 func shellcheckRunContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), shellcheckRunTimeout) //nolint:gosec // G118: cancel returned to caller
+	ctx, cancel := context.WithTimeout(context.Background(), shellcheckRunTimeout)
 	return ctx, cancel
 }
 

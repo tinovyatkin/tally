@@ -10,7 +10,6 @@
   "go.formatFlags": ["fmt", "--stdin"],
   "go.testTags": "testing",
   "go.testEnvVars": {
-    "GOEXPERIMENT": "jsonv2",
     "GOSUMDB": "sum.golang.org",
     "CGO_ENABLED": 1
   },
@@ -61,7 +60,6 @@
     }
   },
   "go.toolsEnvVars": {
-    "GOEXPERIMENT": "jsonv2",
     "GOSUMDB": "sum.golang.org",
     "CGO_ENABLED": 1
   },

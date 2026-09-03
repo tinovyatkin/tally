@@ -28,8 +28,8 @@ func RuleNamespaces() []string {
 		if !ok {
 			continue
 		}
-		if idx := strings.LastIndex(before, "/"); idx >= 0 {
-			namespaces = append(namespaces, before[idx+1:])
+		if _, ns, ok := strings.CutLast(before, "/"); ok {
+			namespaces = append(namespaces, ns)
 		}
 	}
 	slices.Sort(namespaces)

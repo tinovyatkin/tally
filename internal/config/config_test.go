@@ -797,7 +797,7 @@ func TestRulesConfigGetOptionsTyped(t *testing.T) {
 		},
 	}
 
-	decoded := DecodeRuleOptions(rc, "tally/prefer-run-heredoc", opts{})
+	decoded := rc.DecodeRuleOptions("tally/prefer-run-heredoc", opts{})
 	if decoded.MinCommands == nil || *decoded.MinCommands != 5 {
 		t.Fatalf("MinCommands = %v, want 5", decoded.MinCommands)
 	}
@@ -805,7 +805,7 @@ func TestRulesConfigGetOptionsTyped(t *testing.T) {
 	// Missing options should return defaults.
 	defEnabled := true
 	defaults := opts{Enabled: &defEnabled}
-	decoded = DecodeRuleOptions(rc, "tally/missing", defaults)
+	decoded = rc.DecodeRuleOptions("tally/missing", defaults)
 	if decoded.Enabled == nil || *decoded.Enabled != true {
 		t.Fatalf("Enabled = %v, want true", decoded.Enabled)
 	}

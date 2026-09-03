@@ -23,7 +23,6 @@ permissions:
   id-token: write
   packages: write
 env:
-  GOEXPERIMENT: jsonv2
   GOTOOLCHAIN: auto
   DRY_RUN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
   RELEASE_VERSION: ${{ github.event_name == 'pull_request' && format('0.0.0-pr.{0}.{1}', github.event.pull_request.number, github.run_number) || inputs.version || github.ref_name }}
@@ -174,7 +173,6 @@ jobs:
           echo "Using Go toolchain archive: ${GO_ARCHIVE_URL}"
           docker run --rm \
             --platform "linux/${{ matrix.goarch }}" \
-            -e GOEXPERIMENT="${GOEXPERIMENT}" \
             -e GOTOOLCHAIN="${GOTOOLCHAIN}" \
             -e GOSUMDB="sum.golang.org" \
             -e GO_ARCHIVE_URL="${GO_ARCHIVE_URL}" \

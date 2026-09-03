@@ -24,9 +24,8 @@ and a WASM-compiled shellcheck (`internal/shellcheck/`).
 
 ## Non-Negotiables
 
-- ALWAYS run Go with JSON v2 enabled (`GOEXPERIMENT=jsonv2` is already set in your environment).
-  - `make` exports this automatically; set it manually when running `go` directly.
 - ALWAYS use `encoding/json/v2` (and `encoding/json/jsontext`) for JSON work.
+  - Stable stdlib packages since Go 1.27; no `GOEXPERIMENT` needed.
   - Do not introduce new `encoding/json` usage unless you are crossing an external API boundary.
 - DO NOT write a custom Dockerfile parser.
   - Use BuildKit as the source of truth: `github.com/moby/buildkit/frontend/dockerfile/parser` and `.../instructions`.

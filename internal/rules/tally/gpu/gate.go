@@ -77,8 +77,10 @@ func parseCUDAImageInfo(info *semantic.StageInfo) cudaImageInfo {
 		tag = strings.ToLower(tagged.Tag())
 	}
 
-	result := cudaImageInfo{IsCUDAImage: true}
-	result.HasCuDNN = strings.Contains(tag, "cudnn")
+	result := cudaImageInfo{
+		IsCUDAImage: true,
+		HasCuDNN:    strings.Contains(tag, "cudnn"),
+	}
 
 	// NVIDIA CUDA tags follow the pattern: <version>-<flavor>-<os>
 	// e.g. 12.2.0-devel-ubuntu22.04, 12.2.0-cudnn-runtime-ubuntu22.04

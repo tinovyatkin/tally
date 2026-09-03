@@ -185,8 +185,8 @@ func composeInvocation(
 		RuntimeUser:        service.User,
 		RuntimeWorkingDir:  service.WorkingDir,
 		StopSignal:         service.StopSignal,
+		Key:                InvocationKey(source, dockerfilePath),
 	}
-	inv.Key = InvocationKey(source, dockerfilePath)
 	return inv, nil
 }
 

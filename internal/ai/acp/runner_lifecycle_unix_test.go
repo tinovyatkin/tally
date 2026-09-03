@@ -70,11 +70,10 @@ func TestRunner_TerminatesOnMalformedOutputAndCleansProcessGroup(t *testing.T) {
 func mustParseChildPID(t *testing.T, msg string) int {
 	t.Helper()
 	const key = "TEST_CHILD_PID="
-	i := strings.LastIndex(msg, key)
-	if i < 0 {
+	_, s, ok := strings.CutLast(msg, key)
+	if !ok {
 		t.Fatalf("missing %q in error: %q", key, msg)
 	}
-	s := msg[i+len(key):]
 	s = strings.TrimSpace(s)
 	// PID is at the beginning of the line.
 	end := strings.IndexByte(s, '\n')

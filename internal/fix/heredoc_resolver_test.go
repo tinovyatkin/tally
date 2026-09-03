@@ -751,11 +751,9 @@ func TestHeredocResolver_ExtractCommands_EmptyHeredoc(t *testing.T) {
 
 	// Test with empty heredoc - manually construct a RunCommand with empty Files
 	run := &instructions.RunCommand{
-		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			PrependShell: true,
-			Files: []instructions.ShellInlineFile{
-				{Name: "heredoc", Data: ""},
-			},
+		PrependShell: true,
+		Files: []instructions.ShellInlineFile{
+			{Name: "heredoc", Data: ""},
 		},
 	}
 
@@ -819,10 +817,8 @@ func TestHeredocResolver_GetRunScript_EmptyRun(t *testing.T) {
 
 	// Empty RUN command
 	run := &instructions.RunCommand{
-		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			PrependShell: true,
-			CmdLine:      []string{},
-		},
+		PrependShell: true,
+		CmdLine:      []string{},
 	}
 
 	script := r.getRunScript(run)

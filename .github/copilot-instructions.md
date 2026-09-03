@@ -21,13 +21,11 @@ go run . lint --fix --config .tally.toml Dockerfile
 
 ## Critical: JSON v2 Requirement
 
-**This project uses Go's JSON v2 experiment.** `GOEXPERIMENT=jsonv2` is already set in the Makefile.
+**This project uses Go's JSON v2 packages** (stable in the standard library since Go 1.27).
 
 - **Always use** `encoding/json/v2` and `encoding/json/jsontext`
 - **Never use** `encoding/json` (v1) except at external API boundaries
 - The `depguard` linter enforces this rule
-
-When running `go` commands directly (outside `make`), ensure `GOEXPERIMENT=jsonv2` is set.
 
 ## Architecture
 
